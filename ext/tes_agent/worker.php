@@ -43,6 +43,8 @@ if (!class_exists('RelationshipManager') && is_readable($enginePath . 'lib/relat
 $db = $GLOBALS['db'];
 $args = getopt('', ['task:', 'goal:', 'dry', 'readonly', 'quick', 'local']);
 $tesLocalFirst = $db->fetchOne("SELECT value FROM conf_opts WHERE id = 'TES_AGENT_LOCAL_FIRST'");
+$tesLocalOnly = $db->fetchOne("SELECT value FROM conf_opts WHERE id = 'TES_AGENT_LOCAL_ONLY'");
+$GLOBALS['TES_AGENT_LOCAL_ONLY'] = trim(strval($tesLocalOnly['value'] ?? ''), '"') === '1';
 $GLOBALS['TES_AGENT_LOCAL_FIRST'] = isset($args['local']) || trim(strval($tesLocalFirst['value'] ?? ''), '"') === '1';
 // --quick: an order passed on by an NPC. Live 2026-10-04 02:49-03:00: such tasks ran 20-45 steps
 // each (one spent 45 steps on an unkillable man) while five plain orders waited behind them.
@@ -110,6 +112,9 @@ function tesAgentLlm(array $messages, array $tools, float &$cost): ?array
     // reasoning_effort none: left to think, Qwen3.5 spends the whole answer budget on it (measured)
     $local = ['model' => 'qwen/qwen3.5-4b', 'local' => true, 'extra' => ['reasoning_effort' => 'none']];
     $models = !empty($GLOBALS['TES_AGENT_LOCAL_FIRST']) ? array_merge([$local], TES_AGENT_MODELS) : array_merge(TES_AGENT_MODELS, [$local]);
+    if (!empty($GLOBALS['TES_AGENT_LOCAL_ONLY'])) {
+        $models = [$local];  // owner 2026-10-04: no cloud anywhere
+    }
     foreach ($models as $cfg) {
         $isLocal = !empty($cfg['local']);
         $key = $isLocal ? 'local' : tesAgentApiKey($cfg['connector']);
