@@ -41,6 +41,19 @@ try {
                 . "\nВ списке вещей (инвентаре) эти бумаги называются «Generic Note» / «общая записка» — это ОНИ и есть, листы НЕ пустые. "
                 . "Если раньше ты говорил, что бумаг нет, что это просто записки или пустые листы, — ты не разглядел; теперь ты их прочёл. "
                 . "Не проси передать их снова и не отрицай, что они у тебя: отвечай по содержанию этих бумаг.", 98);
+            // The system-block line alone lost to the NPC's own earlier denials (live 01:08, Gemini
+            // 2.5 Flash, 100k-char prompt: the contract text "заплатившему 500 000 септимов" was in
+            // the prompt and the answer was still "нет никаких купчих на полмиллиона"). When the
+            // player is talking about the papers, repeat them in the LAST message, right before
+            // the answer.
+            $tesPapersSaid = mb_strtolower(strval($GLOBALS['gameRequest'][3] ?? ''));
+            if (isset($GLOBALS['request']) && is_string($GLOBALS['request'])
+                && preg_match('/бумаг|документ|договор|купч|заявлен|записк|прочит|прочт|читай|почита|распис|500|полмиллион|пятьсот/u', $tesPapersSaid)) {
+                $GLOBALS['request'] = "(Перед ответом перечитай бумаги, которые {$tesPapersPlayer} тебе передал — они у тебя в руках, это и есть «Generic Note» из твоих вещей:\n- "
+                    . implode("\n- ", $lines)
+                    . "\nОтвечай строго по их тексту: что в них написано, то и правда. Свои прежние слова «бумаг нет / там пусто» забудь — ты тогда не прочёл.) "
+                    . $GLOBALS['request'];
+            }
         }
     }
 } catch (Throwable $e) {
