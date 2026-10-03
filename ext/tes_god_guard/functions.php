@@ -1687,6 +1687,12 @@ if (!function_exists('tesGodGuardValidate')) {
                     continue;
                 }
             }
+            // teskill (bridge, 2026-10-04): takes "essential"/"protected" off first. Live 02:51-02:54:
+            // 45 steps of kill / setessential / player.kill on Хеймскр, who only fell to his knees.
+            // A bridge without the command prints "not found" and the plain kill below still runs.
+            if ($verb === 'kill' && $target !== '' && strtolower($target) !== 'player') {
+                $kept[] = $target . '.teskill';
+            }
             $kept[] = $command;
             if (count($kept) >= 8) {
                 break;

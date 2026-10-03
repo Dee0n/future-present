@@ -143,6 +143,23 @@ bool Function TESRunAndReport(String command) Global
         TESRoutine(StringUtil.Substring(command, 11))
         return true
     endif
+    if command == "teskill"
+        ; "kill" on an essential NPC only drops him to his knees. Essential/protected are flags
+        ; of the actor BASE; clear them, then kill (no killer: nobody gets a bounty for it).
+        Actor victim = ConsoleUtil.GetSelectedReference() as Actor
+        if !victim || victim == Game.GetPlayer()
+            AIAgentFunctions.logMessage("teskill@@error: no actor selected", "tes_god_console")
+            return true
+        endif
+        ActorBase victimBase = victim.GetActorBase()
+        if victimBase
+            victimBase.SetEssential(false)
+            victimBase.SetProtected(false)
+        endif
+        victim.Kill()
+        AIAgentFunctions.logMessage("teskill@@" + victim.GetDisplayName() + " is dead: " + victim.IsDead(), "tes_god_console")
+        return true
+    endif
     if StringUtil.Find(command, "teshold ") == 0
         TESHold(StringUtil.Substring(command, 8))
         return true

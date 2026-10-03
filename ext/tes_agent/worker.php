@@ -41,7 +41,11 @@ if (!class_exists('RelationshipManager') && is_readable($enginePath . 'lib/relat
 }
 
 $db = $GLOBALS['db'];
-$args = getopt('', ['task:', 'goal:', 'dry', 'readonly']);
+$args = getopt('', ['task:', 'goal:', 'dry', 'readonly', 'quick']);
+// --quick: an order passed on by an NPC. Live 2026-10-04 02:49-03:00: such tasks ran 20-45 steps
+// each (one spent 45 steps on an unkillable man) while five plain orders waited behind them.
+$maxSteps = isset($args['quick']) ? 18 : TES_AGENT_MAX_STEPS;
+$maxSeconds = isset($args['quick']) ? 120 : TES_AGENT_MAX_SECONDS;
 $dry = isset($args['dry']);
 // --readonly: a QUESTION, not a deed ("ask: ..." from the Narrator). Dry run 2026-10-03: asked
 // "what is on my quest list", the agent teleported the player and tried to move a quest
@@ -639,7 +643,7 @@ $system = "Ты — исполнитель воли бога-Нарратора 
     . "Ответ на вопрос отдай в finish.summary (expect пустой). Задания игрока за него не проходи, если он прямо не попросил. "
     . "Изменения отношений, характера, памяти, брака сервер подтверждает сам («было → стало» в ответе инструмента) — их в expect не включай. "
     . "Закончи finish с проверяемыми ожиданиями (предметы, перки, навыки, стадии) — сервер их сверит в игре. Если невозможно — give_up с причиной. "
-    . "Лимит: " . TES_AGENT_MAX_STEPS . " вызовов инструментов.";
+    . "Лимит: " . $maxSteps . " вызовов инструментов.";
 $messages = [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => 'Цель: ' . $task['goal']]];
 $tools = tesAgentTools();
 if ($readonly) {
@@ -660,7 +664,7 @@ if (!$dry) {
     tesAgentNotify('Нарратор: ' . mb_substr($task['goal'], 0, 120));
 }
 
-while (!$finish['done'] && $steps < TES_AGENT_MAX_STEPS && time() - $started < TES_AGENT_MAX_SECONDS) {
+while (!$finish['done'] && $steps < $maxSteps && time() - $started < $maxSeconds) {
     $msg = tesAgentLlm($messages, $tools, $cost);
     if ($msg === null) {
         $finish['summary'] = 'модель не ответила';

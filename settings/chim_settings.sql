@@ -241,3 +241,7 @@ UPDATE public.core_action SET is_activated = true, available_to_npc = true, avai
     description = 'When #PLAYER_NAME#, your ruler, orders something you cannot do with your other actions - do something to another person or to yourself (undress or dress, take or give things, bring someone, heal, punish), appoint or dismiss, give or take a post, property or money, free a prisoner - use this instead of promising: target = the order in plain words with names. It WILL really be done. For arrests and fines use Arrest_Person / Fine_Person.',
     updated_at = now()
 WHERE code_name = 'CarryOutOrder';
+-- TES (2026-10-04): NPCs talk less among themselves after the player's line. Live 02:55-02:57: a
+-- guard given an order spent the next minute agreeing with another guard ("Да, Браксек, я знаю…")
+-- while the player waited. Was 50. Rollback: UPDATE conf_opts SET value = '50' WHERE id = 'RECHAT_P';
+UPDATE public.conf_opts SET value = '25' WHERE id = 'RECHAT_P';
