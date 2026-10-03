@@ -394,6 +394,11 @@ function tesAgentTools(): array
         $t('rumor', 'Пустить слух по холду (его будут знать жители).', ['text' => ['type' => 'string']], ['text']),
         $t('write_document', 'Настоящая бумага в инвентарь игрока или NPC: купчая, пропуск, письмо.', ['to' => $who, 'title' => ['type' => 'string'], 'text' => ['type' => 'string']], ['title', 'text']),
         $t('give_house', 'Отдать игроку дом по названию (как в игре): права на дом и ключ.', ['house' => ['type' => 'string']], ['house']),
+        $t('furnish_house', 'Купить игроку все улучшения городского дома разом, бесплатно (Дом теплых ветров, Высокий шпиль, Медовик, Влиндрел-холл, Хьерим).', ['house' => ['type' => 'string']], ['house']),
+        $t('order_npc', 'Заставить персонажа что-то сделать или сказать вслух (судит, отчитывает, извиняется, уходит): он исполнит сам.', ['npc' => ['type' => 'string'], 'what' => ['type' => 'string', 'description' => 'что он делает и говорит, одной фразой']], ['npc', 'what']),
+        $t('jail', 'Посадить персонажа в темницу текущего владения (release=true — выпустить и вернуть к игроку).', ['npc' => ['type' => 'string'], 'release' => ['type' => 'boolean']], ['npc']),
+        $t('pardon', 'Снять с игрока штраф в текущем владении, сбросить тревогу и остановить всех, кто с ним дерётся.', []),
+        $t('unfollow', 'Персонаж перестаёт ходить за игроком.', ['npc' => ['type' => 'string']], ['npc']),
         $t('set_world', 'Время суток и/или погода. weather: clear, cloudy, fog, rain, storm, snow, blizzard.', ['hour' => ['type' => 'number'], 'weather' => ['type' => 'string']]),
         $t('teleport_player', 'Перенести игрока: place — в место (название как в игре) ИЛИ to_npc — к персонажу.', ['place' => ['type' => 'string'], 'to_npc' => ['type' => 'string']]),
         $t('move_npc', 'Перенести NPC к игроку или к другому персонажу (to_npc).', ['npc' => ['type' => 'string'], 'to_npc' => ['type' => 'string']], ['npc']),
@@ -531,6 +536,16 @@ function tesAgentRun(string $name, array $a, bool $dry, array &$finishState)
             return tesAgentWrite($who . '.document ' . str_replace(':', ' -', $clean(strval($a['title'] ?? 'Документ'))) . ': ' . $clean(strval($a['text'] ?? '')), $dry);
         case 'give_house':
             return tesAgentWrite('player.house ' . $clean(strval($a['house'] ?? '')), $dry);
+        case 'furnish_house':
+            return tesAgentWrite('player.furnish ' . $clean(strval($a['house'] ?? '')), $dry);
+        case 'order_npc':
+            return tesAgentWrite($npc(strval($a['npc'] ?? '')) . '.order ' . $clean(strval($a['what'] ?? '')), $dry);
+        case 'jail':
+            return tesAgentWrite($npc(strval($a['npc'] ?? '')) . (!empty($a['release']) ? '.unjail' : '.jail'), $dry);
+        case 'pardon':
+            return tesAgentWrite('player.pardon', $dry);
+        case 'unfollow':
+            return tesAgentWrite($npc(strval($a['npc'] ?? '')) . '.unfollow', $dry);
         case 'set_world':
             $cmds = [];
             if (isset($a['hour'])) {

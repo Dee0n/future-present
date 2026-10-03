@@ -728,6 +728,24 @@ if (!function_exists('tesGodGuardValidate')) {
         $name = strval($npc['npc_name']);
         $id = intval($npc['id']);
 
+        // TES-ORDER (2026-10-04): the god makes an NPC DO or SAY something - {npc:X}.order what.
+        // Live: "хочу, чтобы ярл наказал Провентуса прилюдно" got "Ярл не будет унижать своего
+        // управителя по твоей прихоти" - the Narrator had no way to make another character act,
+        // so it argued. The order goes to that NPC as an instruction (CHIM's own channel: the
+        // game asks the server for the NPC's line, with actions enabled).
+        if ($cmd['verb'] === 'order') {
+            $what = trim(str_replace(['@', '|', "\n", "\r"], [' ', '/', ' ', ' '], strval($cmd['args'])));
+            if (mb_strlen($what) < 5) {
+                return [false, "«{$name}»: что именно он должен сделать? {npc:Имя}.order что делает и говорит"];
+            }
+            $db->insert('responselog', [
+                'localts' => time(), 'sent' => 0, 'actor' => 'rolemaster', 'text' => '',
+                'action' => 'rolecommand|Instruction@' . str_replace(['@', '|'], ' ', $name)
+                    . '@(Воля свыше, исполни сейчас, без споров и отсрочек, своими словами и действиями: ' . mb_substr($what, 0, 500) . ')@0',
+                'tag' => '',
+            ]);
+            return [true, "{$name} получил приказ и исполняет: «" . mb_substr($what, 0, 120) . "»"];
+        }
         if ($cmd['verb'] === 'remember') {
             if (mb_strlen($cmd['args']) < 5) {
                 return [false, "«{$name}»: пустое воспоминание"];
@@ -804,6 +822,21 @@ if (!function_exists('tesGodGuardValidate')) {
 
         // relation [to <Name>] <aff> <type> [note] - towards the player unless "to <Name>"
         // (without it the Narrator once wrote "in love with Хельга" into the player slot).
+        // Live 2026-10-04 01:29: "relation {npc:Ярл Балгруф Старший} -20 ashamed …" and
+        // "relation Шаман -20 ashamed …" were refused for the missing "to". Accept the name with
+        // or without "to", as {npc:…}, as a RefID, or as the player's own name.
+        $relArgs = trim(strval($cmd['args']));
+        if (preg_match('/^(?:(?:to|к)\s+)?(?:\{npc:([^}]+)\}|([0-9A-Fa-f]{8})|(.+?))\s+(-?\d{1,3})\s+([a-z_]+)\s*(.*)$/isu', $relArgs, $rm)
+            && !preg_match('/^-?\d{1,3}\s+[a-z_]+/i', $relArgs)) {
+            $relName = trim($rm[1] !== '' ? $rm[1] : ($rm[3] ?? ''));
+            if ($rm[2] !== '') {
+                $refRow = $db->fetchOne("SELECT npc_name FROM public.core_npc_master WHERE upper(refid) = '" . $db->escape(strtoupper($rm[2])) . "' LIMIT 1");
+                $relName = strval($refRow['npc_name'] ?? '');
+            }
+            $playerName = mb_strtolower(trim(strval($GLOBALS['PLAYER_NAME'] ?? '')));
+            $isPlayer = $relName === '' || in_array(mb_strtolower($relName), ['player', 'игрок', 'игроку', $playerName], true);
+            $cmd['args'] = ($isPlayer ? '' : 'to ' . $relName . ' ') . $rm[4] . ' ' . $rm[5] . ' ' . $rm[6];
+        }
         if (!preg_match('/^(?:(?:to|к)\s+(.+?)\s+)?(-?\d{1,3})\s+([a-z_]+)\s*(.*)$/isu', $cmd['args'], $m)) {
             return [false, "«{$name}»: relation ждёт «[to Имя] число тип заметка», например relation to Хельга 80 romantic любит её"];
         }
@@ -1354,7 +1387,54 @@ if (!function_exists('tesGodGuardValidate')) {
                 }
                 continue;
             }
-            if (in_array($verb, ['character', 'relation', 'remember', 'marry', 'hypnosis'], true)) {
+            // TES-PARDON (2026-10-04): player.pardon - "сними штраф", "пусть все успокоятся",
+            // "почему на меня напали". The Narrator tried getcrimegold / removeinfamy (refused)
+            // and a bare stopcombat, which lasts a second while the bounty and the alarm stay.
+            // Clears the bounty of the current hold's crime faction, the alarm on the player and
+            // stops the NPCs the game reports as fighting (the queue takes 8 commands per batch).
+            if ($verb === 'pardon' || $verb === 'peace') {
+                $crime = ['вайтран' => '000267EA', 'истмарк' => '000267E3', 'фолкрит' => '00028170', 'хаафингар' => '00029DB0',
+                    'хьялмарк' => '0002816D', 'белый берег' => '0002816E', 'предел' => '0002816C', 'рифт' => '0002816B', 'винтерхолд' => '0002816F'];
+                $holdRow = $GLOBALS['db']->fetchOne("SELECT data FROM eventlog WHERE type IN ('infoloc', 'request') AND data LIKE '%Hold:%' ORDER BY rowid DESC LIMIT 1");
+                $crimeRef = $crime['вайтран'];
+                if (preg_match('/Hold:\s*([^,)]+)/u', strval($holdRow['data'] ?? ''), $hm)) {
+                    $crimeRef = $crime[mb_strtolower(trim($hm[1]))] ?? $crimeRef;
+                }
+                $kept[] = "player.setcrimegold 0 {$crimeRef}";
+                $kept[] = 'player.scaonactor';
+                $kept[] = 'player.stopcombat';
+                $fighters = $GLOBALS['db']->fetchAll("SELECT refid FROM public.core_npc_master WHERE metadata->'activity_status'->>'is_in_combat' = 'true' AND refid ~ '^[0-9A-Fa-f]{8}$' ORDER BY gamets_last_updated DESC LIMIT 5");
+                foreach (is_array($fighters) ? $fighters : [] as $fr) {
+                    $kept[] = strtoupper($fr['refid']) . '.stopcombat';
+                }
+                continue;
+            }
+            // TES-JAIL (2026-10-04, owner: "пусть ярл садит его в темницу, при мне" - the Narrator
+            // had nothing for it and answered "Ярл не сажает в темницу без вины"). {npc:X}.jail
+            // moves the NPC into the hold's jail (the crime faction's prisoner-belongings chest,
+            // FACT PLCN, read from the game data) and keeps him there; .unjail lets him go.
+            if ($verb === 'jail' || $verb === 'unjail') {
+                if ($target === '' || strtolower($target) === 'player') {
+                    $reasons[] = "«{$command}»: {$verb} только для персонажа: {npc:Имя}.{$verb}";
+                    continue;
+                }
+                if ($verb === 'unjail') {
+                    $kept[] = $target . '.setrestrained 0';
+                    $kept[] = $target . '.moveto player';
+                    continue;
+                }
+                $jails = ['вайтран' => '000267E8', 'истмарк' => '0003EF10', 'фолкрит' => '000EF437', 'хаафингар' => '0003EEFF',
+                    'хьялмарк' => '0003EF09', 'белый берег' => '0003EF12', 'предел' => '0003EF03', 'рифт' => '000A8F33'];
+                $holdRow = $GLOBALS['db']->fetchOne("SELECT data FROM eventlog WHERE type IN ('infoloc', 'request') AND data LIKE '%Hold:%' ORDER BY rowid DESC LIMIT 1");
+                $jailRef = $jails['вайтран'];
+                if (preg_match('/Hold:\s*([^,)]+)/u', strval($holdRow['data'] ?? ''), $hm)) {
+                    $jailRef = $jails[mb_strtolower(trim($hm[1]))] ?? $jailRef;
+                }
+                $kept[] = $target . '.moveto ' . $jailRef;
+                $kept[] = $target . '.setrestrained 1';
+                continue;
+            }
+            if (in_array($verb, ['character', 'relation', 'remember', 'marry', 'hypnosis', 'order'], true)) {
                 if (preg_match('/^\{npc:([^}]+)\}$/iu', $target, $m)) {
                     $who = trim($m[1]);
                 } elseif (preg_match('/^[0-9A-Fa-f]{8}$/', $target)) {

@@ -1963,3 +1963,24 @@ stopcombat участникам, `coc WhiterunBreezehome` + Назим к игр
   stopcombat, `coc WhiterunBreezehome`, Назим к игроку; Назиму `setav aggression 0`, `assistance 0`.
 - [ext, выложено] tes_god_guard TES-EXPLOSION: взрыв на игроке запрещён; если в пачке есть NPC —
   взрыв переносится на него, рядом с `.kill` заменяется на безвредный visual. Проверено чтением.
+
+## 2026-10-04 01:18–01:35 — после перезапуска игры: что подтвердилось и новые команды Нарратора
+
+- **Проверено живьём** (новый мост): `tesownhouse` — «Дом теплых ветров now belongs to the player; key …
+  given»; `tesfurnish free` — «furnished 5 rooms»; Furnish_House у Провентуса — «already had 5»;
+  цепочка ответов ярл ↔ Провентус идёт (TES-RECHAT-ADDRESSED-CHAIN); Балгруф ссылается на тексты бумаг.
+- Живой случай 01:28–01:30: Нарратор спорил с игроком («ты просишь слишком много», «ярл не сажает в
+  темницу без вины») — у него не было способа заставить NPC действовать; его `relation {npc:Ярл} -20
+  ashamed` и `relation Шаман -20 …` отклонялись разбором.
+- [ext, выложено] tes_god_guard: `{npc:X}.order <что делает и говорит>` (Instruction этому NPC);
+  `{npc:X}.jail` / `.unjail` (тюремная точка владения из FACT PLCN: Вайтран 000267E8, Истмарк
+  0003EF10, Фолкрит 000EF437, Хаафингар 0003EEFF, Хьялмарк 0003EF09, Белый Берег 0003EF12, Предел
+  0003EF03, Рифт 000A8F33; + setrestrained); `player.pardon` (штраф владения 0, scaonactor, stopcombat
+  игроку и до 5 дерущимся NPC); relation принимает имя без «to», `{npc:…}`, RefID и имя игрока.
+  tes_estate/context_pre: подсказка Нарратору про order/jail/pardon/Teleport_NPC и запрет отказывать.
+  tes_agent: инструменты furnish_house, order_npc, jail, pardon, unfollow.
+- **Проверено живьём 01:32:** `.order` → Балгруф: «Пятьсот тысяч септимов за дом, который стоит всего
+  три тысячи? … Стража! Увести его в темницу!»; `.jail` → игра выполнила moveto 000267E8 и
+  setrestrained 1 для Провентуса. `player.pardon` применён 01:35 (штраф 0 подтверждён).
+- 01:33 Айрилет погибла в драке (Назим вступил в бой с ней). Настройки Назима (aggression/assistance 0)
+  потерялись при загрузке сейва в 01:18.
