@@ -397,6 +397,7 @@ function tesAgentTools(): array
         $t('furnish_house', 'Купить игроку все улучшения городского дома разом, бесплатно (Дом теплых ветров, Высокий шпиль, Медовик, Влиндрел-холл, Хьерим).', ['house' => ['type' => 'string']], ['house']),
         $t('order_npc', 'Заставить персонажа что-то сделать или сказать вслух (судит, отчитывает, извиняется, уходит): он исполнит сам.', ['npc' => ['type' => 'string'], 'what' => ['type' => 'string', 'description' => 'что он делает и говорит, одной фразой']], ['npc', 'what']),
         $t('jail', 'Посадить персонажа в темницу текущего владения (release=true — выпустить и вернуть к игроку).', ['npc' => ['type' => 'string'], 'release' => ['type' => 'boolean']], ['npc']),
+        $t('fine_npc', 'Оштрафовать персонажа: изъять у него золото (сколько есть, до суммы), он это запомнит.', ['npc' => ['type' => 'string'], 'amount' => ['type' => 'integer']], ['npc', 'amount']),
         $t('pardon', 'Снять с игрока штраф в текущем владении, сбросить тревогу и остановить всех, кто с ним дерётся.', []),
         $t('unfollow', 'Персонаж перестаёт ходить за игроком.', ['npc' => ['type' => 'string']], ['npc']),
         $t('set_world', 'Время суток и/или погода. weather: clear, cloudy, fog, rain, storm, snow, blizzard.', ['hour' => ['type' => 'number'], 'weather' => ['type' => 'string']]),
@@ -542,6 +543,8 @@ function tesAgentRun(string $name, array $a, bool $dry, array &$finishState)
             return tesAgentWrite($npc(strval($a['npc'] ?? '')) . '.order ' . $clean(strval($a['what'] ?? '')), $dry);
         case 'jail':
             return tesAgentWrite($npc(strval($a['npc'] ?? '')) . (!empty($a['release']) ? '.unjail' : '.jail'), $dry);
+        case 'fine_npc':
+            return tesAgentWrite($npc(strval($a['npc'] ?? '')) . '.fine ' . max(1, intval($a['amount'] ?? 0)), $dry);
         case 'pardon':
             return tesAgentWrite('player.pardon', $dry);
         case 'unfollow':

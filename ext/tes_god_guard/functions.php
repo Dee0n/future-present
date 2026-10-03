@@ -1221,6 +1221,12 @@ if (!function_exists('tesGodGuardValidate')) {
             // "f" IS gold in the console (FormID 0000000F). It was refused as "not a real item"
             // (live 2026-10-04: the Narrator could not return the player's 500 000:
             // "player.additem f 500000" -> "не знаю предмета «f»").
+            // "additem X -N" is "removeitem X N" (the Narrator's way to say "take away")
+            if (preg_match('/^additem\s+(.+?)\s+-(\d+)\s*$/i', $body, $nm)) {
+                $body = 'removeitem ' . $nm[1] . ' ' . $nm[2];
+                $command = ($target !== '' ? $target . '.' : '') . $body;
+                $verb = 'removeitem';
+            }
             if (preg_match('/^(additem|removeitem)\s+0*f(\s+\d+)?\s*$/i', $body, $gm)) {
                 $body = strtolower($gm[1]) . ' 0000000F' . ($gm[2] ?? ' 1');
                 $command = ($target !== '' ? $target . '.' : '') . $body;
@@ -1384,6 +1390,23 @@ if (!function_exists('tesGodGuardValidate')) {
                     $reasons[] = "«{$command}»: {$houseErr}";
                 } else {
                     $kept[] = $houseCmd;
+                }
+                continue;
+            }
+            // TES-FINE (2026-10-04): {npc:X}.fine <сумма> - a fine for an NPC. Live 01:37-01:41: asked
+            // to fine the guard Боргни 100 000, the Narrator first GAVE him 100 000
+            // ("additem {item:Gold} 100000"), then tried "additem {item:Gold Ingot} -100000"
+            // (refused). The gold is taken from the NPC (as much as he has) and he remembers it.
+            if ($verb === 'fine') {
+                if ($target === '' || strtolower($target) === 'player' || !preg_match('/(\d[\d\s]*)/u', $body, $fm)) {
+                    $reasons[] = "«{$command}»: fine — {npc:Имя}.fine 100000 (штраф персонажу, золото изымается)";
+                    continue;
+                }
+                $fineSum = max(1, min(100000000, intval(preg_replace('/\s+/u', '', $fm[1]))));
+                $kept[] = $target . '.removeitem 0000000F ' . $fineSum;
+                if (preg_match('/^\{npc:([^}]+)\}$/iu', $target, $fn)) {
+                    $server[] = ['npc' => trim($fn[1]), 'verb' => 'remember',
+                        'args' => "Меня оштрафовали на {$fineSum} септимов: деньги изъяли по воле, которой не перечат. Это наказание за моё поведение с {$GLOBALS['PLAYER_NAME']}."];
                 }
                 continue;
             }
