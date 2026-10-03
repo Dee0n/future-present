@@ -1,0 +1,5 @@
+{
+  "name": "tes_crime",
+  "description": "NPCs are fined like the player: a guard demands the fine, the NPC pays if it has the gold, otherwise it is taken to the hold's jail ({npc:X}.fine N through tes_god_guard).",
+  "version": "0.1.0"
+}

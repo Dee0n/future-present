@@ -1996,3 +1996,10 @@ stopcombat участникам, `coc WhiterunBreezehome` + Назим к игр
   `additem X -N` понимается как `removeitem X N`; подсказка Нарратору; tes_agent: fine_npc.
   **Применено в игре:** Боргни −200 000 (100 000 выданных по ошибке + штраф; было 100 015),
   Айрилет −100 000 (у неё было меньше — изъято всё).
+- [ext, выложено 01:55] **tes_crime** — закон для NPC как для игрока (владелец: «им дают штраф, пытаются
+  посадить как ГГ, садят в тюрьму»). `{npc:X}.fine N` (tes_god_guard → tesCrimeFine): ближайший
+  стражник объявляет штраф (Instruction), сервер спрашивает у игры золото NPC (`getitemcount 0000000F`
+  через отчёт моста), ext/tes_crime/preprocessing.php решает: хватает — `removeitem`, нет — `moveto`
+  в тюрьму владения + `setrestrained 1`; стражник и NPC получают итог. Таблица tes_crime_fines.
+  **Проверено живьём:** Боргни, штраф 100 000 → «GetItemCount >> 0.00» → moveto 000267E8,
+  setrestrained 1 (статус jailed; требовал Хролмир Колдстоун). Выпустить: `{npc:X}.unjail`.

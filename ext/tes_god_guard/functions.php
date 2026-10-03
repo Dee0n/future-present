@@ -746,6 +746,12 @@ if (!function_exists('tesGodGuardValidate')) {
             ]);
             return [true, "{$name} получил приказ и исполняет: «" . mb_substr($what, 0, 120) . "»"];
         }
+        if ($cmd['verb'] === 'fine') {
+            if (!function_exists('tesCrimeFine')) {
+                return [false, "«{$name}»: штрафы NPC не установлены (ext/tes_crime)"];
+            }
+            return tesCrimeFine($name, strval($npc['refid'] ?? ''), intval($cmd['args']));
+        }
         if ($cmd['verb'] === 'remember') {
             if (mb_strlen($cmd['args']) < 5) {
                 return [false, "«{$name}»: пустое воспоминание"];
@@ -1403,11 +1409,11 @@ if (!function_exists('tesGodGuardValidate')) {
                     continue;
                 }
                 $fineSum = max(1, min(100000000, intval(preg_replace('/\s+/u', '', $fm[1]))));
-                $kept[] = $target . '.removeitem 0000000F ' . $fineSum;
-                if (preg_match('/^\{npc:([^}]+)\}$/iu', $target, $fn)) {
-                    $server[] = ['npc' => trim($fn[1]), 'verb' => 'remember',
-                        'args' => "Меня оштрафовали на {$fineSum} септимов: деньги изъяли по воле, которой не перечат. Это наказание за моё поведение с {$GLOBALS['PLAYER_NAME']}."];
-                }
+                // Owner, 2026-10-04: "им дают штраф, пытаются посадить как ГГ, садят в тюрьму" -
+                // the same law as for the player: a guard demands the fine, the NPC pays or goes
+                // to jail. Done by ext/tes_crime (asks the game for the NPC's gold, then decides).
+                $fineWho = preg_match('/^\{npc:([^}]+)\}$/iu', $target, $fn) ? trim($fn[1]) : $target;
+                $server[] = ['npc' => $fineWho, 'verb' => 'fine', 'args' => strval($fineSum)];
                 continue;
             }
             // TES-PARDON (2026-10-04): player.pardon - "сними штраф", "пусть все успокоятся",
