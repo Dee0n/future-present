@@ -1,0 +1,5 @@
+{
+  "name": "tes_no_attack",
+  "description": "An NPC attacks the player only when already fighting or truly hostile (relationship <= -60), not because the model chose Attack in a heated conversation.",
+  "version": "0.1.0"
+}

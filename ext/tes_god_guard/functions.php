@@ -80,7 +80,35 @@ if (!function_exists('tesGodGuardValidate')) {
                 $hit = $row;
             }
         }
-        return $hit;
+        if ($hit !== null) {
+            return $hit;
+        }
+        // Speech recognition garbles names (live 2026-10-04: "Балдруф", "Балдров" for
+        // Балгруф - the teleport failed with "Destination not known"). One unique name word
+        // within edit distance 2 (words of 5+ letters) is taken as that NPC.
+        $enc = fn(string $s) => @iconv('UTF-8', 'CP1251//IGNORE', $s) ?: $s;
+        $best = null;
+        $bestDist = 99;
+        $tie = false;
+        foreach (preg_split('/[^\p{L}\p{N}]+/u', $needle, -1, PREG_SPLIT_NO_EMPTY) as $nw) {
+            if (mb_strlen($nw) < 5) {
+                continue;
+            }
+            foreach (is_array($rows) ? $rows : [] as $row) {
+                foreach (preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower(strval($row['npc_name'])), -1, PREG_SPLIT_NO_EMPTY) as $w) {
+                    if (mb_strlen($w) < 5 || abs(mb_strlen($w) - mb_strlen($nw)) > 2) {
+                        continue;
+                    }
+                    $d = levenshtein($enc($nw), $enc($w));
+                    if ($d < $bestDist) {
+                        [$best, $bestDist, $tie] = [$row, $d, false];
+                    } elseif ($d === $bestDist && $best && $best['id'] !== $row['id']) {
+                        $tie = true;
+                    }
+                }
+            }
+        }
+        return ($best && $bestDist <= 2 && !$tie) ? $best : null;
     }
 
     // public.tes_game_index (tools/game_index.py + load_game_index.sh): every record of
@@ -647,6 +675,14 @@ if (!function_exists('tesGodGuardValidate')) {
             'ts' => time(), 'gamets' => intval($GLOBALS['gameRequest'][2] ?? 0), 'content' => $content,
             'sess' => 'tes_document', 'localts' => time(), 'title' => $title,
         ]);
+        // Own durable copy: CHIM deletes its books rows, and ext/tes_papers needs the text to
+        // show an NPC what a paper handed to it says (live 2026-10-04: the jarl "had no papers").
+        try {
+            $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_documents (id bigserial PRIMARY KEY, created_at timestamptz NOT NULL DEFAULT now(), title text NOT NULL, content text NOT NULL)");
+            $db->insert('tes_documents', ['title' => $title, 'content' => $content]);
+        } catch (Throwable $e) {
+            error_log('[tes_god_guard] tes_documents: ' . $e->getMessage());
+        }
         $taskId = str_replace('@', '', strval($GLOBALS['taskId'] ?? '0'));
         $db->insert('responselog', [
             'localts' => time(), 'sent' => 0, 'actor' => 'rolemaster', 'text' => '',
@@ -932,6 +968,16 @@ if (!function_exists('tesGodGuardValidate')) {
             $text
         ) ?? $text;
         $text = preg_replace('/(?<=\s)(?=(?:\{(?:npc|near):[^}]+\}|player)\s*\.\s*[a-z])/iu', "\n", $text);
+        // A garbled or declined name in {npc:…} ("Балдруф", "Провентуса") becomes the NPC's
+        // real name before anything else looks it up (the core resolver matches exactly).
+        $text = preg_replace_callback('/\{npc:([^}]+)\}/iu', function ($m) {
+            $name = trim($m[1]);
+            if ($name === '' || strtolower($name) === 'player' || tesGodGuardKnownNpc($name) || !class_exists('RelationshipManager')) {
+                return $m[0];
+            }
+            $row = tesGodGuardResolveNpcLoose($name);
+            return $row ? '{npc:' . strval($row['npc_name']) . '}' : $m[0];
+        }, $text) ?? $text;
         foreach (preg_split('/[;\n]+/u', $text) as $command) {
             $command = trim($command);
             if ($command === '') {
@@ -1123,6 +1169,13 @@ if (!function_exists('tesGodGuardValidate')) {
             // straight through unchanged ("f" is not a real item). Try resolving the raw
             // word as a name (same resolver {item:}/etc. already use); refuse with the same
             // honest reason if it doesn't resolve, instead of passing garbage to the console.
+            // "f" IS gold in the console (FormID 0000000F). It was refused as "not a real item"
+            // (live 2026-10-04: the Narrator could not return the player's 500 000:
+            // "player.additem f 500000" -> "не знаю предмета «f»").
+            if (preg_match('/^(additem|removeitem)\s+0*f(\s+\d+)?\s*$/i', $body, $gm)) {
+                $body = strtolower($gm[1]) . ' 0000000F' . ($gm[2] ?? ' 1');
+                $command = ($target !== '' ? $target . '.' : '') . $body;
+            }
             $rawArgKinds = ['additem' => 'item', 'removeitem' => 'item', 'addspell' => 'spell',
                 'removespell' => 'spell', 'addperk' => 'perk'];
             if (isset($rawArgKinds[$verb])) {
@@ -1359,7 +1412,8 @@ if (!function_exists('tesGodGuardValidate')) {
             // additem/removeitem had no quantity cap at all, unlike placeatme - a typo'd or
             // deliberately absurd count (player.additem {item:Gold001} 999999999) went
             // straight through. Owner picked 5000 as the ceiling (2026-09-29).
-            if (in_array($verb, ['additem', 'removeitem'], true)
+            // (gold is exempt: sums like 500 000 are ordinary money, not an item flood)
+            if (in_array($verb, ['additem', 'removeitem'], true) && !preg_match('/^\w+\s+0000000F\b/i', $body)
                 && preg_match('/^(' . $verb . '\s+\S+)\s+(\d+)/i', $body, $m) && intval($m[2]) > 5000) {
                 $body = $m[1] . ' 5000';
                 $command = ($target !== '' ? $target . '.' : '') . $body;

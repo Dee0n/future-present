@@ -1,0 +1,5 @@
+{
+  "name": "tes_papers",
+  "description": "An NPC sees the papers the player handed over (titles and text) in its prompt, so it stops denying it has them.",
+  "version": "0.1.0"
+}
