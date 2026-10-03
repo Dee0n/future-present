@@ -758,7 +758,7 @@ if (!function_exists('tesGodGuardValidate')) {
             if ($cmd['verb'] === 'unjail') {
                 return tesCrimeUnjail($name, strval($npc['refid'] ?? ''));
             }
-            $days = preg_match('/(\d+)/', strval($cmd['args']), $dm) ? max(1, min(30, intval($dm[1]))) : 1;
+            $days = preg_match('/(\d+)/', strval($cmd['args']), $dm) ? max(1, min(365, intval($dm[1]))) : 1;
             return tesCrimeJail($name, strval($npc['refid'] ?? ''), 'по воле свыше', $days);
         }
         if ($cmd['verb'] === 'fine') {
