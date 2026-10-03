@@ -978,6 +978,22 @@ if (!function_exists('tesGodGuardValidate')) {
             $row = tesGodGuardResolveNpcLoose($name);
             return $row ? '{npc:' . strval($row['npc_name']) . '}' : $m[0];
         }, $text) ?? $text;
+        // TES-EXPLOSION (live 2026-10-04 01:15): "взорви Фаренгара" became
+        // "player.placeatme {explosion:huge} 1; {npc:Фаренгар}.kill" - a huge blast ON THE PLAYER
+        // in the jarl's hall; it hit everyone around and the whole court attacked the player.
+        // An explosion is never placed on the player: with an NPC in the same batch it goes to
+        // that NPC, and next to a ".kill" it is the harmless visual one (the kill does the job).
+        if (preg_match('/(?:^|[;\n])\s*player\s*\.\s*placeatme\s+\{explosion:[^}]+\}/iu', $text)) {
+            if (preg_match('/\{npc:([^}]+)\}\s*\.\s*([a-z]+)/iu', $text, $exNpc)) {
+                $exKill = (bool)preg_match('/\{npc:' . preg_quote($exNpc[1], '/') . '\}\s*\.\s*kill\b/iu', $text);
+                $text = preg_replace_callback('/(^|[;\n])(\s*)player\s*\.\s*placeatme\s+\{explosion:([^}]+)\}/iu', function ($m) use ($exNpc, $exKill) {
+                    return $m[1] . $m[2] . '{npc:' . $exNpc[1] . '}.placeatme {explosion:' . ($exKill ? 'visual' : $m[3]) . '}';
+                }, $text) ?? $text;
+            } else {
+                $text = preg_replace('/(^|[;\n])(\s*)player\s*\.\s*placeatme\s+\{explosion:[^}]+\}[^;\n]*/iu', '$1$2', $text) ?? $text;
+                $reasons[] = '«player.placeatme {explosion:…}»: взрыв нельзя ставить на игрока — он бьёт по нему и по всем вокруг, и на игрока нападут. Ставь на цель: {npc:Имя}.placeatme {explosion:…}';
+            }
+        }
         foreach (preg_split('/[;\n]+/u', $text) as $command) {
             $command = trim($command);
             if ($command === '') {
