@@ -746,6 +746,16 @@ if (!function_exists('tesGodGuardValidate')) {
             ]);
             return [true, "{$name} получил приказ и исполняет: «" . mb_substr($what, 0, 120) . "»"];
         }
+        if ($cmd['verb'] === 'jail' || $cmd['verb'] === 'unjail') {
+            if (!function_exists('tesCrimeJail')) {
+                return [false, "«{$name}»: темница не установлена (ext/tes_crime)"];
+            }
+            if ($cmd['verb'] === 'unjail') {
+                return tesCrimeUnjail($name, strval($npc['refid'] ?? ''));
+            }
+            $days = preg_match('/(\d+)/', strval($cmd['args']), $dm) ? max(1, min(30, intval($dm[1]))) : 1;
+            return tesCrimeJail($name, strval($npc['refid'] ?? ''), 'по воле свыше', $days);
+        }
         if ($cmd['verb'] === 'fine') {
             if (!function_exists('tesCrimeFine')) {
                 return [false, "«{$name}»: штрафы NPC не установлены (ext/tes_crime)"];
@@ -1447,20 +1457,11 @@ if (!function_exists('tesGodGuardValidate')) {
                     $reasons[] = "«{$command}»: {$verb} только для персонажа: {npc:Имя}.{$verb}";
                     continue;
                 }
-                if ($verb === 'unjail') {
-                    $kept[] = $target . '.setrestrained 0';
-                    $kept[] = $target . '.moveto player';
-                    continue;
-                }
-                $jails = ['вайтран' => '000267E8', 'истмарк' => '0003EF10', 'фолкрит' => '000EF437', 'хаафингар' => '0003EEFF',
-                    'хьялмарк' => '0003EF09', 'белый берег' => '0003EF12', 'предел' => '0003EF03', 'рифт' => '000A8F33'];
-                $holdRow = $GLOBALS['db']->fetchOne("SELECT data FROM eventlog WHERE type IN ('infoloc', 'request') AND data LIKE '%Hold:%' ORDER BY rowid DESC LIMIT 1");
-                $jailRef = $jails['вайтран'];
-                if (preg_match('/Hold:\s*([^,)]+)/u', strval($holdRow['data'] ?? ''), $hm)) {
-                    $jailRef = $jails[mb_strtolower(trim($hm[1]))] ?? $jailRef;
-                }
-                $kept[] = $target . '.moveto ' . $jailRef;
-                $kept[] = $target . '.setrestrained 1';
+                // ext/tes_crime does it properly (owner: "не раздевает в норм одежду, не держит
+                // принудительно, после суток выйдут"): the cell's own prison marker, prisoner
+                // clothes, held there, out after a game day.
+                $jailWho = preg_match('/^\{npc:([^}]+)\}$/iu', $target, $jn) ? trim($jn[1]) : $target;
+                $server[] = ['npc' => $jailWho, 'verb' => $verb, 'args' => trim(mb_substr($body, strlen($verb)))];
                 continue;
             }
             if (in_array($verb, ['character', 'relation', 'remember', 'marry', 'hypnosis', 'order'], true)) {

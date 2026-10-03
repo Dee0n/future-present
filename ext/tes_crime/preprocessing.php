@@ -26,9 +26,7 @@ if (strtolower(strval($GLOBALS['gameRequest'][0] ?? '')) === 'tes_god_console') 
                     tesCrimeNotify("{$npc} заплатил штраф {$amount} септимов");
                     tesCrimeTell($npc, "(С тебя только что взыскали штраф {$amount} септимов, ты заплатил — деваться было некуда. Одна короткая реплика: злость, досада или смирение.)");
                 } else {
-                    tesCrimeQueue(['prid ' . $ref, 'stopcombat']);
-                    tesCrimeQueue(['prid ' . $ref, 'moveto ' . $fine['jail_ref']]);
-                    tesCrimeQueue(['prid ' . $ref, 'setrestrained 1']);
+                    tesCrimeJail($npc, $ref, "не заплатил штраф {$amount} септимов (было {$gold})");
                     $db->execQuery("UPDATE public.tes_crime_fines SET status = 'jailed', gold = {$gold} WHERE id = " . intval($fine['id']));
                     tesCrimeNotify("{$npc} не смог заплатить {$amount} (при себе {$gold}) — в темницу");
                     if ($guard !== '') {
