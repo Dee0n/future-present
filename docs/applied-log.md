@@ -2144,3 +2144,7 @@ stopcombat участникам, `coc WhiterunBreezehome` + Назим к игр
   «not found», обычный kill идёт следом). **В игре не проверено.**
 - Бельё на раздетых: мод сборки `Female_Underwear` (профиль RFAD_SE, включён) заменяет
   femalebody_0/1.nif на тело с бельём. Не трогал: MO2 запущен и перезапишет modlist.txt.
+- [игра, 03:40, по требованию владельца «нахуй трусы»] мод `MO2\mods\Female_Underwear`: тело с бельём
+  (shapes Bra/Panty) убрано в `meshes.off-2026-10-04`, на его место положены femalebody_0/1.nif из
+  `Bodyslide Output` (обычное тело CBBE). Список модов MO2 не менялся. Откат: удалить новую `meshes`,
+  переименовать `meshes.off-2026-10-04` обратно в `meshes`. **В игре не проверено.**
