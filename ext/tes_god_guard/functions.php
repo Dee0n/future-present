@@ -711,6 +711,11 @@ if (!function_exists('tesGodGuardValidate')) {
         if ($cmd['verb'] === 'document') {
             return tesGodGuardMakeDocument(strval($cmd['npc']), strval($cmd['args']));
         }
+        if ($cmd['verb'] === 'title') {
+            return function_exists('tesWorldSetTitle')
+                ? tesWorldSetTitle(strval($cmd['args']))
+                : [false, 'титулы не установлены (ext/tes_world)'];
+        }
         $who = $cmd['npc'];
         if (preg_match('/^[0-9A-Fa-f]{8}$/', $who)) {
             $r = $db->escape(strtoupper($who));
@@ -1406,6 +1411,23 @@ if (!function_exists('tesGodGuardValidate')) {
                     $reasons[] = "«{$command}»: {$houseErr}";
                 } else {
                     $kept[] = $houseCmd;
+                }
+                continue;
+            }
+            // TES-TITLE (2026-10-04): player.title <титул> - the player becomes jarl / thane /
+            // archmage for everyone. Live 01:57: "сделай меня ярлом" -> "player.setfactionrank
+            // 00045875 1" (refused) and "ты просишь слишком многого"; the NPCs kept mocking
+            // ("Да-да, ты ярл. И я дракон."). The title is a world fact (ext/tes_world) every
+            // NPC is shown; a jarl also joins the game's JobJarlFaction (00050920).
+            if ($verb === 'title') {
+                if ($target !== '' && strtolower($target) !== 'player') {
+                    $reasons[] = "«{$command}»: title — только игроку: player.title ярл Вайтрана";
+                    continue;
+                }
+                $titleText = trim(mb_substr($body, 5));
+                $server[] = ['npc' => '', 'verb' => 'title', 'args' => $titleText];
+                if (preg_match('/ярл/iu', $titleText)) {
+                    $kept[] = 'player.addfac 00050920 0';
                 }
                 continue;
             }

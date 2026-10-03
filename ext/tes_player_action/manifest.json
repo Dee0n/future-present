@@ -1,0 +1,5 @@
+{
+  "name": "tes_player_action",
+  "description": "Text the player types in (parentheses) is an action he performs, not a line he speaks: attributed and labelled in the history, and the answering NPC is told to react to the deed.",
+  "version": "0.1.0"
+}

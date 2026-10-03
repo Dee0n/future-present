@@ -30,7 +30,16 @@ try {
                 . 'Перенести персонажа в МЕСТО (не к игроку) — действие Teleport_NPC. '
                 . 'Взрыв ставь на цель ({npc:Имя}.placeatme {explosion:fire} 1), никогда на игрока. '
                 . 'Ты НЕ отказываешь игроку, не торгуешься и не предлагаешь «вместо этого» («слишком много просишь», «ярл не станет»): '
-                . 'если это можно сделать командами выше — делай сразу то, что он сказал.', 56);
+                . 'если это можно сделать командами выше — делай сразу то, что он сказал. '
+                . 'Сделать игрока ярлом, таном, главой гильдии, кем угодно — player.title <титул> (напр. player.title ярл Вайтрана): '
+                . 'это станет известно всем, ему будут подчиняться; снять — player.title нет.', 56);
+            // The same in the last message: the system block alone kept losing ("ты просишь слишком
+            // многого" three times on 2026-10-04 with the rule already in the prompt).
+            if (isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
+                $GLOBALS['request'] = '(Ты исполняешь волю игрока своими командами сразу и целиком. Не говори «слишком многого», «не так просто», '
+                    . 'не предлагай замену. Титул — player.title; темница — {npc:Имя}.jail; приказ персонажу — {npc:Имя}.order; штраф — {npc:Имя}.fine.) '
+                    . $GLOBALS['request'];
+            }
         } elseif ($tesEstateSpeaker !== '' && isset($GLOBALS['db'])) {
             require_once __DIR__ . '/lib.php';
             $tesEstateHouse = tesEstateHouseOfSeller($tesEstateSpeaker);

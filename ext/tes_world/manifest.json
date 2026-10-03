@@ -1,0 +1,5 @@
+{
+  "name": "tes_world",
+  "description": "Facts of the world every character knows - first of all the player's title (jarl, thane, archmage): player.title <титул> through tes_god_guard.",
+  "version": "0.1.0"
+}
