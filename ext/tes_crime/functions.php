@@ -96,6 +96,13 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
                 ? $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_crime_fines WHERE refid = '{$refEsc}' AND created_at > now() - interval '10 minutes' LIMIT 1")
                 : $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_crime_jail WHERE refid = '{$refEsc}' AND status = 'jailed' LIMIT 1");
             if (!empty($again)) {
+                // already inside: a new sentence only changes the term ("сади на сто дней" to a
+                // man jailed for one day, live 2026-10-04 02:25)
+                $days = $fine ? 0 : (intval(preg_replace('/\D+/', '', $item)) ?: tesCrimeNumberNear($said, '(?:сут|дн|день|дня|год|лет)'));
+                if ($days > 0) {
+                    $GLOBALS['db']->execQuery("UPDATE public.tes_crime_jail SET release_gamets = jailed_gamets + " . (TES_CRIME_DAY * max(1, min(365, $days)))
+                        . " WHERE refid = '{$refEsc}' AND status = 'jailed'");
+                }
                 continue;
             }
             if ($fine) {

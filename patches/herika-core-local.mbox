@@ -1,7 +1,7 @@
 From 9a5eff4369187084fbb4821c40c665d802931704 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Fri, 2 Oct 2026 14:11:29 +0500
-Subject: [PATCH 01/22] Local patches on top of aiagent: Qwen/reasoning, RECHAT
+Subject: [PATCH 01/23] Local patches on top of aiagent: Qwen/reasoning, RECHAT
  fixes, enforce-actions re-enable, TeleportNPC/KillTarget safety+routing
  fixes, god-guard cell resolution, RU speech/TTS tweaks
 
@@ -1812,7 +1812,7 @@ index 11b1754d..c451c33d 100644
 From 29613f5e80dc7948cefb8ddc912daab9a1c968c8 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Fri, 2 Oct 2026 14:14:24 +0500
-Subject: [PATCH 02/22] Shorten KillTarget unknown-actor notification to
+Subject: [PATCH 02/23] Shorten KillTarget unknown-actor notification to
  Russian (was a long English technical wall of text in-game)
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
@@ -1851,7 +1851,7 @@ index e8bcf1e7..5364c70a 100644
 From 45e069b07ebbb0a650989d10f743bf83bce19602 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Fri, 2 Oct 2026 14:22:10 +0500
-Subject: [PATCH 03/22] Auto-chain recycleactor after every console resurrect
+Subject: [PATCH 03/23] Auto-chain recycleactor after every console resurrect
  (fixes the ragdoll leg-spinning glitch without being asked each time)
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
@@ -1896,7 +1896,7 @@ index 5364c70a..5cf7da9b 100644
 From 9c7668d3669b4cba0ab471e200a819510791dcb6 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Fri, 2 Oct 2026 14:25:06 +0500
-Subject: [PATCH 04/22] Suppress God-command syntax leaking into spoken
+Subject: [PATCH 04/23] Suppress God-command syntax leaking into spoken
  dialogue (bare-dot variant of the existing brace-prefix fix)
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
@@ -1936,7 +1936,7 @@ index 7779c30f..4afe7464 100644
 From 5612b8211c6609bf5efa068c229ff433acb5d5a0 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Fri, 2 Oct 2026 14:27:33 +0500
-Subject: [PATCH 05/22] Actually execute leaked God-command text instead of
+Subject: [PATCH 05/23] Actually execute leaked God-command text instead of
  just silencing it (character/relation changes were never applying)
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
@@ -1983,7 +1983,7 @@ index 4afe7464..d1fa84d7 100644
 From 6c888c6db7dd43a436f663f8e2b3348faa1a8d40 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 04:35:53 +0500
-Subject: [PATCH 06/22] TeleportNPC: move NPCs via console moveto (player or
+Subject: [PATCH 06/23] TeleportNPC: move NPCs via console moveto (player or
  locations.refs marker)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2077,7 +2077,7 @@ index 5cf7da9b..1d45f44b 100644
 From 4ea3e3a71b8b0d4f33c8965395faf524af614591 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 04:38:15 +0500
-Subject: [PATCH 07/22] =?UTF-8?q?TeleportNPC:=20word-bounded=20'=D0=BA?=
+Subject: [PATCH 07/23] =?UTF-8?q?TeleportNPC:=20word-bounded=20'=D0=BA?=
  =?UTF-8?q?=D0=BE=20=D0=BC=D0=BD=D0=B5',=20notify=20on=20miss;=20{npc:}=20?=
  =?UTF-8?q?Cyrillic-safe=20match?=
 MIME-Version: 1.0
@@ -2159,7 +2159,7 @@ index 1d45f44b..59263845 100644
 From 12a254e65bc7e59cf449d8287c6512a1803fb69b Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 04:58:09 +0500
-Subject: [PATCH 08/22] NO-SPEAK guard: a leaked .hypnosis line executes
+Subject: [PATCH 08/23] NO-SPEAK guard: a leaked .hypnosis line executes
  instead of being spoken
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -2188,7 +2188,7 @@ index d1fa84d7..3743bc4b 100644
 From ad7663d7cc0475592dec70f9baf4b16cd7114e70 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:01:26 +0500
-Subject: [PATCH 09/22] context history: don't announce the same time skip
+Subject: [PATCH 09/23] context history: don't announce the same time skip
  twice
 
 After an info_timeforward line ('21 hours have passed') the gap check added a
@@ -2235,7 +2235,7 @@ index 9467d70e..a34ec7b7 100755
 From 50c3a226b22a85ad95b74918a1bacad4e188ea3b Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:09:25 +0500
-Subject: [PATCH 10/22] =?UTF-8?q?TeleportNPC:=20empty=20place=20+=20'?=
+Subject: [PATCH 10/23] =?UTF-8?q?TeleportNPC:=20empty=20place=20+=20'?=
  =?UTF-8?q?=D0=BA=D0=BE=20=D0=BC=D0=BD=D0=B5'=20brings=20the=20NPC;=20play?=
  =?UTF-8?q?er->person=20via=20moveto;=20Latin=20names?=
 MIME-Version: 1.0
@@ -2312,7 +2312,7 @@ index 59263845..0b0c12b3 100644
 From 07c5b7b2324ddc76011b59d1c74fb61074dba2ec Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:15:36 +0500
-Subject: [PATCH 11/22] NO-SPEAK guard: don't speak a bare mood label
+Subject: [PATCH 11/23] NO-SPEAK guard: don't speak a bare mood label
  ('neutral')
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -2347,7 +2347,7 @@ index 3743bc4b..9aafb080 100644
 From 351c71c0bf142939f3fdf548c21f85790420fd64 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:20:41 +0500
-Subject: [PATCH 12/22] actions: money goes through
+Subject: [PATCH 12/23] actions: money goes through
  TakeGoldFromPlayer/GiveGoldTo, not the trade window
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2402,7 +2402,7 @@ index 0b0c12b3..f17f6640 100644
 From 02549a968fc20fa60529edaaacf97a0c8edb3a0f Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:23:54 +0500
-Subject: [PATCH 13/22] TES-GOLD-HANDOVER: player hands over gold -> NPC
+Subject: [PATCH 13/23] TES-GOLD-HANDOVER: player hands over gold -> NPC
  TakeGoldFromPlayer
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2508,7 +2508,7 @@ index f17f6640..007212e9 100644
 From a70a4b82c227eadddc8a2d9d6a5ddba198aa5a61 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:33:04 +0500
-Subject: [PATCH 14/22] =?UTF-8?q?gold=20handover:=20require=20a=20money=20?=
+Subject: [PATCH 14/23] =?UTF-8?q?gold=20handover:=20require=20a=20money=20?=
  =?UTF-8?q?word;=20ignore=20'=D0=BD=D0=B5=20=D0=B4=D0=B0=D0=BC'?=
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2554,7 +2554,7 @@ index 007212e9..4fb7fa02 100644
 From 70c607d6f8253ea4849ba3f5ab2ddbb14393298c Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:35:39 +0500
-Subject: [PATCH 15/22] TravelTo: fix broken location lookup (created_at,
+Subject: [PATCH 15/23] TravelTo: fix broken location lookup (created_at,
  similarity 0 on Cyrillic); index fallback
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2622,7 +2622,7 @@ index a34ec7b7..ebe407bd
 From 46188de81f1e24d29a368fd892631da885ac5294 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:36:56 +0500
-Subject: [PATCH 16/22] TeleportNPC/KillTarget: accept a braced {npc:Name}
+Subject: [PATCH 16/23] TeleportNPC/KillTarget: accept a braced {npc:Name}
  target
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2669,7 +2669,7 @@ index 4fb7fa02..f7819368 100644
 From 30190ab850e789a7ec1e39e9c429711680f45057 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:39:14 +0500
-Subject: [PATCH 17/22] rechat: an NPC addressed directly always gets the first
+Subject: [PATCH 17/23] rechat: an NPC addressed directly always gets the first
  reply
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2723,7 +2723,7 @@ index 4c4b032b..41672335 100644
 From 4ec649851e8e0e140cb389298d05f3d0009e3978 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 05:44:28 +0500
-Subject: [PATCH 18/22] rechat: the addressed NPC answers first in every mode;
+Subject: [PATCH 18/23] rechat: the addressed NPC answers first in every mode;
  title-tolerant name match
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -2834,7 +2834,7 @@ index 41672335..d2cd99d7 100644
 From fbedc07889e5a88714657dd514c8483fa67e8fbc Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 06:08:55 +0500
-Subject: [PATCH 19/22] Actions: stop getConnector() from killing the 'execute
+Subject: [PATCH 19/23] Actions: stop getConnector() from killing the 'execute
  the ACTION' nudge; nudge on explicit requests
 
 getConnector() reset PATCH_PROMPT_ENFORCE_ACTIONS=false at LLM-call time, after
@@ -2938,7 +2938,7 @@ index d2cd99d7..62c776ec 100644
 From e37b9ba67f6e0809218620b2997c817aa2ec0d2b Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 06:12:10 +0500
-Subject: [PATCH 20/22] Letters: Cyrillic font (DejaVu Serif) and proper
+Subject: [PATCH 20/23] Letters: Cyrillic font (DejaVu Serif) and proper
  margins; polite NPC requests count
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -3057,7 +3057,7 @@ index 62c776ec..d15fe7f4 100644
 From 45a19254782f619fb788a9328cef3b38284a5f46 Mon Sep 17 00:00:00 2001
 From: root <root@KOSTYA-PC.localdomain>
 Date: Sat, 3 Oct 2026 06:13:46 +0500
-Subject: [PATCH 21/22] =?UTF-8?q?TravelTo:=20treat=20=D1=91=20as=20=D0=B5?=
+Subject: [PATCH 21/23] =?UTF-8?q?TravelTo:=20treat=20=D1=91=20as=20=D0=B5?=
  =?UTF-8?q?=20when=20matching=20place=20names?=
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -3094,7 +3094,7 @@ index ebe407bd..6e0c57e3 100644
 From 91415cb6e116e39168b119d472188a6ec1730ea6 Mon Sep 17 00:00:00 2001
 From: tes <tes@local>
 Date: Sun, 4 Oct 2026 01:17:01 +0500
-Subject: [PATCH 22/22] rechat: an NPC addressed by name answers beyond the
+Subject: [PATCH 22/23] rechat: an NPC addressed by name answers beyond the
  pre-roll budget (max 4 rounds per chain)
 
 ---
@@ -3126,6 +3126,55 @@ index d15fe7f4..92ad9ed1 100644
      if ($currentRound >= $budget) {
          Logger::info("Rechat: pre-roll budget exhausted ({$currentRound}/{$budget}) — terminating");
          Logger::info("[RECHAT_COUNT] exhausted speaker={$GLOBALS["HERIKA_NAME"]} chain_id=" .
+-- 
+2.39.5
+
+
+From c199d04ba118970319d33d827351353f62aece4e Mon Sep 17 00:00:00 2001
+From: tes <tes@local>
+Date: Sun, 4 Oct 2026 02:37:31 +0500
+Subject: [PATCH 23/23] god commands: several commands of one call run as one
+ ordered sequence
+
+---
+ functions/functions.php | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/functions/functions.php b/functions/functions.php
+index 5aa4c0c2..2b3e2fef 100644
+--- a/functions/functions.php
++++ b/functions/functions.php
+@@ -904,6 +904,21 @@ function herikaQueueGodCommands($commandText)
+         }
+     }
+ 
++    // TES-GOD-ORDER (live 2026-10-04 02:00 and 02:14): the plugin dispatches outbox rows without
++    // waiting for each other, so the rows of ONE call ran in any order - "additem X; equipitem X"
++    // equipped before adding, "unequipall; equipitem rags" dressed and then stripped. Several
++    // commands of one call go as one sequence row: the bridge runs it top to bottom.
++    $queuedCount = count($steps);
++    if ($queuedCount > 1) {
++        $ordered = [];
++        foreach ($steps as $step) {
++            foreach ($step['type'] === 'console_command_sequence' ? $step['commands'] : [$step['command']] as $one) {
++                $ordered[] = $one;
++            }
++        }
++        $steps = [['type' => 'console_command_sequence', 'commands' => $ordered]];
++    }
++
+     $queued = 0;
+     foreach ($steps as $step) {
+         $GLOBALS["db"]->insert('skyrim_quest_action_outbox', [
+@@ -915,7 +930,7 @@ function herikaQueueGodCommands($commandText)
+         error_log("[GOD] Queued " . json_encode($step, JSON_UNESCAPED_UNICODE));
+         $queued++;
+     }
+-    return $queued;
++    return max($queued, $queuedCount);
+ }
+ 
+ function herikaQueueNarratorCreateNewNpc($creationBrief)
 -- 
 2.39.5
 

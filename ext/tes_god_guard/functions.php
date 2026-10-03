@@ -146,6 +146,21 @@ if (!function_exists('tesGodGuardValidate')) {
         return strval($rows[0]['v'] ?? '');
     }
 
+    /** Is the command's target ("{npc:Name}" or a RefID) a child? Children are never undressed. */
+    function tesGodGuardIsChild(string $target): bool
+    {
+        $row = null;
+        if (preg_match('/^\{(?:npc|near):([^}]+)\}$/iu', trim($target), $m)) {
+            $row = class_exists('RelationshipManager') ? tesGodGuardResolveNpcLoose(trim($m[1])) : null;
+            if ($row && !isset($row['race'])) {
+                $row = $GLOBALS['db']->fetchOne("SELECT race FROM public.core_npc_master WHERE npc_name = '" . $GLOBALS['db']->escape(strval($row['npc_name'])) . "' LIMIT 1");
+            }
+        } elseif (preg_match('/^[0-9A-Fa-f]{8}$/', trim($target))) {
+            $row = $GLOBALS['db']->fetchOne("SELECT race FROM public.core_npc_master WHERE upper(refid) = '" . strtoupper(trim($target)) . "' LIMIT 1");
+        }
+        return (bool)preg_match('/реб[её]нок|child/iu', strval($row['race'] ?? ''));
+    }
+
     // {item:Name} -> FormID. The core resolver only knows English names from its item
     // descriptions and silently drops what it can't find (the Narrator then claimed
     // "the mace is in your hands"), so resolve everything here: Russian name/EditorID
@@ -1205,6 +1220,11 @@ if (!function_exists('tesGodGuardValidate')) {
                     // addfac/removefac had no resolution at all before this - only a raw hex
                     // FormID the Narrator would have to already know.
                     $value = tesGodGuardResolveItem($what, ['faction']);
+                } elseif (preg_match('/^[0-9A-Fa-f]{8}$/', $what)) {
+                    // {item:00010992} (live 2026-10-04 02:16): a FormID the Narrator already found
+                    // with find, wrapped in braces out of habit - take it when the index has it.
+                    $known = $GLOBALS['db']->fetchOne("SELECT formid FROM public.tes_game_index WHERE kind = 'item' AND upper(formid) = '" . strtoupper($what) . "' LIMIT 1");
+                    $value = !empty($known['formid']) ? strtoupper($what) : '';
                 } else {
                     $value = tesGodGuardResolveItem($what);
                 }
@@ -1302,6 +1322,10 @@ if (!function_exists('tesGodGuardValidate')) {
             // the word "player" - substitute 00000014, the game engine's own constant
             // FormID for the player reference (not a guess: it is fixed by the engine,
             // the same in every Skyrim installation), so that path applies here too.
+            if (in_array($verb, ['unequipall', 'unequipitem'], true) && tesGodGuardIsChild($target)) {
+                $reasons[] = "«{$command}»: это ребёнок — детей не раздевают";
+                continue;
+            }
             if ($verb === 'heal') {
                 $body = 'tesheal';
                 $healTarget = strtolower($target) === 'player' ? '00000014' : $target;

@@ -36,7 +36,7 @@ try {
                 if (in_array(strval($row['npc']), $near, true)) {
                     $held = $db->fetchOne("SELECT 1 AS x FROM public.tes_crime_jail WHERE id = " . intval($row['id']) . " AND (last_hold IS NULL OR last_hold < now() - interval '60 seconds')");
                     if (!empty($held)) {
-                        tesCrimeQueue(tesCrimeJailCommands(strval($row['refid']), strval($row['inside_ref'])));
+                        tesCrimeQueue(tesCrimeHoldCommands(strval($row['refid']), strval($row['inside_ref'])));
                         $db->execQuery("UPDATE public.tes_crime_jail SET last_hold = now() WHERE id = " . intval($row['id']));
                         error_log("[tes_crime] {$row['npc']} was out of jail - put back");
                     }

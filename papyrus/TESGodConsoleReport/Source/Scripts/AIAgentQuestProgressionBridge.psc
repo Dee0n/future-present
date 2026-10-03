@@ -143,6 +143,10 @@ bool Function TESRunAndReport(String command) Global
         TESRoutine(StringUtil.Substring(command, 11))
         return true
     endif
+    if StringUtil.Find(command, "teshold ") == 0
+        TESHold(StringUtil.Substring(command, 8))
+        return true
+    endif
     if StringUtil.Find(command, "tesoutfit ") == 0
         TESOutfit(StringUtil.Substring(command, 10))
         return true
@@ -846,6 +850,50 @@ Function TESDress(String formIdText) Global
     endif
     target.EquipItem(item, true, true)
     AIAgentFunctions.logMessage("tesdress " + formIdText + "@@" + target.GetDisplayName() + " now wears " + item.GetName(), "tes_god_console")
+EndFunction
+
+; TES-Speech-Adapter: "teshold <reference FormID, decimal>|0" - keep the selected NPC at an
+; existing reference (a jail's PrisonMarker). Live 2026-10-04: Хеймскр, jailed with moveto +
+; setrestrained, was back at the Talos statue every few minutes - once the jail cell unloads,
+; the game moves an NPC along his own schedule whatever "restrained" says. CHIM's SandboxWork
+; package (sandbox near the linked ref) at priority 100 makes the cell his schedule.
+;   <id> - link to that reference and add the package;   0 - remove both (old schedule back).
+; The reference is the game's own and is never deleted (unlike tesroutine's marker).
+Function TESHold(String arg) Global
+    Actor target = ConsoleUtil.GetSelectedReference() as Actor
+    if !target
+        AIAgentFunctions.logMessage("teshold " + arg + "@@error: no actor selected", "tes_god_console")
+        return
+    endif
+    Faction sandboxFaction = Game.GetFormFromFile(0x21246, "AIAgent.esp") as Faction
+    Package sandboxWork = Game.GetFormFromFile(0x40BE6, "AIAgent.esp") as Package
+    if !sandboxFaction || !sandboxWork
+        AIAgentFunctions.logMessage("teshold " + arg + "@@error: CHIM sandbox package not found", "tes_god_console")
+        return
+    endif
+    int id = arg as int
+    if id <= 0
+        if StorageUtil.GetIntValue(target, "TESHeld") == 1
+            ActorUtil.RemovePackageOverride(target, sandboxWork)
+            target.RemoveFromFaction(sandboxFaction)
+            PO3_SKSEFunctions.SetLinkedRef(target, None)
+            StorageUtil.UnsetIntValue(target, "TESHeld")
+            target.EvaluatePackage()
+        endif
+        AIAgentFunctions.logMessage("teshold 0@@" + target.GetDisplayName() + " is no longer held", "tes_god_console")
+        return
+    endif
+    ObjectReference place = Game.GetForm(id) as ObjectReference
+    if !place
+        AIAgentFunctions.logMessage("teshold " + arg + "@@error: no such reference", "tes_god_console")
+        return
+    endif
+    StorageUtil.SetIntValue(target, "TESHeld", 1)
+    target.SetFactionRank(sandboxFaction, 1)
+    PO3_SKSEFunctions.SetLinkedRef(target, place)
+    ActorUtil.AddPackageOverride(target, sandboxWork, 100, 0)
+    target.EvaluatePackage()
+    AIAgentFunctions.logMessage("teshold " + arg + "@@" + target.GetDisplayName() + " is held there", "tes_god_console")
 EndFunction
 
 ; TES-Speech-Adapter: "tesroutine here|reset" - a new daily life for the selected NPC.

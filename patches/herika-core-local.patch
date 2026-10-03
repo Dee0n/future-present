@@ -58,7 +58,7 @@ index 6469a5b0..7d20a3e2 100755
 diff --git a/functions/functions.php b/functions/functions.php
 old mode 100755
 new mode 100644
-index c86e7de8..5aa4c0c2
+index c86e7de8..2b3e2fef
 --- a/functions/functions.php
 +++ b/functions/functions.php
 @@ -244,7 +244,7 @@ function herikaResolveSpawnItemDescriptionMatch($requestedItemName)
@@ -79,7 +79,7 @@ index c86e7de8..5aa4c0c2
          LIMIT 1
      ");
  
-@@ -792,6 +792,132 @@ function herikaGetLatestNarratorInputText()
+@@ -792,6 +792,147 @@ function herikaGetLatestNarratorInputText()
      return preg_replace('/^[^:]+:\s*/u', '', $latestInput) ?? $latestInput;
  }
  
@@ -195,6 +195,21 @@ index c86e7de8..5aa4c0c2
 +        }
 +    }
 +
++    // TES-GOD-ORDER (live 2026-10-04 02:00 and 02:14): the plugin dispatches outbox rows without
++    // waiting for each other, so the rows of ONE call ran in any order - "additem X; equipitem X"
++    // equipped before adding, "unequipall; equipitem rags" dressed and then stripped. Several
++    // commands of one call go as one sequence row: the bridge runs it top to bottom.
++    $queuedCount = count($steps);
++    if ($queuedCount > 1) {
++        $ordered = [];
++        foreach ($steps as $step) {
++            foreach ($step['type'] === 'console_command_sequence' ? $step['commands'] : [$step['command']] as $one) {
++                $ordered[] = $one;
++            }
++        }
++        $steps = [['type' => 'console_command_sequence', 'commands' => $ordered]];
++    }
++
 +    $queued = 0;
 +    foreach ($steps as $step) {
 +        $GLOBALS["db"]->insert('skyrim_quest_action_outbox', [
@@ -206,13 +221,13 @@ index c86e7de8..5aa4c0c2
 +        error_log("[GOD] Queued " . json_encode($step, JSON_UNESCAPED_UNICODE));
 +        $queued++;
 +    }
-+    return $queued;
++    return max($queued, $queuedCount);
 +}
 +
  function herikaQueueNarratorCreateNewNpc($creationBrief)
  {
      $creationBrief = trim(strval($creationBrief));
-@@ -945,8 +1071,8 @@ function herikaExtractActionArgumentTargetValue($arguments)
+@@ -945,8 +1086,8 @@ function herikaExtractActionArgumentTargetValue($arguments)
  // We must use internal keys here.
  
  $F_TRANSLATIONS_LOCAL["MoveTo"] = "Move to a visible nearby actor or NPC. Use TravelTo for places, buildings, cities, doors, or locations.";
@@ -223,7 +238,7 @@ index c86e7de8..5aa4c0c2
  $F_TRANSLATIONS_LOCAL["Attack"] = "Attack with intention to kill a target actor or entity.";
  $F_TRANSLATIONS_LOCAL["Follow"] = "Move to and follow the specified target actor";
  $F_TRANSLATIONS_LOCAL["Inspect"] = "Inspect a nearby actor or being to get a closer read on their visible equipment, condition, and state.";
-@@ -963,7 +1089,7 @@ $F_TRANSLATIONS_LOCAL["DecreaseWalkSpeed"] = "Decrease #HERIKA_NAME#'s speed whe
+@@ -963,7 +1104,7 @@ $F_TRANSLATIONS_LOCAL["DecreaseWalkSpeed"] = "Decrease #HERIKA_NAME#'s speed whe
  $F_TRANSLATIONS_LOCAL["StopWalk"] = "Stop all of #HERIKA_NAME#'s actions immediately.";
  $F_TRANSLATIONS_LOCAL["TravelTo"] = "Travel long distance to a building, city, door or other location. Also known as lead the way.";
  $F_TRANSLATIONS_LOCAL["WaitHere"] = "#HERIKA_NAME# waits and loiters at the current location.";
@@ -232,7 +247,7 @@ index c86e7de8..5aa4c0c2
  $F_TRANSLATIONS_LOCAL["RentRoom"] = "#HERIKA_NAME# rents a room to #PLAYER_NAME# for {{config.cost_gold}} gold. Only innkeepers can use this action and it only applies to #PLAYER_NAME#.";
  $F_TRANSLATIONS_LOCAL["HireCarriage"] = "#HERIKA_NAME# accepts {{config.cost_gold}} gold for carriage travel and transports #PLAYER_NAME# to the specified destination. Reply with one short acceptance line, do not ask follow-up questions, then end the conversation.";
  $F_TRANSLATIONS_LOCAL["HireFerry"] = "#HERIKA_NAME# accepts {{config.cost_gold}} gold for ferry travel and transports #PLAYER_NAME# to the specified destination. Reply with one short acceptance line, do not ask follow-up questions, then end the conversation.";
-@@ -982,7 +1108,7 @@ $F_TRANSLATIONS_LOCAL["FollowPlayer"] = "#HERIKA_NAME# follows #PLAYER_NAME#.";
+@@ -982,7 +1123,7 @@ $F_TRANSLATIONS_LOCAL["FollowPlayer"] = "#HERIKA_NAME# follows #PLAYER_NAME#.";
  $F_TRANSLATIONS_LOCAL["ComeCloser"] = "#HERIKA_NAME# approaches #PLAYER_NAME#.";
  $F_TRANSLATIONS_LOCAL["Brawl"] = "#HERIKA_NAME# starts a brawl with #PLAYER_NAME# or another nearby NPC: an agreed, bare-fisted fight that is not meant to kill. Fists only, no weapons, shields, spells, staves, or poisons. Use Attack instead when #HERIKA_NAME# truly means to kill.";
  $F_TRANSLATIONS_LOCAL["ReturnBackHome"] = "#HERIKA_NAME# travels to their home or place of origin. Returns home.";
@@ -241,7 +256,7 @@ index c86e7de8..5aa4c0c2
  $F_TRANSLATIONS_LOCAL["GiveItemTo"] = "#HERIKA_NAME# gives a specific item from inventory to another actor or #PLAYER_NAME#. REQUIRED: Must include 'item' field with exact item name from <inventory> tag, and 'target' field with recipient name.";
  $F_TRANSLATIONS_LOCAL["PickupItem"] = "#HERIKA_NAME# picks up a specific item from the ground. Use the exact RefID:ItemName format from nearby_items or from the representative RefID shown in ITEM DESCRIPTIONS when the nearby item list is grouped (e.g. 0x12345:Iron Sword).";
  $F_TRANSLATIONS_LOCAL["GoToSleep"] = "#HERIKA_NAME# takes a nap.";
-@@ -2827,8 +2953,90 @@ chimTraceFunctionsIncludePhase(__LINE__, 'post_filter_dependencies_loaded', $sta
+@@ -2827,8 +2968,90 @@ chimTraceFunctionsIncludePhase(__LINE__, 'post_filter_dependencies_loaded', $sta
  
  // action_post_process_fnct_ex is an arrya containing functions that process the actions after they are generated by the LLM
  // more working examples in data_functions.php
@@ -333,7 +348,7 @@ index c86e7de8..5aa4c0c2
      global $gameRequest;
  
      $actionsCopy=$actions;
-@@ -2964,6 +3172,20 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -2964,6 +3187,20 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
                  error_log("[ACTION POSTFILTER Train] Executed server-side");
                  unset($actionsCopy[$n]);// Remove action from list, so client does not execute it
  
@@ -354,7 +369,7 @@ index c86e7de8..5aa4c0c2
              } else if ($actionCodeNameResolved == "SpawnItem") {
                  $rawParameter = implode("@", array_slice($actionParts2, 1));
                  $payload = decodeFunctionExecutionParameterPayload($rawParameter);
-@@ -3010,12 +3232,110 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -3010,12 +3247,110 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
                  $resolvedItemName = str_replace('@', '', trim(strval($resolvedItem['name'] ?? $itemName)));
                  $runtimeFormId = str_replace('@', '', trim(strval($resolvedItem['runtime_formid'] ?? '')));
  
@@ -465,7 +480,7 @@ index c86e7de8..5aa4c0c2
                  $roleCommand = "rolecommand|SpawnItemRaw@{$targetNameEscaped}@{$runtimeFormId}@{$itemAmount}@{$resolvedItemName}";
  
                  $GLOBALS["db"]->insert(
-@@ -3177,6 +3497,11 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -3177,6 +3512,11 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
                  }
  
                  $creationBrief = trim(strval($payload["target"] ?? ''));
@@ -477,7 +492,7 @@ index c86e7de8..5aa4c0c2
                  if ($creationBrief === '') {
                      $creationBrief = herikaGetLatestNarratorInputText();
                  }
-@@ -3243,6 +3568,9 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -3243,6 +3583,9 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
                  }
  
                  $directorBrief = trim(strval($payload["target"] ?? ""));
@@ -487,7 +502,7 @@ index c86e7de8..5aa4c0c2
                  if ($directorBrief === '') {
                      $directorBrief = herikaGetLatestNarratorInputText();
                  }
-@@ -3310,6 +3638,11 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -3310,6 +3653,11 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
  
                  $requestedTarget = trim(strval($payload["target"] ?? ""));
                  $destinationName = trim(strval($payload["item"] ?? ""));
@@ -499,7 +514,7 @@ index c86e7de8..5aa4c0c2
                  $targetName = herikaNormalizeNarratorActorTargetForRoleCommand($requestedTarget);
                  $playerName = trim(strval($GLOBALS["PLAYER_NAME"] ?? "Player"));
  
-@@ -3319,8 +3652,15 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -3319,8 +3667,15 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
                          || $requestedTargetLower === 'me'
                          || ($playerName !== '' && strcasecmp($requestedTarget, $playerName) === 0);
                      if (!$looksLikePlayerAlias) {
@@ -517,7 +532,7 @@ index c86e7de8..5aa4c0c2
                      }
                  }
  
-@@ -3337,50 +3677,216 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -3337,50 +3692,216 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
                  $targetNameEscaped = str_replace('@', '', $targetName);
                  $destinationNameEscaped = str_replace('@', '', $destinationName);
                  $destinationLiteral = $GLOBALS["db"]->escape($destinationNameEscaped);
@@ -769,7 +784,7 @@ index c86e7de8..5aa4c0c2
  
              } else if ($actionCodeNameResolved == "KillTarget") {
                  $rawParameter = implode("@", array_slice($actionParts2, 1));
-@@ -3393,6 +3899,8 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -3393,6 +3914,8 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
                  if ($requestedTarget === '') {
                      $requestedTarget = trim(strval($rawParameter));
                  }
@@ -778,7 +793,7 @@ index c86e7de8..5aa4c0c2
  
                  $inferenceSources = [];
                  $latestNarratorInput = herikaGetLatestNarratorInputText();
-@@ -3447,20 +3955,67 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -3447,20 +3970,67 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
                      continue;
                  }
  
@@ -858,7 +873,7 @@ index c86e7de8..5aa4c0c2
  
                  $GLOBALS["db"]->insert(
                      'actions_issued',
-@@ -3475,7 +4030,6 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
+@@ -3475,7 +4045,6 @@ $GLOBALS["action_post_process_fnct_ex"][]=function($actions) {
                      )
                  );
  

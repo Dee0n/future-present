@@ -8,6 +8,6 @@ SELECT 'CarryOutOrder', 'Carry_Out_Order', '', '#HERIKA_NAME# sees to it that th
     '{"source": "tes-speech-adapter", "status": "active", "builtin": false, "dispatch": "rolecommand"}'::jsonb, true, 0
 WHERE NOT EXISTS (SELECT 1 FROM public.core_action WHERE code_name = 'CarryOutOrder');
 UPDATE public.core_action SET is_activated = true, available_to_npc = true, available_to_followers = true, available_to_narrator = false,
-    description = 'When #PLAYER_NAME#, your ruler or superior, orders something that changes the world beyond your own hands - appoint or dismiss someone, give or take a post, property or money, free a prisoner, change someone''s duties - use this: target = the order in plain words with names. It WILL really be done. For arrests and fines use Arrest_Person / Fine_Person.',
+    description = 'When #PLAYER_NAME#, your ruler, orders something you cannot do with your other actions - do something to another person or to yourself (undress or dress, take or give things, bring someone, heal, punish), appoint or dismiss, give or take a post, property or money, free a prisoner - use this instead of promising: target = the order in plain words with names. It WILL really be done. For arrests and fines use Arrest_Person / Fine_Person.',
     updated_at = now()
 WHERE code_name = 'CarryOutOrder';

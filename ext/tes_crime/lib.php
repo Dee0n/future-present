@@ -130,10 +130,20 @@ if (!function_exists('tesCrimeFine')) {
     /** Console sequence that puts the actor into the cell: prisoner clothes, cannot leave. */
     function tesCrimeJailCommands(string $ref, string $insideRef): array
     {
+        // teshold (bridge, 2026-10-04): the cell becomes his schedule - without it the game walked
+        // Хеймскр back to his statue every few minutes. A bridge without the command prints an
+        // "unknown command" line and goes on.
         return ['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef, 'unequipall',
             'additem ' . TES_CRIME_RAGS . ' 1', 'equipitem ' . TES_CRIME_RAGS . ' 1',
             'additem ' . TES_CRIME_WRAPS . ' 1', 'equipitem ' . TES_CRIME_WRAPS . ' 1',
-            'setrestrained 1'];
+            'setrestrained 1', 'teshold ' . hexdec($insideRef)];
+    }
+
+    /** Put an escaped prisoner back: he already wears the rags, so only move and hold. */
+    function tesCrimeHoldCommands(string $ref, string $insideRef): array
+    {
+        return ['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef, 'equipitem ' . TES_CRIME_RAGS . ' 1',
+            'setrestrained 1', 'teshold ' . hexdec($insideRef)];
     }
 
     /** Jail an NPC for $days game days. Returns [ok, message]. */
@@ -161,7 +171,7 @@ if (!function_exists('tesCrimeFine')) {
     function tesCrimeRelease(array $row, bool $toPlayer): void
     {
         $ref = strval($row['refid']);
-        tesCrimeQueue(['prid ' . $ref, 'setrestrained 0', 'unequipitem ' . TES_CRIME_RAGS, 'removeitem ' . TES_CRIME_RAGS . ' 1',
+        tesCrimeQueue(['prid ' . $ref, 'teshold 0', 'setrestrained 0', 'unequipitem ' . TES_CRIME_RAGS, 'removeitem ' . TES_CRIME_RAGS . ' 1',
             'unequipitem ' . TES_CRIME_WRAPS, 'removeitem ' . TES_CRIME_WRAPS . ' 1',
             'moveto ' . ($toPlayer ? 'player' : strval($row['outside_ref'])), 'resetai']);
         $GLOBALS['db']->execQuery("UPDATE public.tes_crime_jail SET status = 'released' WHERE id = " . intval($row['id']));
