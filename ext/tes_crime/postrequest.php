@@ -31,7 +31,7 @@ try {
                     $n = $db->fetchOne("SELECT data FROM eventlog WHERE type = 'infonpc_close' AND localts > " . (time() - 30) . " ORDER BY rowid DESC LIMIT 1");
                     $l = $db->fetchOne("SELECT data FROM eventlog WHERE type IN ('infoloc', 'request') AND data LIKE '%Context location:%' ORDER BY rowid DESC LIMIT 1");
                     $inJail = (bool)preg_match('/подземель|тюрьм|темниц|казарм|холодн|сидна|кровав/iu', strval($l['data'] ?? ''));
-                    $near = $inJail ? [] : array_map(fn($x) => trim(preg_replace('/\s*\((?:busy)\)\s*$/u', '', trim($x)) ?? ''), explode('/', strval($n['data'] ?? '')));
+                    $near = $inJail ? [] : array_map(fn($x) => trim(preg_replace('/(\s*\((?:busy|restrained|far away|sleeping|sitting|[a-z ]+)\))+\s*$/u', '', trim($x)) ?? ''), explode('/', strval($n['data'] ?? '')));
                 }
                 if (in_array(strval($row['npc']), $near, true)) {
                     $held = $db->fetchOne("SELECT 1 AS x FROM public.tes_crime_jail WHERE id = " . intval($row['id']) . " AND (last_hold IS NULL OR last_hold < now() - interval '60 seconds')");

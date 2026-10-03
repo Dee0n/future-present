@@ -41,7 +41,9 @@ if (!class_exists('RelationshipManager') && is_readable($enginePath . 'lib/relat
 }
 
 $db = $GLOBALS['db'];
-$args = getopt('', ['task:', 'goal:', 'dry', 'readonly', 'quick']);
+$args = getopt('', ['task:', 'goal:', 'dry', 'readonly', 'quick', 'local']);
+$tesLocalFirst = $db->fetchOne("SELECT value FROM conf_opts WHERE id = 'TES_AGENT_LOCAL_FIRST'");
+$GLOBALS['TES_AGENT_LOCAL_FIRST'] = isset($args['local']) || trim(strval($tesLocalFirst['value'] ?? ''), '"') === '1';
 // --quick: an order passed on by an NPC. Live 2026-10-04 02:49-03:00: such tasks ran 20-45 steps
 // each (one spent 45 steps on an unkillable man) while five plain orders waited behind them.
 $maxSteps = isset($args['quick']) ? 18 : TES_AGENT_MAX_STEPS;
@@ -88,23 +90,50 @@ function tesAgentApiKey(int $connectorId): string
     return '';
 }
 
+/**
+ * The local model (LM Studio on the Windows host, OpenAI-compatible, model qwen/qwen3.5-4b -
+ * docs/local-llm.md). Used when the cloud gives nothing (no key, no money, no network), or first
+ * when --local is passed or conf_opts TES_AGENT_LOCAL_FIRST = 1.
+ */
+function tesAgentLocalUrl(): string
+{
+    static $url = null;
+    if ($url === null) {
+        $host = trim(strval(@shell_exec("ip route 2>/dev/null | awk '/default/ {print \$3; exit}'")));
+        $url = preg_match('/^[0-9.]+$/', $host) ? "http://{$host}:1234/v1/chat/completions" : '';
+    }
+    return $url;
+}
+
 function tesAgentLlm(array $messages, array $tools, float &$cost): ?array
 {
-    foreach (TES_AGENT_MODELS as $cfg) {
-        $key = tesAgentApiKey($cfg['connector']);
-        if ($key === '') {
+    // reasoning_effort none: left to think, Qwen3.5 spends the whole answer budget on it (measured)
+    $local = ['model' => 'qwen/qwen3.5-4b', 'local' => true, 'extra' => ['reasoning_effort' => 'none']];
+    $models = !empty($GLOBALS['TES_AGENT_LOCAL_FIRST']) ? array_merge([$local], TES_AGENT_MODELS) : array_merge(TES_AGENT_MODELS, [$local]);
+    foreach ($models as $cfg) {
+        $isLocal = !empty($cfg['local']);
+        $key = $isLocal ? 'local' : tesAgentApiKey($cfg['connector']);
+        $url = $isLocal ? tesAgentLocalUrl() : 'https://openrouter.ai/api/v1/chat/completions';
+        if ($key === '' || $url === '') {
             continue;
         }
         $body = array_merge(['model' => $cfg['model'], 'messages' => $messages, 'tools' => $tools,
-            'tool_choice' => 'auto', 'max_tokens' => 1500, 'temperature' => 0.3, 'usage' => ['include' => true]], $cfg['extra']);
-        $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
-        curl_setopt_array($ch, [CURLOPT_POST => 1, CURLOPT_RETURNTRANSFER => 1, CURLOPT_TIMEOUT => 90, CURLOPT_CONNECTTIMEOUT => 10,
+            'tool_choice' => 'auto', 'max_tokens' => 1500, 'temperature' => 0.3], $isLocal ? [] : ['usage' => ['include' => true]], $cfg['extra']);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_POST => 1, CURLOPT_RETURNTRANSFER => 1, CURLOPT_TIMEOUT => $isLocal ? 180 : 90, CURLOPT_CONNECTTIMEOUT => $isLocal ? 3 : 10,
             CURLOPT_HTTPHEADER => ['Content-Type: application/json', "Authorization: Bearer {$key}"],
             CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE)]);
+        $t0 = microtime(true);
         $resp = json_decode(strval(curl_exec($ch)), true);
         $msg = $resp['choices'][0]['message'] ?? null;
         if (is_array($msg)) {
             $cost += floatval($resp['usage']['cost'] ?? 0);
+            if ($isLocal) {
+                echo sprintf("  (local %.1fs, in %d out %d tokens)
+", microtime(true) - $t0, intval($resp['usage']['prompt_tokens'] ?? 0), intval($resp['usage']['completion_tokens'] ?? 0));
+                unset($msg['reasoning_content'], $msg['reasoning']);
+                $msg['content'] = trim(preg_replace('/<think>.*?<\/think>/us', '', strval($msg['content'] ?? '')) ?? '');
+            }
             return $msg;
         }
         echo "  ! {$cfg['model']}: " . mb_substr(json_encode($resp['error'] ?? $resp, JSON_UNESCAPED_UNICODE), 0, 300) . "\n";

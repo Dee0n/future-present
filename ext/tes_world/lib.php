@@ -57,7 +57,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         $player = mb_strtolower(strval($GLOBALS['PLAYER_NAME'] ?? ''));
         foreach (explode('/', strval($row['data'] ?? '')) as $name) {
             $isFar = mb_strpos($name, '(far away)') !== false;
-            $name = trim(preg_replace('/\s*\((?:busy|far away)\)\s*/u', ' ', $name) ?? $name);
+            $name = trim(preg_replace('/\s*\((?:busy|far away|restrained|[a-z ]+)\)\s*/u', ' ', $name) ?? $name);
             $name = trim(preg_replace('/^\(?Context location:[^)]*\)\s*/u', '', $name) ?? $name);
             if ($name === '' || mb_strtolower($name) === $player || mb_strlen($name) > 60) {
                 continue;

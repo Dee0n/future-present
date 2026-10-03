@@ -200,7 +200,7 @@ if (!function_exists('tesCrimeFine')) {
             if ($name === '' || $name === $except || mb_strpos($name, '(far away)') !== false) {
                 continue;
             }
-            $clean = trim(preg_replace('/\s*\((?:busy|far away)\)\s*$/u', '', $name) ?? $name);
+            $clean = trim(preg_replace('/(\s*\([a-z ]+\))+\s*$/u', '', $name) ?? $name);
             if (mb_stripos($clean, 'Стражник') !== false || mb_stripos($clean, 'Guard') !== false) {
                 return $clean;
             }
