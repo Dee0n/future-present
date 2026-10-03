@@ -1032,6 +1032,17 @@ if (!function_exists('tesGodGuardValidate')) {
             $row = tesGodGuardResolveNpcLoose($name);
             return $row ? '{npc:' . strval($row['npc_name']) . '}' : $m[0];
         }, $text) ?? $text;
+        // TES-SUMMON-EXISTING (live 2026-10-04 02:11): "приведи командира Кая" became
+        // "player.placeatme {spawn:Кай} 1" - an attempt to CREATE a Кай (refused), while the real
+        // one walked around the city. Spawning a name that belongs to a living, known NPC means
+        // "bring him here".
+        $text = preg_replace_callback('/(^|[;\n])(\s*)player\s*\.\s*placeatme\s+\{spawn:([^}]+)\}(\s+\d+)?/iu', function ($m) {
+            if (!class_exists('RelationshipManager')) {
+                return $m[0];
+            }
+            $row = tesGodGuardResolveNpcLoose(trim($m[3]));
+            return $row ? $m[1] . $m[2] . '{npc:' . strval($row['npc_name']) . '}.moveto player' : $m[0];
+        }, $text) ?? $text;
         // TES-EXPLOSION (live 2026-10-04 01:15): "взорви Фаренгара" became
         // "player.placeatme {explosion:huge} 1; {npc:Фаренгар}.kill" - a huge blast ON THE PLAYER
         // in the jarl's hall; it hit everyone around and the whole court attacked the player.

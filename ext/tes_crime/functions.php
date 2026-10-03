@@ -84,6 +84,20 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
             }
             $name = strval($npc['npc_name']);
             $fine = in_array($code, ['AddBounty', 'FineNPC'], true);
+            // LOOP GUARD (live 2026-10-04 02:09-02:11: Люсия was "arrested" 11 times in 80 s).
+            // The arrest sent the guard an instruction to report; his report carried the arrest
+            // action again; that sent another instruction... Now: no instruction after an arrest
+            // (the guard already said his line with the action), and a second arrest or fine of
+            // the same person within 10 minutes is dropped silently.
+            tesCrimeEnsureTable();
+            tesCrimeEnsureJailTable();
+            $refEsc = $GLOBALS['db']->escape(strtoupper(strval($npc['refid'])));
+            $again = $fine
+                ? $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_crime_fines WHERE refid = '{$refEsc}' AND created_at > now() - interval '10 minutes' LIMIT 1")
+                : $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_crime_jail WHERE refid = '{$refEsc}' AND status = 'jailed' LIMIT 1");
+            if (!empty($again)) {
+                continue;
+            }
             if ($fine) {
                 $amount = intval(preg_replace('/\D+/', '', $item));
                 if ($amount <= 0) {
@@ -96,9 +110,6 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
                     $days = tesCrimeNumberNear($said, '(?:сут|дн|день|дня)') ?: 1;
                 }
                 [$ok, $msg] = tesCrimeJail($name, strval($npc['refid']), "арестован: {$actor}", max(1, min(365, $days)));
-                if ($ok) {
-                    tesCrimeTell($actor, "({$name} арестован и отправлен в темницу на {$days} сут. Доложи об этом одной фразой, никуда не веди и не иди.)");
-                }
             }
             error_log("[tes_crime] {$actor}: {$code} -> {$name}: " . ($ok ? 'ok' : 'failed') . " - {$msg}");
         } catch (Throwable $e) {
