@@ -45,7 +45,7 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                 }
                 $player = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
                 $title = mb_substr($facts['player_title'], 0, mb_strpos($facts['player_title'] . '.', '.'));
-                [$ok, $message] = tesAgentStart("Приказ правителя ({$title}), отданный через {$actor}: {$order}. Исполни его в мире: должности и занятия — change_character (field occupation) и remember всем причастным; тюрьма, штраф, имущество, отношения — своими инструментами; раздеть взрослого — console «{npc:Имя}.unequipall», одеть — «{npc:Имя}.equipitem {item:Название}»; привести — move_npc. Исполнитель {$actor} получает order: что он сделал.");
+                [$ok, $message] = tesAgentStart("Приказ правителя ({$title}), отданный через {$actor}: {$order}. Исполни его в мире: должности и занятия — change_character (field occupation) и remember всем причастным; тюрьма, штраф, имущество, отношения — своими инструментами; раздеть взрослого — console «{npc:Имя}.unequipall», одеть — «{npc:Имя}.equipitem {item:Название}»; привести — move_npc. Исполнитель {$actor} получает order: что он сделал. Делай РОВНО приказанное и ничего сверх: не сажай, не штрафуй, не меняй занятие и отношения, если этого нет в приказе.");
                 error_log("[tes_world] order via {$actor}: " . ($ok ? 'started' : 'not started') . " - {$message} | {$order}");
             } catch (Throwable $e) {
                 error_log('[tes_world actions] ' . $e->getMessage());
