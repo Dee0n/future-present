@@ -17,7 +17,7 @@ try {
                 // Live 2026-10-04 02:25-02:32: the new guard commander answered five orders with
                 // "будет исполнено" and did nothing - a promise is not a deed.
                 $deed = !empty($tesWorldFacts['player_title'])
-                    ? ' Приказ правителя не обсуждай. Если приказ нельзя исполнить твоими обычными действиями — вызови Carry_Out_Order (приказ словами, с именами): обещание без действия ничего не меняет.'
+                    ? ' Приказ правителя не обсуждай и не отвечай «не могу». Если приказ нельзя исполнить твоими обычными действиями — вызови Carry_Out_Order (приказ словами, с именами): обещание без действия ничего не меняет.'
                     : '';
                 $GLOBALS['request'] = '(Помни: ' . mb_substr($first, 0, mb_strpos($first . '.', '.')) . '.' . $deed . ') ' . $GLOBALS['request'];
             }

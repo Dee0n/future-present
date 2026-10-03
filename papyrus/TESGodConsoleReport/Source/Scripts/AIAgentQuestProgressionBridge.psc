@@ -231,7 +231,11 @@ bool Function TESRunAndReport(String command) Global
         TESOwnHouse(StringUtil.Substring(command, 12))
         return true
     endif
-    String before = ConsoleUtil.ReadMessage()
+    ; A marker line first: comparing with the PREVIOUS command's output lost every answer that
+    ; happened to repeat it (live 2026-10-04: "getitemcount" twice in a row -> the second
+    ; "GetItemCount >> 0.00" was reported as no output, and a fine waited for its answer forever).
+    String before = "[tes] " + command
+    ConsoleUtil.PrintMessage(before)
     ConsoleUtil.ExecuteCommand(command)
     String output = ConsoleUtil.ReadMessage()
     if output == before

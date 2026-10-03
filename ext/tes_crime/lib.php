@@ -219,7 +219,9 @@ if (!function_exists('tesCrimeFine')) {
         $db = $GLOBALS['db'];
         $guard = tesCrimeNearestGuard($npc);
         $db->insert('tes_crime_fines', ['npc' => $npc, 'refid' => $refId, 'amount' => $amount, 'guard' => $guard, 'jail_ref' => tesCrimeJailRef()]);
-        if (!tesCrimeQueue(['prid ' . $refId, 'getitemcount 0000000F'])) {
+        // "getav health" first: a bridge from before 2026-10-04 reports an answer equal to the
+        // previous console line as empty, and two gold counts in a row are often equal
+        if (!tesCrimeQueue(['prid ' . $refId, 'getav health', 'getitemcount 0000000F'])) {
             return [false, "«{$npc}»: канал игры недоступен"];
         }
         $player = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');

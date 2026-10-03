@@ -168,6 +168,19 @@ if (!function_exists('tesGodGuardValidate')) {
     // then the core resolver. '' = unknown.
     function tesGodGuardResolveItem(string $name, array $kinds = ['item']): string
     {
+        // Things the Narrator names in its own words (live 2026-10-04 02:14 and 02:38: a demoted
+        // guard was to be dressed as a beggar - "Рваная одежда", "Домашняя одежда" are not item
+        // names, so he was left naked; "Вайтранская стража" is not a faction name).
+        $lc = mb_strtolower($name);
+        if ($kinds === ['item'] && preg_match('/^(рван\w* (одежд\w*|тряпь\w*)|лохмоть\w*|одежд\w* (нищ|бомж|попрошай|бродяг)\w*|(нищенск|бомжатск)\w* одежд\w*|тряпь\w*)$/u', $lc)) {
+            return '00013105';  // REQ_Cloth_Beggar_Body "Рваный балахон"
+        }
+        if ($kinds === ['item'] && preg_match('/^(домашн|прост|обычн|крестьянск|бедн)\w* одежд\w*$/u', $lc)) {
+            return '0003C9FE';  // REQ_Cloth_Prisoner_Body "Домотканая одежда"
+        }
+        if ($kinds === ['faction'] && preg_match('/страж/u', $lc)) {
+            return mb_strpos($lc, 'вайтран') !== false ? '0002BE39' : '00086EEE';  // GuardFactionWhiterun / IsGuardFaction
+        }
         $formId = tesGodGuardIndexUnique($name, $kinds);
         if ($formId !== '') {
             return $formId;
@@ -1057,6 +1070,17 @@ if (!function_exists('tesGodGuardValidate')) {
             }
             $row = tesGodGuardResolveNpcLoose(trim($m[3]));
             return $row ? $m[1] . $m[2] . '{npc:' . strval($row['npc_name']) . '}.moveto player' : $m[0];
+        }, $text) ?? $text;
+        // TES-BARE-NAME (live 2026-10-04 02:39): the agent wrote "npc:Изольда.unequipall" and
+        // "Ysolda.unequipall" before it found the RefID form. A command that starts with the name
+        // of a known NPC is that NPC's command.
+        $text = preg_replace_callback('/(^|[;\n])(\s*)(?:npc:)?([A-Za-zА-Яа-яЁё][^.;{}\n]{1,60}?)\.(?=[a-z])/u', function ($m) {
+            $name = trim($m[3]);
+            if (!class_exists('RelationshipManager') || preg_match('/^(player|игрок|[0-9A-Fa-f]{8})$/iu', $name) || preg_match('/^[a-z]+[:\s]/', $name)) {
+                return $m[0];
+            }
+            $row = tesGodGuardResolveNpcLoose($name);
+            return $row ? $m[1] . $m[2] . '{npc:' . strval($row['npc_name']) . '}.' : $m[0];
         }, $text) ?? $text;
         // TES-EXPLOSION (live 2026-10-04 01:15): "взорви Фаренгара" became
         // "player.placeatme {explosion:huge} 1; {npc:Фаренгар}.kill" - a huge blast ON THE PLAYER
