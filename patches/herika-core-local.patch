@@ -1320,7 +1320,7 @@ index 924574be..6fd9044d
 diff --git a/main.php b/main.php
 old mode 100755
 new mode 100644
-index 16ba1c72..d15fe7f4
+index 16ba1c72..92ad9ed1
 --- a/main.php
 +++ b/main.php
 @@ -1091,7 +1091,10 @@ if (!in_array($gameRequest[0],["inputtext","inputtext_s","ginputtext","ginputtex
@@ -1361,7 +1361,28 @@ index 16ba1c72..d15fe7f4
          if ($budget === 0) {
              Logger::info("Rechat: pre-roll determined 0 rounds — terminating");
              terminate();
-@@ -1564,27 +1586,15 @@ error_log("TRACE:\t".__LINE__. "\t".__FILE__.":\t".(microtime(true) - $startTime
+@@ -1212,6 +1234,20 @@ if (in_array($gameRequest[0],["rechat","narration"]) ) {
+ 
+     $budget = intval($budgetState['budget'] ?? 0);
+     $currentRound = intval($budgetState['used'] ?? 0);
++    // TES-RECHAT-ADDRESSED-CHAIN (2026-10-04, live 01:13: Фаренгар told Провентус "Ярл ждёт
++    // объяснений", the chain had its single guaranteed round already spent -> "budget exhausted
++    // (1/1)", and Провентус stood silent before the jarl). An NPC spoken TO by name answers
++    // even when the dice budget is used up - up to 4 rounds per chain, so two NPCs cannot
++    // talk to each other forever on the owner's money.
++    if ($currentRound >= $budget && $gameRequest[0] === "rechat" && $currentRound < 4) {
++        $chainAddressed = trim((string)($GLOBALS["RECHAT_RESOLVED_TARGET"]["addressed"] ?? ""));
++        $chainSelected = trim((string)($GLOBALS["RECHAT_RESOLVED_TARGET"]["selected"] ?? ""));
++        if ($chainAddressed !== '' && $chainSelected !== '' && strcasecmp($chainAddressed, $chainSelected) === 0) {
++            $budget = $currentRound + 1;
++            $budgetState['budget'] = $budget;
++            Logger::info("Rechat: {$chainSelected} was addressed directly — extra round {$budget} beyond the pre-roll budget");
++        }
++    }
+     if ($currentRound >= $budget) {
+         Logger::info("Rechat: pre-roll budget exhausted ({$currentRound}/{$budget}) — terminating");
+         Logger::info("[RECHAT_COUNT] exhausted speaker={$GLOBALS["HERIKA_NAME"]} chain_id=" .
+@@ -1564,27 +1600,15 @@ error_log("TRACE:\t".__LINE__. "\t".__FILE__.":\t".(microtime(true) - $startTime
   CONTEXT DATA BUILDING
  ***********************/
  
@@ -1395,7 +1416,7 @@ index 16ba1c72..d15fe7f4
  
  if ($isNarratorScopedRequest && (($GLOBALS["HERIKA_NAME"] ?? "") !== "The Narrator")) {
      require_once(__DIR__ . DIRECTORY_SEPARATOR . "lib" . DIRECTORY_SEPARATOR . "core" . DIRECTORY_SEPARATOR . "narrator.class.php");
-@@ -2240,17 +2250,23 @@ if (in_array($gameRequest[0],["rechat","narration"]) ) {
+@@ -2240,17 +2264,23 @@ if (in_array($gameRequest[0],["rechat","narration"]) ) {
  }
  
  // Instruction reinforcement
@@ -1425,7 +1446,7 @@ index 16ba1c72..d15fe7f4
  // Rolemaster stuff
  if (herikaResolveNpcRolemasterState($GLOBALS["HERIKA_NAME"] ?? '', [
      'npc_data' => $currentNpcData ?? null,
-@@ -2258,9 +2274,9 @@ if (herikaResolveNpcRolemasterState($GLOBALS["HERIKA_NAME"] ?? '', [
+@@ -2258,9 +2288,9 @@ if (herikaResolveNpcRolemasterState($GLOBALS["HERIKA_NAME"] ?? '', [
      $GLOBALS["is_rolemastered"]=true;
      $GLOBALS["NPC_ROLEMASTERED"]=true;
      error_log("{$GLOBALS["HERIKA_NAME"]} is_rolemastered");
@@ -1438,7 +1459,7 @@ index 16ba1c72..d15fe7f4
  
  // MINIME_T5 STUFF, command assistant
  
-@@ -2305,9 +2321,38 @@ if ($GLOBALS["FUNCTIONS_ARE_ENABLED"]) {
+@@ -2305,9 +2335,38 @@ if ($GLOBALS["FUNCTIONS_ARE_ENABLED"]) {
      //$GLOBALS["COMMAND_PROMPT"].=$GLOBALS["COMMAND_PROMPT_FUNCTIONS"];
  }
  
