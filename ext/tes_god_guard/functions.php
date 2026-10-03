@@ -1346,6 +1346,12 @@ if (!function_exists('tesGodGuardValidate')) {
             // the word "player" - substitute 00000014, the game engine's own constant
             // FormID for the player reference (not a guess: it is fixed by the engine,
             // the same in every Skyrim installation), so that path applies here too.
+            // A bare actor command acts on whoever the console selected last - anyone (live
+            // 2026-10-04 02:44: "prid X" was refused, the "unequipall" after it was let through).
+            if ($target === '' && in_array($verb, ['unequipall', 'unequipitem', 'equipitem', 'removeitem', 'additem', 'kill', 'resurrect', 'disable', 'enable', 'moveto', 'setrestrained', 'setav', 'forceav', 'modav'], true)) {
+                $reasons[] = "«{$command}»: не указано, кому — пиши {npc:Имя}.{$verb} … или player.{$verb} …";
+                continue;
+            }
             if (in_array($verb, ['unequipall', 'unequipitem'], true) && tesGodGuardIsChild($target)) {
                 $reasons[] = "«{$command}»: это ребёнок — детей не раздевают";
                 continue;

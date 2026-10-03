@@ -42,23 +42,55 @@ if (!function_exists('tesAgentEnsureTable')) {
         if (mb_strlen($goal) < 3) {
             return [false, 'пустая цель'];
         }
+        $db = $GLOBALS['db'];
         $running = tesAgentRunningTask();
         if ($running) {
-            return [false, "уже идёт задача #{$running['id']}: {$running['goal']}"];
+            // One worker at a time (they read the same console log), but an order given meanwhile
+            // must not be lost. Live 2026-10-04 02:35-02:45: six orders in ten minutes got
+            // "уже идёт задача" and nothing happened. They wait in line; the worker starts the
+            // next one when it ends (tesAgentStartNext).
+            $db->execQuery("ALTER TABLE public.tes_agent_tasks ADD COLUMN IF NOT EXISTS opts text NOT NULL DEFAULT ''");
+            $waiting = $db->fetchOne("SELECT count(*) AS n FROM public.tes_agent_tasks WHERE status = 'waiting' AND created_at > now() - interval '15 minutes'");
+            if (intval($waiting['n'] ?? 0) >= 6) {
+                return [false, "очередь полна: идёт задача #{$running['id']} и ещё 6 ждут"];
+            }
+            $row = $db->fetchOne("INSERT INTO public.tes_agent_tasks (goal, status, opts) VALUES ('" . $db->escape(mb_substr($goal, 0, 1000))
+                . "', 'waiting', '" . ($dry ? 'dry ' : '') . ($readonly ? 'readonly' : '') . "') RETURNING id");
+            return [true, 'задача #' . intval($row['id'] ?? 0) . " в очереди за #{$running['id']}"];
         }
-        $db = $GLOBALS['db'];
         $row = $db->fetchOne("INSERT INTO public.tes_agent_tasks (goal) VALUES ('" . $db->escape(mb_substr($goal, 0, 1000)) . "') RETURNING id");
         $id = intval($row['id'] ?? 0);
         if ($id <= 0) {
             return [false, 'не удалось создать задачу'];
         }
+        tesAgentSpawn($id, $dry, $readonly);
+        return [true, "задача #{$id} запущена"];
+    }
+
+    /** Start the oldest waiting task, if nothing runs. Called by the worker when it ends. */
+    function tesAgentStartNext(): void
+    {
+        $db = $GLOBALS['db'];
+        $has = $db->fetchOne("SELECT 1 AS x FROM information_schema.columns WHERE table_name = 'tes_agent_tasks' AND column_name = 'opts'");
+        if (empty($has) || tesAgentRunningTask()) {
+            return;
+        }
+        $next = $db->fetchOne("UPDATE public.tes_agent_tasks SET status = 'queued', updated_at = now() WHERE id = (
+            SELECT id FROM public.tes_agent_tasks WHERE status = 'waiting' AND created_at > now() - interval '15 minutes' ORDER BY id LIMIT 1
+        ) RETURNING id, opts");
+        if (!empty($next['id'])) {
+            tesAgentSpawn(intval($next['id']), strpos(strval($next['opts']), 'dry') !== false, strpos(strval($next['opts']), 'readonly') !== false);
+        }
+    }
+
+    function tesAgentSpawn(int $id, bool $dry, bool $readonly): void
+    {
         $worker = __DIR__ . '/worker.php';
         $log = '/var/www/html/HerikaServer/log/tes_agent_' . $id . '.log';
         // setsid + nohup: the worker must outlive this HTTP request (SNQE pattern).
         // Absolute php: under Apache, PATH is minimal and PHP_BINARY is not the CLI.
         exec('setsid nohup /usr/bin/php ' . escapeshellarg($worker) . ' --task ' . $id . ($dry ? ' --dry' : '') . ($readonly ? ' --readonly' : '')
             . ' > ' . escapeshellarg($log) . ' 2>&1 &');
-        return [true, "задача #{$id} запущена"];
     }
 
     /** Short DebugNotification in the top-left corner of the game. */

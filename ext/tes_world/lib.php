@@ -43,6 +43,34 @@ if (!function_exists('tesWorldEnsureTable')) {
         return $out;
     }
 
+    /**
+     * Names of the people around the player right now (near first, far ones last, max $max).
+     * The player talks by voice and speech recognition mangles names ("из Ольда" for Изольда ->
+     * a fine for Олфрид, "рилет", "ольхина", "Хеймс-кара" - live 2026-10-04); whoever has to
+     * understand an order gets this list to match against.
+     */
+    function tesWorldNearbyNames(int $max = 14): array
+    {
+        $row = $GLOBALS['db']->fetchOne("SELECT data FROM eventlog WHERE type = 'infonpc_close' AND localts > " . (time() - 180) . " ORDER BY rowid DESC LIMIT 1");
+        $near = [];
+        $far = [];
+        $player = mb_strtolower(strval($GLOBALS['PLAYER_NAME'] ?? ''));
+        foreach (explode('/', strval($row['data'] ?? '')) as $name) {
+            $isFar = mb_strpos($name, '(far away)') !== false;
+            $name = trim(preg_replace('/\s*\((?:busy|far away)\)\s*/u', ' ', $name) ?? $name);
+            $name = trim(preg_replace('/^\(?Context location:[^)]*\)\s*/u', '', $name) ?? $name);
+            if ($name === '' || mb_strtolower($name) === $player || mb_strlen($name) > 60) {
+                continue;
+            }
+            if ($isFar) {
+                $far[] = $name;
+            } else {
+                $near[] = $name;
+            }
+        }
+        return array_slice(array_values(array_unique(array_merge($near, $far))), 0, $max);
+    }
+
     /** Set (or clear) the player's title. Returns [ok, message]. */
     function tesWorldSetTitle(string $title): array
     {

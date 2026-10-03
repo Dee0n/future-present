@@ -60,6 +60,15 @@ if (!$task) {
     exit(1);
 }
 $db->execQuery("UPDATE public.tes_agent_tasks SET status = 'running', pid = " . getmypid() . ", updated_at = now() WHERE id = {$taskId}");
+// whatever way this worker ends (finish, limit, crash) - the next order in line starts
+register_shutdown_function(function () use ($taskId) {
+    try {
+        $GLOBALS['db']->execQuery("UPDATE public.tes_agent_tasks SET status = 'failed', result = 'исполнитель прервался' WHERE id = {$taskId} AND status = 'running'");
+        tesAgentStartNext();
+    } catch (Throwable $e) {
+        error_log('[tes_agent] next: ' . $e->getMessage());
+    }
+});
 echo "task #{$taskId}" . ($dry ? ' (dry)' : '') . ": {$task['goal']}\n";
 
 /* ------------------------------------------------------------------ LLM */
@@ -454,7 +463,9 @@ function tesAgentRun(string $name, array $a, bool $dry, array &$finishState)
             $res = tesAgentRead([$who === 'player' ? 'tesstate' : "{$who}.tesstate"], $dry);
             foreach ($res['reports'] ?? [] as $r) {
                 if ($r['command'] === 'tesstate') {
-                    return ['state' => $r['output']];
+                    // the bridge prints FormIDs in decimal ("worn body=Кираса#80156"); every
+                    // command wants hex (live 2026-10-04: "unequipitem 80156" - item not found)
+                    return ['state' => preg_replace_callback('/#(-?\d+)/', fn($m) => '#' . strtoupper(str_pad(dechex(intval($m[1]) & 0xFFFFFFFF), 8, '0', STR_PAD_LEFT)), $r['output'])];
                 }
             }
             return $res;
@@ -622,6 +633,8 @@ $system = "Ты — исполнитель воли бога-Нарратора 
     . "Перки ищи по ветке: find kind=perk filters.skill=Sneak (без query) — получишь всю ветку. "
     . "Ошибку инструмента читай и исправляй причину, не повторяй то же самое. "
     . "О персонажах сначала спроси сервер (npc_info, relationships, quest_log) — это мгновенно и без игры; в игру ходи за тем, чего сервер не знает. "
+    . "Приказ касается только тех, кто в нём назван или на кого прямо указали; «всех» не додумывай и никого сам не свози. Детей (раса «Ребенок») не раздевай и в такие приказы не втягивай никогда. "
+    . "Раздеть взрослого — один вызов console «{npc:Имя}.unequipall», по одной вещи не снимай. Приказ простой — исполни за 2-4 шага и finish. "
     . "Делай только то, о чём просили: вопрос («что», «кто», «где», «сколько») — это ответ, а не повод телепортировать, выдавать или двигать квесты. "
     . "Ответ на вопрос отдай в finish.summary (expect пустой). Задания игрока за него не проходи, если он прямо не попросил. "
     . "Изменения отношений, характера, памяти, брака сервер подтверждает сам («было → стало» в ответе инструмента) — их в expect не включай. "

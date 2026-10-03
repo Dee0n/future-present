@@ -32,6 +32,42 @@ if (!function_exists('tesCrimeNumberNear')) {
         return 0;
     }
 
+    /**
+     * A name as the model wrote it after speech recognition ("Хеймс-кар", "Рилет", "Садию") ->
+     * the person standing around whose name sounds closest, when there is a close one.
+     */
+    function tesCrimeHeardName(string $target): string
+    {
+        $lib = __DIR__ . '/../tes_world/lib.php';
+        if (!function_exists('tesWorldNearbyNames') && is_readable($lib)) {
+            require_once $lib;
+        }
+        if (!function_exists('tesWorldNearbyNames') || $target === '') {
+            return $target;
+        }
+        $norm = fn($s) => preg_replace('/[^a-zа-я0-9]+/u', '', str_replace('ё', 'е', mb_strtolower(preg_replace('/\s*\[[^\]]*\]/u', '', $s) ?? $s))) ?? '';
+        $want = $norm($target);
+        $best = '';
+        $bestD = PHP_INT_MAX;
+        foreach (tesWorldNearbyNames(30) as $name) {
+            $full = $norm($name);
+            foreach (array_merge([$full], array_map($norm, preg_split('/\s+/u', preg_replace('/\s*\[[^\]]*\]/u', '', $name) ?? $name))) as $form) {
+                if ($form === '' || mb_strlen($form) < 3) {
+                    continue;
+                }
+                if ($form === $want) {
+                    return $name;
+                }
+                $d = levenshtein($want, $form) / 2;  // Cyrillic letters are two bytes each
+                if ($d < $bestD) {
+                    $bestD = $d;
+                    $best = $name;
+                }
+            }
+        }
+        return $best !== '' && $bestD <= max(1, intdiv(mb_strlen($want), 3)) ? $best : $target;
+    }
+
     /** May this actor arrest or fine people? Guards, commanders, housecarls, stewards, jarls. */
     function tesCrimeIsAuthority(string $actor): bool
     {
@@ -72,6 +108,7 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
             if (!class_exists('RelationshipManager') && is_readable('/var/www/html/HerikaServer/lib/relationship_manager.php')) {
                 require_once '/var/www/html/HerikaServer/lib/relationship_manager.php';
             }
+            $target = tesCrimeHeardName($target);
             $npc = function_exists('tesGodGuardResolveNpcLoose') && class_exists('RelationshipManager') ? tesGodGuardResolveNpcLoose($target) : null;
             unset($actions[$n]);  // from here on it never reaches the game as an arrest of the player
             if (!$npc || !preg_match('/^[0-9A-Fa-f]{8}$/', strval($npc['refid'] ?? ''))) {
