@@ -202,6 +202,18 @@ if (!function_exists('tesRealmAfterOrder')) {
             return '';
         }
         $t = mb_strtolower(str_replace('ё', 'е', $line));
+        // silence: "заткнись", "замолчи", "закрой рот", "все заткнитесь" (owner: "они рот свой заебали открывать")
+        if (preg_match('/(?<![\p{L}])(заткн\p{L}*|замолч\p{L}*|молчи|молчать|закр\p{L}+\s+(?:рот|пасть|хлебало|варежку)|хватит\s+(?:болтать|трепаться|говорить|трындеть)|не\s+болтай\p{L}*)(?![\p{L}])/u', $t)) {
+            tesWatchEnsure();
+            if (preg_match('/(?<![\p{L}])(все|всем|вы|вс[её]|заткнитесь|замолчите)(?![\p{L}])/u', $t) || stripos($to, 'Narrator') !== false) {
+                tesWatchSet('mute_all', '1');
+                return ' *ярл велел замолчать всем: пока он не заговорит сам — тишина*';
+            }
+            $db = $GLOBALS['db'];
+            $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_mutes (npc text PRIMARY KEY, until_at timestamptz NOT NULL)");
+            $db->execQuery("INSERT INTO public.tes_mutes (npc, until_at) VALUES ('" . $db->escape($to) . "', now() + interval '15 minutes') ON CONFLICT (npc) DO UPDATE SET until_at = EXCLUDED.until_at");
+            return " *ярл велел тебе замолчать — молчи, пока он сам не спросит*";
+        }
         // undo
         if (preg_match('/(верни\p{L}*|откат\p{L}*|отмен\p{L}*)\s+(как\s+было|приказ|последн\p{L}*|все\s+назад|это)|как\s+было\s+верни|верни\s+все\s+как\s+было/u', $t)
             && !preg_match('/закон|указ|суд|безнаказ/u', $t)) {
@@ -298,6 +310,21 @@ if (!function_exists('tesRealmAfterOrder')) {
     {
         $rows = $GLOBALS['db']->fetchAll("SELECT npc_name FROM public.core_npc_master WHERE position('Торгов' in occupation) > 0 OR position('торгов' in occupation) > 0 OR position('купец' in occupation) > 0 LIMIT 6");
         return array_map(fn($r) => strval($r['npc_name']), is_array($rows) ? $rows : []);
+    }
+
+    /** The ruler told this one (or everyone) to be silent: one line for his prompt, or ''. */
+    function tesRealmMuteLine(string $me): string
+    {
+        tesWatchEnsure();
+        $all = tesWatchGet('mute_all');
+        $db = $GLOBALS['db'];
+        $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_mutes (npc text PRIMARY KEY, until_at timestamptz NOT NULL)");
+        $m = $db->fetchOne("SELECT 1 AS x FROM public.tes_mutes WHERE npc = '" . $db->escape($me) . "' AND until_at > now()");
+        $allOn = $all['value'] === '1' && $all['age'] < 900;
+        if (empty($m) && !$allOn) {
+            return '';
+        }
+        return 'Правитель велел замолчать: не говори фраз — максимум одно-два слова, вздох, кивок или «…», пока он сам не обратится к тебе с вопросом.';
     }
 
     /** A gathering that is going on: for the prompt of those in the talk. */
