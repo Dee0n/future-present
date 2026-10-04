@@ -23,6 +23,9 @@ if (strtolower(strval($GLOBALS['gameRequest'][0] ?? '')) === 'tes_god_console') 
                 if ($gold >= $amount) {
                     tesCrimeQueue(['prid ' . $ref, 'removeitem 0000000F ' . $amount]);
                     $db->execQuery("UPDATE public.tes_crime_fines SET status = 'paid', gold = {$gold} WHERE id = " . intval($fine['id']));
+                    if (function_exists('tesTreasuryAdd')) {
+                        tesTreasuryAdd($amount, 'штраф: ' . $npc);  // a paid fine goes to the treasury
+                    }
                     tesCrimeNotify("{$npc} заплатил штраф {$amount} септимов");
                     tesCrimeTell($npc, "(С тебя только что взыскали штраф {$amount} септимов, ты заплатил — деваться было некуда. Одна короткая реплика: злость, досада или смирение.)");
                 } else {

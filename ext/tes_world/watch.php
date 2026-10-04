@@ -89,6 +89,15 @@ if (!function_exists('tesWatchNotify')) {
                 }
             }
         }
+        // --- impunity: crimes of the player are not reported (Game.SetPlayerReportCrime) - on by
+        // default, put again every 3 minutes (the flag is not kept by a save), needs bridge 4
+        $imp = tesWatchGet('impunity');
+        if ($imp['value'] !== '0' && tesWatchGet('impunity_sent')['age'] >= 180) {
+            tesWatchSet('impunity_sent', '1');
+            if (tesBridgeVersion() >= 4 && function_exists('tesWorldQueue')) {
+                tesWorldQueue(['tesimpunity 1']);
+            }
+        }
         // --- self-check: an old bridge in the game
         if (tesWatchGet('bridge_check')['age'] >= 3600) {
             $old = $db->fetchOne("SELECT command FROM public.tes_god_console_log WHERE created_at > now() - interval '10 minutes' AND output LIKE 'Script command \"tes%not found.%' ORDER BY id DESC LIMIT 1");

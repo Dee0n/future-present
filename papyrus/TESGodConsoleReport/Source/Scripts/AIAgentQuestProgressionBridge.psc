@@ -168,10 +168,18 @@ bool Function TESRunAndReport(String command) Global
         AIAgentFunctions.logMessage(command + "@@copies of " + original.GetDisplayName() + " made: " + made, "tes_god_console")
         return true
     endif
+    if StringUtil.Find(command, "tesimpunity") == 0
+        ; "tesimpunity 1|0": the player's crimes are not reported (no bounty, guards do not turn on
+        ; him) / are reported again. The flag is not kept by a save - the server puts it again.
+        bool impunityOn = StringUtil.Substring(command, 12) != "0"
+        Game.SetPlayerReportCrime(!impunityOn)
+        AIAgentFunctions.logMessage(command + "@@crime reporting " + (!impunityOn), "tes_god_console")
+        return true
+    endif
     if command == "tesversion"
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
-        ; 3 = also "teslove solo"
-        AIAgentFunctions.logMessage("tesversion@@3", "tes_god_console")
+        ; 3 = also "teslove solo"; 4 = also "tesimpunity"
+        AIAgentFunctions.logMessage("tesversion@@4", "tes_god_console")
         return true
     endif
     if command == "teskill"

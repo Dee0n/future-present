@@ -63,6 +63,14 @@ try {
                 error_log("[tes_world] gold: {$tesWorldGold} to " . trim($gm[1]));
             }
         }
+        // the treasury and the court: the ruler's words about them are done at once
+        if ($tesWorldTo !== '' && function_exists('tesCourtSpoken')) {
+            $tesWorldCourt = tesCourtSpoken($tesWorldLine, $tesWorldTo);
+            if ($tesWorldCourt !== '') {
+                $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . $tesWorldCourt . $tesWorldTail;
+                error_log("[tes_world] court/treasury: {$tesWorldCourt}");
+            }
+        }
         // what the ruler plainly ordered is done at once, whether or not the NPC passes it on
         if ($tesWorldType !== 'narrator_inputtext' && !empty(tesWorldFacts()['player_title'])) {
             $tesWorldWhom = $tesWorldTo;
