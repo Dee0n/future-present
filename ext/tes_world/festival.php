@@ -164,9 +164,9 @@ if (!function_exists('tesFestTick')) {
         $act = $db->fetchOne("SELECT 1 AS x FROM public.tes_festival WHERE active LIMIT 1");
         // "пусть пиздец начнётся" (owner, 00:15): a storm - a wonder every ~18 s for five minutes, Games or not
         $storm = tesWatchGet('sheo_storm');
-        $stormOn = $storm['value'] === '1' && $storm['age'] < 300;
+        $stormOn = $storm['value'] === '1' && $storm['age'] < 480;
         if (function_exists('tesSheoWonder') && !tesWorldQueueBusy()
-            && (($stormOn && tesWatchGet('sheo_at')['age'] >= 18) || (!empty($act) && tesWatchGet('sheo_at')['age'] >= 100))) {
+            && (($stormOn && tesWatchGet('sheo_at')['age'] >= 9) || (!empty($act) && tesWatchGet('sheo_at')['age'] >= 100))) {
             tesSheoWonder();
         }
         // 2. the next number of the programme
