@@ -2498,3 +2498,12 @@ stopcombat участникам, `coc WhiterunBreezehome` + Назим к игр
 - descriptions → `descriptions_custom`, русское название из `tes_game_index` (для Skyrim/DLC по FormID), иначе перевод; поиск описаний в ядре идёт по точному названию, а игра на русском — теперь описания будут находиться. Откат: «delete all custom» в Description Manager.
 - oghma → `topic_desc`/`topic_desc_basic`; английский в `tes_backup_oghma_en`; полнотекстовый индекс пересобирается (`chimOghmaNativeVectorSql`). Эмбеддинги `vector384` остаются от английского текста.
 - Пробный прогон 16:25 (6 описаний, 4 действия, 3 статьи Огмы) — качество нормальное. Полный прогон запущен фоном, лог `/tmp/translate_ru.log`.
+
+## 2026-10-04 16:40 — Эбонитовый воин, «перенеси» ≠ «отдай всё», обрезанные ответы
+
+- Живой лог 13:11–13:18 (время БД): Эбонитовый воин не умирал («сел на колено»): `setessential 0` / `setessential 04030CC9 0` — «Invalid actor base», `tesessential` — нет в старом мосту, `prid`/`forcekill`/`kill <hex>`/`removeperk`/`damage` — отклонены валидатором.
+- Валидатор: `prid X; cmd` → `X.cmd`; `player.kill X`, `forcekill X`, `kill X` → `X.teskill; X.kill`; `setessential X 0`, `player.setessential X` → консольный `setessential <база> 0` (база из `tes_game_index.extra.base`, работает без нового моста) + `X.tesessential 0`; `.damage N` → `damageav health N`; разрешены `removeperk`, `damageav`.
+- «Перенеси эбонитового воина ко мне» Рассказчик сделал `giveall` — вся его броня и оружие ушли игроку. Валидатор: `giveall`, когда игрок просил привести/перенести и не говорил про вещи → `moveto player`.
+- Поставлено в очередь (игра с 13:16 не забирала команды): `setessential 040285C3 0; prid 04030CC9; kill`, и удаление по 1 шт. комплекта Эбонитового воина у игрока (332A9C7E..81, 330C89DC, 32000801, 601547E5). Выполнение **не проверено**.
+- Ответ Рассказчика обрывался («…лишний комплект бро»): `max_tokens` 500 у коннекторов 19 (MiMo) и 20 (GPT 6 LUNA, модель с рассуждением) → 1500.
+- Перевод: промпты 61/61, действия 110/111 готовы; описания и Огма идут.

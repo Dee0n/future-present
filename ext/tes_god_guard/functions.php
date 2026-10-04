@@ -1010,7 +1010,7 @@ if (!function_exists('tesGodGuardValidate')) {
         // close relatives). Anything else is refused with a reason.
         $allowed = [
             'resurrect', 'kill', 'restoreav', 'modav', 'setav', 'forceav', 'additem', 'removeitem',
-            'equipitem', 'unequipitem', 'addspell', 'removespell', 'addperk', 'fw', 'sw', 'set',
+            'equipitem', 'unequipitem', 'addspell', 'removespell', 'addperk', 'removeperk', 'damageav', 'fw', 'sw', 'set',
             'advlevel', 'incpcs', 'tgm', 'setrelationshiprank', 'stopcombat', 'setscale', 'moveto',
             'placeatme', 'addfac', 'removefac', 'setplayerteammate', 'recycleactor', 'evp', 'resetai',
             'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'teslove', 'sex', 'love', 'ostim', 'fuck', 'tesfollow', 'follow', 'unfollow', 'tesclone', 'clone', 'tesessential', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
@@ -1080,6 +1080,17 @@ if (!function_exists('tesGodGuardValidate')) {
         $text = preg_replace('/\.(remember|order|rumor|hypnosis|jail|fine|title|relation)\s*:\s*/iu', '.$1 ', $text) ?? $text;
         // "{npc:player}" is the player (the agent wrote it, 13:50) - the plain word, not a lookup
         $text = preg_replace('/\{npc:\s*(player|игрок)\s*\}/iu', 'player', $text) ?? $text;
+        // Raw console habits of the Narrator (live 13:13-13:16, all refused or failed):
+        // "prid 04030CC9; kill" -> "04030CC9.kill"; "player.kill X", "player.forcekill X",
+        // "kill X", "forcekill X" -> "X.kill" (the bridge's teskill runs first);
+        // "setessential X 0", "player.setessential X" -> "X.setessential 0" (bridge, by the actor).
+        $text = preg_replace('/(^|[;\n])\s*prid\s+([0-9A-Fa-f]{8})\s*;\s*(?=[a-z])/iu', '$1$2.', $text) ?? $text;
+        $text = preg_replace('/(^|[;\n])\s*prid\s+([0-9A-Fa-f]{8})\s*(?=;|$)/iu', '$1', $text) ?? $text;
+        $text = preg_replace('/(^|[;\n])\s*(?:player\s*\.\s*)?(?:force)?kill\s+(\{npc:[^}]+\}|[0-9A-Fa-f]{8})\s*(?=;|\n|$)/iu', '$1$2.kill', $text) ?? $text;
+        $text = preg_replace('/(^|[;\n])\s*(?:player\s*\.\s*)?setessential\s+(\{npc:[^}]+\}|[0-9A-Fa-f]{8})\s*(0|1|false|true)?\s*(?=;|\n|$)/iu', '$1$2.setessential $3', $text) ?? $text;
+        $text = preg_replace('/\.setessential\s+(false)?\s*(?=;|\n|$)/iu', '.setessential 0', $text) ?? $text;
+        $text = preg_replace('/\.forcekill\b/iu', '.kill', $text) ?? $text;
+        $text = preg_replace('/\.damage\s+(\d+)/iu', '.damageav health $1', $text) ?? $text;
         // ... and so is {npc:<the player's own name>}: "{npc:Шаман}.addspell" was looked up as a
         // person and became the guard "Огман Магодин" (live 12:55, 12:51)
         $tesPlayerName = trim(strval($GLOBALS['PLAYER_NAME'] ?? ''));
@@ -1384,6 +1395,14 @@ if (!function_exists('tesGodGuardValidate')) {
                 }
                 if (tesGodGuardIsChild($target)) {
                     $reasons[] = "«{$command}»: это ребёнок — детей не раздевают";
+                    continue;
+                }
+                // "Перенеси эбонитового воина ко мне" became giveall: his whole gear landed in the
+                // player's bag (live 13:15). Asked to bring, not to hand over -> bring.
+                $giveSaid = strval($GLOBALS['gameRequest'][3] ?? '');
+                if (preg_match('/(перенес|перемест|приведи|притащи|телепорт|доставь|ко мне|сюда)/iu', $giveSaid)
+                    && !preg_match('/(отда|переда|забер|забир|вещ|инвентар|всё|все|снаряж|брон|оруж|золот|деньг)/iu', $giveSaid)) {
+                    $kept[] = $target . '.moveto player';
                     continue;
                 }
                 $body = 'tesgive all';
@@ -1809,7 +1828,23 @@ if (!function_exists('tesGodGuardValidate')) {
             // "setessential 0" on a person: the console wants the BASE ("setessential <base> 0") and
             // answered "Invalid actor base '0'" twice (live 12:57, 12:59). The bridge does it.
             if ($verb === 'setessential' && $target !== '' && strtolower($target) !== 'player') {
-                $kept[] = $target . '.tesessential ' . (preg_match('/(1|true|on|да)/iu', $body) ? 1 : 0);
+                $essOn = preg_match('/(1|true|on|да)/iu', $body) ? 1 : 0;
+                // the console form needs the BASE: known from the game index for placed actors,
+                // so it works even with a bridge that does not have tesessential yet
+                $essRef = preg_match('/^[0-9A-Fa-f]{8}$/', $target) ? strtoupper($target) : '';
+                if ($essRef === '' && preg_match('/^\{npc:([^}]+)\}$/u', $target, $em) && class_exists('RelationshipManager')) {
+                    $essRow = tesGodGuardResolveNpcLoose(trim($em[1]));
+                    $essRef = strtoupper(strval($essRow['refid'] ?? ''));
+                }
+                $essBase = '';
+                if (preg_match('/^[0-9A-F]{8}$/', $essRef) && isset($GLOBALS['db'])) {
+                    $eb = $GLOBALS['db']->fetchOne("SELECT extra->>'base' AS b FROM tes_game_index WHERE formid = '{$essRef}' LIMIT 1");
+                    $essBase = strtoupper(strval($eb['b'] ?? ''));
+                }
+                if (preg_match('/^[0-9A-F]{8}$/', $essBase)) {
+                    $kept[] = 'setessential ' . $essBase . ' ' . $essOn;
+                }
+                $kept[] = $target . '.tesessential ' . $essOn;
                 continue;
             }
             if ($verb === 'kill' && $target !== '' && strtolower($target) !== 'player') {
