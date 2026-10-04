@@ -32,11 +32,29 @@ int Function Start(Actor first, Actor second, String tags = "") Global
         actors[0] = first
         actors[1] = second
     endif
+    ; "tags|SceneId1,SceneId2": after the bar - scenes of that kind picked by the server, for
+    ; when OStim's own lookup finds nothing (cunnilingus, live 2026-10-04)
     String sceneId = ""
+    String picked = ""
+    int bar = StringUtil.Find(tags, "|")
+    if bar >= 0
+        picked = StringUtil.Substring(tags, bar + 1)
+        if bar > 0
+            tags = StringUtil.Substring(tags, 0, bar)
+        else
+            tags = ""
+        endif
+    endif
     if tags != ""
         sceneId = OLibrary.GetRandomSceneWithAnyActionCSV(actors, tags)
         if sceneId == ""
             sceneId = OLibrary.GetRandomSceneWithAnySceneTagCSV(actors, tags)
+        endif
+    endif
+    if sceneId == "" && picked != ""
+        String[] ids = StringUtil.Split(picked, ",")
+        if ids.Length > 0
+            sceneId = ids[Utility.RandomInt(0, ids.Length - 1)]
         endif
     endif
     int running = ThreadOf(first, second)

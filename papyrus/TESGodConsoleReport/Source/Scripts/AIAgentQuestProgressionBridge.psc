@@ -143,6 +143,31 @@ bool Function TESRunAndReport(String command) Global
         TESRoutine(StringUtil.Substring(command, 11))
         return true
     endif
+    if command == "tesclone" || StringUtil.Find(command, "tesclone ") == 0
+        ; a copy of the selected actor next to the player ("сделай вторую Айрилет", live
+        ; 2026-10-04 14:44: placeatme with her RefID is "Invalid object" - it needs the base)
+        Actor original = ConsoleUtil.GetSelectedReference() as Actor
+        if !original || original == Game.GetPlayer() || original.IsChild()
+            AIAgentFunctions.logMessage(command + "@@error: no actor selected", "tes_god_console")
+            return true
+        endif
+        int copies = 1
+        if StringUtil.GetLength(command) > 9
+            copies = StringUtil.Substring(command, 9) as int
+        endif
+        if copies < 1
+            copies = 1
+        elseif copies > 5
+            copies = 5
+        endif
+        int made = 0
+        while made < copies
+            Game.GetPlayer().PlaceActorAtMe(original.GetActorBase())
+            made += 1
+        endwhile
+        AIAgentFunctions.logMessage(command + "@@copies of " + original.GetDisplayName() + " made: " + made, "tes_god_console")
+        return true
+    endif
     if command == "teskill"
         ; "kill" on an essential NPC only drops him to his knees. Essential/protected are flags
         ; of the actor BASE; clear them, then kill (no killer: nobody gets a bounty for it).

@@ -109,7 +109,7 @@ try {
                 $tesWorldOnce = $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '20 seconds' AND status = 'fast' AND goal = '" . $GLOBALS['db']->escape($tesWorldKey) . "' LIMIT 1");
                 if (empty($tesWorldOnce)) {
                     $GLOBALS['db']->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $GLOBALS['db']->escape($tesWorldKey) . "', 'fast', 'со слов игрока')");
-                    tesWorldQueue(['prid ' . $tesWorldLoveRef, 'unequipall', 'teslove 20 ' . $tesWorldLove]);
+                    tesWorldQueue(['prid ' . $tesWorldLoveRef, 'unequipall', 'teslove 20 ' . tesWorldLoveArg($tesWorldLove)]);
                     $GLOBALS['gameRequest'][3] = rtrim(strval($GLOBALS['gameRequest'][3])) . " *это уже происходит на самом деле — отвечай как участница, а не обещай*" . $tesWorldTail;
                     error_log("[tes_world] scene from the player's words: {$tesWorldKey}");
                 }

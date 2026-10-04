@@ -1,0 +1,26 @@
+<?php
+/*
+ * tes_world: OStim scene ids for each kind of scene, man + woman, built 2026-10-04 from the
+ * scene files of OStim Standalone 7.5.1b (SKSE/Plugins/OStim/scenes/OStim2P/MF). Sent after the
+ * tags as a fallback: OStim's own lookup by action returned nothing for cunnilingus in the game.
+ */
+return [
+    'deepthroating,blowjob' => ['OStim2PKneelingFacefuckMF'],
+    'reversecowgirl' => ['OStim2PReverseCowgirlArchBackMF', 'OStim2PReverseCowgirlButtJobMF', 'OStim2PReverseCowgirlMF'],
+    'facesitting' => ['OStim2PFaceRidingMF', 'OStim2PFaceSittingMF'],
+    'blowjob' => ['OStim2PKneelingBlowjobHoldLegsMF', 'OStim2PKneelingBlowjobHoldingHeadMF', 'OStim2PKneelingBlowjobMF', 'OStim2PKneelingFacefuckMF', 'OStim2PMaleKneelingAllFoursBlowJobMF', 'OStim2PMaleSittingBlowJobMF', 'OStim2PMaleSittingProneBlowJobMF', 'OStim2PSquattingBlowjobHoldingHeadMF', 'OStim2PSquattingBlowjobMF', 'OStim2PSquattingBlowjobMasturbationMF', 'OStim2PSquattingFaceFuckMF'],
+    'handjob' => ['OStim2PKneelingHandjobMF', 'OStim2PMaleSittingHandJobMF', 'OStim2PSquattingHandjobMF', 'OStim2PStandingApartHandjobMF', 'OStim2PStandingHandjobRKissMF'],
+    'boobjob' => ['OStim2PStandingKneelingBoobjobMF', 'OStim2PStandingKneelingTitfuckMF'],
+    'vulvallicking,vulvaleating,cunnilingus,lickingvagina' => ['OStim2PFaceRidingMF', 'OStim2PFaceSittingMF', 'OStim2PKneelingBehindCunnilingusHoldingHeadMF', 'OStim2PKneelingBehindCunnilingusMF', 'OStim2PLyingCunnilingusHoldingHeadMF', 'OStim2PLyingCunnilingusLegLockMF', 'OStim2PLyingCunnilingusMF', 'OStim2PStandingCunnilingusMF'],
+    'vaginalfingering' => ['OStim2PStandingKissFingeringMF'],
+    'facial' => ['OStim2PKneelingHandjobMF', 'OStim2PKneelingJerkToFaceMF', 'OStim2PMaleKneelingAllFoursJerkToFaceMF', 'OStim2PMaleSittingHandJobMF', 'OStim2PMaleSittingJerkToFaceMF', 'OStim2PMissionaryJerkToPussyMF', 'OStim2PSidewaysJerkToBodyMF', 'OStim2PSquattingJerkToFaceMF', 'OStim2PStandingSittingJerkToFaceMasturbationMF', 'Ostim2PStandingKneelingJerkToFaceMF'],
+    'cumonchest' => ['OStim2PMaleKneelingAllFoursJerkToFaceMF', 'OStim2PMaleSittingJerkToFaceMF', 'OStim2PMissionaryJerkToPussyMF', 'OStim2PSidewaysJerkToBodyMF', 'OStim2PStandingSittingJerkToFaceMasturbationMF'],
+    'vulvalrubbing,rubbingclitoris' => ['OStim2PStandingFingeringFromBehindMF'],
+    'missionary' => ['OStim2PMissionaryHandHoldingMF', 'OStim2PMissionaryJerkToPussyMF', 'OStim2PMissionaryKissFootMF', 'OStim2PMissionaryKissLegLockMF', 'OStim2PMissionaryKissMF', 'OStim2PMissionaryLegsStretchedMF', 'OStim2PMissionaryLegsTogetherMF', 'OStim2PMissionaryLegsUpMF', 'OStim2PMissionaryMF'],
+    'cowgirl' => ['OStim2PCowgirlHoldingBodyMF', 'OStim2PCowgirlHoldingBreastMF', 'OStim2PCowgirlHoldingHipMF', 'OStim2PCowgirlMF'],
+    'doggystyle' => ['OStim2PDoggyStyleHoldingArmsMF', 'OStim2PDoggyStyleHoldingArmsPullUpMF', 'OStim2PDoggyStyleLowHoldingArmMF', 'OStim2PDoggyStyleLowLookingBackMF', 'OStim2PDoggyStyleLowMF', 'OStim2PDoggyStyleMF', 'OStim2PDoggyStyleNoHandsMF', 'OStim2PDoggyStylePressingDownMF', 'OStim2PDoggyStylePullingHairMF', 'OStim2PDoggyStyleSquattingMF', 'OStim2PSittingDoggyJerkToButtMF'],
+    'grindingpenis,buttjob' => ['OStim2PProneMaleMountedCrackFuckMF', 'OStim2PReverseCowgirlButtJobMF', 'OStim2PStandingButtjobMF', 'OStim2PStandingGrindingDryMF'],
+    'cuddling,cuddle,hug,hugging' => ['OStim2PMissionaryKissLegLockMF', 'OStim2PMissionaryKissMF', 'OStim2PProneHoldingLegsSpreadMF', 'OStim2PProneHoldingMF', 'OStim2PStandingCuddleFromBehindMF', 'OStim2PStandingCuddleHoldingHeadMF', 'OStim2PStandingHoldingChinHugMF', 'OStim2PStandingHugFromBehindMF', 'OStim2PStandingHugMF', 'OStim2PStandingKissEmbraceMF', 'OStim2PStandingKissGropingButtMF'],
+    'kissing,frenchkissing' => ['OStim2PMissionaryKissLegLockMF', 'OStim2PMissionaryKissMF', 'OStim2PStandingHandHoldingKissMF', 'OStim2PStandingHandjobRKissMF', 'OStim2PStandingHoldingChinKissMF', 'OStim2PStandingKissEmbraceMF', 'OStim2PStandingKissFingeringMF', 'OStim2PStandingKissGropingButtMF', 'OStim2PStandingKissHoldingHipMF', 'OStim2PStandingKissMF'],
+    'vaginalsex' => ['OStim2PCowgirlHoldingBodyMF', 'OStim2PCowgirlHoldingBreastMF', 'OStim2PCowgirlHoldingHipMF', 'OStim2PCowgirlMF', 'OStim2PDoggyStyleHoldingArmsMF', 'OStim2PDoggyStyleHoldingArmsPullUpMF', 'OStim2PDoggyStyleLowHoldingArmMF', 'OStim2PDoggyStyleLowLookingBackMF', 'OStim2PDoggyStyleLowMF', 'OStim2PDoggyStyleMF', 'OStim2PDoggyStyleNoHandsMF', 'OStim2PDoggyStylePressingDownMF', 'OStim2PDoggyStylePullingHairMF', 'OStim2PDoggyStyleSquattingMF', 'OStim2PMissionaryHandHoldingMF', 'OStim2PMissionaryKissFootMF', 'OStim2PMissionaryKissLegLockMF', 'OStim2PMissionaryKissMF', 'OStim2PMissionaryLegsStretchedMF', 'OStim2PMissionaryLegsTogetherMF', 'OStim2PMissionaryLegsUpMF', 'OStim2PMissionaryMF', 'OStim2PProneHoldingLegsSpreadMF', 'OStim2PProneHoldingMF', 'OStim2PProneLegsSpreadMF', 'OStim2PProneMF', 'OStim2PProneMaleMountedMF', 'OStim2PReverseCowgirlArchBackMF', 'OStim2PReverseCowgirlMF', 'OStim2PSidewaysGrabArmMF', 'OStim2PSidewaysHoldingLegMF', 'OStim2PSidewaysMF', 'OStim2PStandingBehindFuckBendOverMF', 'OStim2PStandingBehindFuckHoldingArmsMF', 'OStim2PStandingBehindFuckHoldingWristsMF', 'OStim2PStandingBehindFuckMF', 'OStim2PStandingBehindFuckMasturbationMF', 'OStim2PStandingBehindFuckNoHandsMF'],
+];

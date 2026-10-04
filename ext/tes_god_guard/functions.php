@@ -1013,7 +1013,7 @@ if (!function_exists('tesGodGuardValidate')) {
             'equipitem', 'unequipitem', 'addspell', 'removespell', 'addperk', 'fw', 'sw', 'set',
             'advlevel', 'incpcs', 'tgm', 'setrelationshiprank', 'stopcombat', 'setscale', 'moveto',
             'placeatme', 'addfac', 'removefac', 'setplayerteammate', 'recycleactor', 'evp', 'resetai',
-            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'teslove', 'sex', 'love', 'ostim', 'fuck', 'tesfollow', 'follow', 'unfollow', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
+            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'teslove', 'sex', 'love', 'ostim', 'fuck', 'tesfollow', 'follow', 'unfollow', 'tesclone', 'clone', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
             'tesownhouse', 'tesclaim', 'tesstate', 'tesinspect', 'tesunfollow',
         ];
         $refused = [
@@ -1071,10 +1071,11 @@ if (!function_exists('tesGodGuardValidate')) {
             $row = tesGodGuardResolveNpcLoose(trim($m[3]));
             return $row ? $m[1] . $m[2] . '{npc:' . strval($row['npc_name']) . '}.moveto player' : $m[0];
         }, $text) ?? $text;
-        // The same with a known NPC written as {npc:}: "сделай Айрилет моей спутницей" became
-        // "player.placeatme {npc:Айрилет} 1" - "Invalid object" in the game, three times (live 14:44).
+        // A copy of a known NPC ("сделай вторую Айрилет", owner 2026-10-04: "копию я правда просил"):
+        // "player.placeatme {npc:Айрилет} 1" is "Invalid object" in the game - placeatme wants the
+        // base, the name gives the RefID. The bridge's tesclone takes the base from the actor.
         $text = preg_replace('/(^|[;
-])(\s*)player\s*\.\s*placeatme\s+(\{npc:[^}]+\})(\s+\d+)?/iu', '$1$2$3.moveto player', $text) ?? $text;
+])(\s*)player\s*\.\s*placeatme\s+(\{npc:[^}]+\})(\s+\d+)?/iu', '$1$2$3.clone$4', $text) ?? $text;
         // "{npc:X}.remember: текст" - a colon after the verb (the Narrator, 13:54: the memory was refused)
         $text = preg_replace('/\.(remember|order|rumor|hypnosis|jail|fine|title|relation)\s*:\s*/iu', '.$1 ', $text) ?? $text;
         // "{npc:player}" is the player (the agent wrote it, 13:50) - the plain word, not a lookup
@@ -1386,6 +1387,15 @@ if (!function_exists('tesGodGuardValidate')) {
             // placeatme makes a NEW object from a base FormID. A name in quotes or a decimal RefID
             // is not one: "player.placeatme 108160" (Анориат's RefID in decimal) dropped a stray
             // book at the player's feet, twice (live 2026-10-04 03:19).
+            // "player.placeatme 0001A67F 1": the RefID of a known NPC, not a base (live 14:44,
+            // "Invalid object") - it is a copy of that person that was asked for
+            if ($verb === 'placeatme' && preg_match('/^placeatme\s+([0-9A-Fa-f]{8})(?:\s+(\d+))?\s*$/u', $body, $pm) && isset($GLOBALS['db'])) {
+                $known = $GLOBALS['db']->fetchOne("SELECT npc_name FROM public.core_npc_master WHERE upper(refid) = '" . strtoupper($pm[1]) . "' LIMIT 1");
+                if (!empty($known['npc_name']) && !tesGodGuardIsChild('{npc:' . $known['npc_name'] . '}')) {
+                    $kept[] = strtoupper($pm[1]) . '.tesclone ' . max(1, min(5, intval($pm[2] ?? 1) ?: 1));
+                    continue;
+                }
+            }
             if ($verb === 'placeatme' && !preg_match('/^placeatme\s+(\{[a-z]+:[^}]+\}|[0-9A-Fa-f]{8})(\s+\d+)?\s*$/iu', $body)) {
                 $reasons[] = "«{$command}»: placeatme создаёт НОВЫЙ объект по базовому FormID (8 знаков) — привести существующего: {npc:Имя}.moveto player; дать предмет: additem";
                 continue;
@@ -1415,6 +1425,14 @@ if (!function_exists('tesGodGuardValidate')) {
                 $kept[] = $ref . '.tesfollow 20';
                 continue;
             }
+            if (in_array($verb, ['clone', 'copy', 'duplicate', 'tesclone'], true)) {
+                if (!preg_match('/^(\{npc:[^}]+\}|[0-9A-Fa-f]{8})$/u', $target) || tesGodGuardIsChild($target)) {
+                    $reasons[] = "«{$command}»: копия человека — {npc:Имя}.clone [сколько, до 5]";
+                    continue;
+                }
+                $kept[] = $target . '.tesclone ' . (preg_match('/(\d+)/', $body, $cm) ? max(1, min(5, intval($cm[1]))) : 1);
+                continue;
+            }
             // sex / love: an OStim scene (bridge teslove). "{npc:X}.sex" - with the player,
             // "{npc:X}.sex {npc:Y}" - the two of them. Adults only.
             if (in_array($verb, ['sex', 'love', 'ostim', 'fuck'], true)) {
@@ -1434,7 +1452,7 @@ if (!function_exists('tesGodGuardValidate')) {
                     $kept[] = strtoupper(strval($a['refid'])) . '.teslove stop';
                     continue;
                 }
-                $kept[] = trim(strtoupper(strval($a['refid'])) . '.teslove ' . $partner . ' ' . $loveTags);
+                $kept[] = trim(strtoupper(strval($a['refid'])) . '.teslove ' . $partner . ' ' . (function_exists('tesWorldLoveArg') ? tesWorldLoveArg($loveTags) : $loveTags));
                 continue;
             }
             // perk points: the console has no such command; the bridge adds them (Game.AddPerkPoints).

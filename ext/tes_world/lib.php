@@ -621,12 +621,12 @@ if (!function_exists('tesWorldEnsureTable')) {
             'handjob' => 'handjob|рукой|дроч|подроч',
             'footjob' => 'footjob|ногами|ступн',
             'boobjob' => 'boobjob|между груд|сиськами|грудью',
-            'cunnilingus,lickingvagina' => 'cunnilingus|кун+и|кунилинг|куннилинг|лиз|вылиж',
+            'vulvallicking,vulvaleating,cunnilingus,lickingvagina' => 'cunnilingus|кун+и|кунилинг|куннилинг|лиз|вылиж',
             'vaginalfingering' => 'fingering|пальц',
             'rimjob' => 'rimjob|римминг|анилингус',
             'facial' => 'facial|на лицо',
             'cumonchest' => 'cumonchest|chestcum|на грудь',
-            'rubbingclitoris' => 'rubbingclitoris|клитор',
+            'vulvalrubbing,rubbingclitoris' => 'rubbingclitoris|клитор',
             'missionary' => 'missionary|миссионер|сверху на ней|лицом к лицу',
             'reversecowgirl' => 'reversecowgirl|обратн\\w* наездниц',
             'cowgirl' => 'cowgirl|наездниц|верхом|сядь на',
@@ -640,14 +640,35 @@ if (!function_exists('tesWorldEnsureTable')) {
         ];
         // the more specific kinds are listed so that they win over plain "sex"
         $order = ['deepthroating,blowjob', 'reversecowgirl', 'facesitting', 'sixtynine,69', 'analsex', 'blowjob', 'handjob', 'footjob', 'boobjob',
-            'cunnilingus,lickingvagina', 'vaginalfingering', 'rimjob', 'facial', 'cumonchest', 'rubbingclitoris', 'missionary',
+            'vulvallicking,vulvaleating,cunnilingus,lickingvagina', 'vaginalfingering', 'rimjob', 'facial', 'cumonchest', 'vulvalrubbing,rubbingclitoris', 'missionary',
             'cowgirl', 'doggystyle', 'grindingpenis,buttjob', 'thighjob', 'cuddling,cuddle,hug,hugging', 'kissing,frenchkissing', 'vaginalsex'];
         foreach ($order as $tags) {
-            if (preg_match('/(' . $map[$tags] . ')/u', $w)) {
+            // isset: a key renamed in the map only would give an empty pattern, which matches every line
+            if (isset($map[$tags]) && preg_match('/(' . $map[$tags] . ')/u', $w)) {
                 return $tags;
             }
         }
         return '';
+    }
+
+    /**
+     * The tags plus up to three concrete scenes of that kind ("tags|Id1,Id2,Id3") - TESLove takes
+     * one of them when OStim's lookup by action finds nothing (live 2026-10-04 14:53: "куни"
+     * started the plain standing scene and never changed it).
+     */
+    function tesWorldLoveArg(string $tags): string
+    {
+        static $scenes = null;
+        if ($tags === '') {
+            return '';
+        }
+        $scenes = $scenes ?? (is_file(__DIR__ . '/scenes.php') ? (array)(include __DIR__ . '/scenes.php') : []);
+        $ids = $scenes[$tags] ?? [];
+        if (!$ids) {
+            return $tags;
+        }
+        shuffle($ids);
+        return $tags . '|' . implode(',', array_slice($ids, 0, 3));
     }
 
     /** Set (or clear) the player's title. Returns [ok, message]. */

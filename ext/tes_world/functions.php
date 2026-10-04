@@ -58,7 +58,7 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                         $again = $db0->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '20 seconds' AND status = 'fast' AND goal = '" . $db0->escape($key) . "' LIMIT 1");
                         if (empty($again)) {
                             $db0->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $db0->escape($key) . "', 'fast', '" . $db0->escape($extCode) . "')");
-                            tesWorldQueue(['prid ' . $extRef, trim('teslove ' . $partner . ' ' . $tags)]);
+                            tesWorldQueue(['prid ' . $extRef, trim('teslove ' . $partner . ' ' . tesWorldLoveArg($tags))]);
                             error_log("[tes_world] {$extCode}: scene {$key}");
                         }
                         unset($actions[$n]);
