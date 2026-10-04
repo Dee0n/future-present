@@ -40,7 +40,36 @@ if (!function_exists('tesWorldEnsureTable')) {
             }
             $out[$r['key']] = $r['fact'];
         }
+        // The ruler's title and laws hold in HIS hold only (owner, 17:25: "в Солитьюде законы Вайтрана, утечка
+        // контекста"): outside it nobody knows him as a jarl, no law is in force, no order is "from the ruler".
+        $hold = tesWorldCurrentHold();
+        $title = strval($out['player_title'] ?? '');
+        if ($hold !== '' && $title !== '' && preg_match('/Ярл\s+(\p{L}+)/u', $title, $tm)) {
+            $ruled = mb_strtolower($tm[1]);
+            $here = mb_strtolower($hold);
+            $same = mb_strpos($ruled, mb_substr($here, 0, 5)) === 0 || mb_strpos($here, mb_substr($ruled, 0, 5)) === 0;
+            if (!$same) {
+                foreach (array_keys($out) as $k) {
+                    if ($k === 'player_title' || strpos($k, 'law_') === 0) {
+                        unset($out[$k]);
+                    }
+                }
+            }
+        }
         return $out;
+    }
+
+    /** The hold the player is in now ("Хаафингар"), from the game's last request line; '' when unknown. */
+    function tesWorldCurrentHold(): string
+    {
+        static $cache = null;
+        if ($cache !== null && $cache[0] === time()) {
+            return $cache[1];
+        }
+        $row = $GLOBALS['db']->fetchOne("SELECT data FROM eventlog WHERE type = 'request' AND data LIKE '%Hold:%' AND localts > " . (time() - 900) . " ORDER BY rowid DESC LIMIT 1");
+        $hold = preg_match('/Hold:\s*([^,)]+)/u', strval($row['data'] ?? ''), $m) ? trim($m[1]) : '';
+        $cache = [time(), $hold];
+        return $hold;
     }
 
     /**
