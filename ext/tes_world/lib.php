@@ -579,6 +579,7 @@ if (!function_exists('tesWorldEnsureTable')) {
             // kept walking off); "свободен", "можешь идти": let go
             'stay' => '(стой(?:те)?(?=[\s!.,?]|$)|стоять|не\s+уходи|не\s+двигайся|не\s+иди|оставайся|оставайтесь|жди\s+(?:здесь|тут|меня)|ждите\s+(?:здесь|тут))',
             'free' => '(свобод(?:ен|на|ны)|можешь\s+идти|можете\s+идти|иди\s+куда\s+хочешь|отпускаю)',
+            'face' => '(смотри\s+на\s+меня|(?:повернись|повернитесь|обернись)\s+(?:ко\s+мне|лицом)|лицом\s+ко\s+мне|смотри\s+мне\s+в\s+лицо)',
             'post' => '(?:охраняй\p{L}*(?!\s+(?:меня|мен[яе]))|дежурь\p{L}*|стереги\p{L}*|сторожи\p{L}*|патрулируй\p{L}*|патрулиров\p{L}*|обходи\p{L}*\s+город)',
             'kill' => '(казни\p{L}*|убей\p{L}*|убить|убейте|прикончи\p{L}*)',
             'jail' => '(посади\p{L}*|сади|садите|сажай\p{L}*|арестуй\p{L}*|арестовать|в\s+тюрьму|в\s+темницу|за\s+решетку)',
@@ -630,7 +631,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         if (!$targets && $self && $addressee !== '') {
             return ['kind' => 'strip', 'targets' => [$addressee]];
         }
-        if (!$targets && in_array($kind, ['beg', 'post', 'stay', 'free'], true) && $addressee !== '') {
+        if (!$targets && in_array($kind, ['beg', 'post', 'stay', 'free', 'face'], true) && $addressee !== '') {
             return ['kind' => $kind, 'targets' => [$addressee]];
         }
         if (!$targets && $kind !== '') {
@@ -770,6 +771,12 @@ if (!function_exists('tesWorldEnsureTable')) {
                 }
                 $cmds[] = 'tesroutine at ' . hexdec('0002C90F');
                 tesWorldQueue($cmds);
+            } elseif ($fast['kind'] === 'face') {
+                // turns to the ruler once now; during a trial the court's tick keeps him turned
+                if (tesWorldIsChild($who) || !function_exists('tesWorldFacePlayer')) {
+                    continue;
+                }
+                tesWorldFacePlayer($ref);
             } elseif ($fast['kind'] === 'stay' || $fast['kind'] === 'free') {
                 // stands where he is (the bridge's hold: sandbox around himself, he does not move) / is let go
                 if (tesWorldIsChild($who)) {

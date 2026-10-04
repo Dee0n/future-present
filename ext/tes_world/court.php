@@ -203,11 +203,61 @@ if (!function_exists('tesTreasuryAdd')) {
         return '';
     }
 
+    /**
+     * Turn $ref to face the player (owner, 2026-10-04: "пусть лицом ко мне смотрит"): positions of both
+     * from the console (getpos), the heading is atan2(dx, dy) - Skyrim's Z angle counts from +Y, clockwise -
+     * then "setangle z". Works with any bridge. Returns true when the order was sent.
+     */
+    function tesWorldFacePlayer(string $ref): bool
+    {
+        $db = $GLOBALS['db'];
+        $max = $db->fetchOne("SELECT coalesce(max(id), 0) AS m FROM public.tes_god_console_log");
+        if (!tesWorldQueue(['prid 00000014', 'getpos x', 'getpos y', 'prid ' . $ref, 'getpos x', 'getpos y'])) {
+            return false;
+        }
+        $vals = ['p' => [], 'n' => []];
+        for ($i = 0; $i < 16; $i++) {
+            usleep(400000);
+            $rows = $db->fetchAll("SELECT command, output FROM public.tes_god_console_log WHERE id > " . intval($max['m'] ?? 0) . " ORDER BY id LIMIT 40");
+            $who = '';
+            $vals = ['p' => [], 'n' => []];
+            foreach (is_array($rows) ? $rows : [] as $r) {
+                $c = strtolower(trim(strval($r['command'])));
+                if ($c === 'prid 00000014') {
+                    $who = 'p';
+                } elseif ($c === 'prid ' . strtolower($ref)) {
+                    $who = 'n';
+                } elseif ($who !== '' && preg_match('/^getpos ([xy])$/', $c, $m) && preg_match('/>>\s*(-?\d+(?:\.\d+)?)/', strval($r['output']), $v)) {
+                    $vals[$who][$m[1]] = floatval($v[1]);
+                }
+            }
+            if (count($vals['p']) === 2 && count($vals['n']) === 2) {
+                break;
+            }
+        }
+        if (count($vals['p']) !== 2 || count($vals['n']) !== 2) {
+            return false;
+        }
+        $dx = $vals['p']['x'] - $vals['n']['x'];
+        $dy = $vals['p']['y'] - $vals['n']['y'];
+        $deg = fmod(rad2deg(atan2($dx, $dy)) + 360.0, 360.0);
+        return tesWorldQueue(['prid ' . $ref, 'setangle z ' . round($deg, 1)]);
+    }
+
     /** A trial lasts 10 minutes: then the accused is let go (no longer tied to the ruler). */
     function tesCourtTick(): void
     {
         tesTreasuryEnsure();
         $db = $GLOBALS['db'];
+        // while the trial goes on the accused faces the ruler, turned again every 30 s
+        $open = $db->fetchOne("SELECT defendant FROM public.tes_court WHERE NOT closed AND opened_at > now() - interval '10 minutes' ORDER BY id DESC LIMIT 1");
+        if (!empty($open['defendant']) && tesWatchGet('face_at')['age'] >= 30) {
+            tesWatchSet('face_at', '1');
+            $fr = tesWorldRefOf(strval($open['defendant']));
+            if ($fr !== '') {
+                tesWorldFacePlayer($fr);
+            }
+        }
         $rows = $db->fetchAll("SELECT id, defendant FROM public.tes_court WHERE NOT closed AND opened_at < now() - interval '10 minutes' LIMIT 4");
         foreach (is_array($rows) ? $rows : [] as $r) {
             $db->execQuery("UPDATE public.tes_court SET closed = true WHERE id = " . intval($r['id']));

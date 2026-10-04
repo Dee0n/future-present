@@ -28,7 +28,7 @@ if (!function_exists('tesRealmAfterOrder')) {
 
     function tesRealmKindWord(string $kind): string
     {
-        return ['stay' => 'стоит на месте', 'free' => 'отпущен', 'strip' => 'раздет', 'kill' => 'казнён', 'jail' => 'отправлен в темницу', 'take' => 'отдал вещи', 'bring' => 'приведён', 'beg' => 'пошёл побираться',
+        return ['face' => 'смотрит на тебя', 'stay' => 'стоит на месте', 'free' => 'отпущен', 'strip' => 'раздет', 'kill' => 'казнён', 'jail' => 'отправлен в темницу', 'take' => 'отдал вещи', 'bring' => 'приведён', 'beg' => 'пошёл побираться',
             'post' => 'встал на пост', 'gather' => 'собраны', 'duel' => 'дерутся'][$kind] ?? $kind;
     }
 
