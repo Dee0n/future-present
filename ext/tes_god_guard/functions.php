@@ -1016,7 +1016,7 @@ if (!function_exists('tesGodGuardValidate')) {
         // close relatives). Anything else is refused with a reason.
         $allowed = [
             'resurrect', 'kill', 'restoreav', 'modav', 'setav', 'forceav', 'additem', 'removeitem',
-            'equipitem', 'unequipitem', 'addspell', 'removespell', 'addperk', 'removeperk', 'damageav', 'fw', 'sw', 'set',
+            'equipitem', 'unequipitem', 'addspell', 'removespell', 'addperk', 'removeperk', 'damageav', 'fw', 'sw', 'weather', 'setweather', 'forceweather', 'set',
             'advlevel', 'incpcs', 'tgm', 'setrelationshiprank', 'stopcombat', 'setscale', 'moveto',
             'placeatme', 'addfac', 'removefac', 'setplayerteammate', 'recycleactor', 'evp', 'resetai',
             'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'teslove', 'sex', 'love', 'ostim', 'fuck', 'tesfollow', 'follow', 'unfollow', 'tesclone', 'clone', 'tesessential', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
@@ -1429,6 +1429,33 @@ if (!function_exists('tesGodGuardValidate')) {
                 $body = 'tesgive all';
                 $command = $target . '.' . $body;
                 $verb = 'tesgive';
+            }
+            // Weather (owner, 2026-10-04: "с погодой у него нелады"): the Narrator wrote «fw 1857c» (no such
+            // weather) and often set only the hour. «fw» and «weather» take a word or a real WTHR id;
+            // the ids are Skyrim.esm's (SkyrimClear 0000081A ...), checked against the ESM.
+            if (in_array($verb, ['fw', 'weather', 'setweather', 'forceweather'], true)) {
+                $wxArg = trim(preg_replace('/^\S+\s*/u', '', $body) ?? '');
+                $wxMap = ['0000081A' => 'ясно|ясная|ясный|солнечн|солнце|clear|sun', '00012F89' => 'облачн|пасмурн|cloud', '000C821E' => 'туман|fog',
+                    '000C821F' => 'дожд|ливень|rain', '000C8220' => 'гроз|шторм|storm|thunder', '000C8221' => 'метел|снежная буря|snowstorm|storm ?snow', '0004D7FB' => 'снег|snow'];
+                $wxId = '';
+                if (preg_match('/^[0-9A-Fa-f]{8}$/', $wxArg) && isset($wxMap[strtoupper($wxArg)])) {
+                    $wxId = strtoupper($wxArg);
+                } elseif (preg_match('/^[0-9A-Fa-f]{8}$/', $wxArg)) {
+                    $wxId = strtoupper($wxArg);  // another real id (a modded weather): left alone
+                } else {
+                    foreach ($wxMap as $id => $words) {
+                        if (preg_match('/(' . $words . ')/iu', $wxArg)) {
+                            $wxId = $id;
+                            break;
+                        }
+                    }
+                }
+                if ($wxId === '') {
+                    $reasons[] = "«{$command}»: такой погоды нет. Погода — «fw <ID>»: 0000081A ясно, 00012F89 облачно, 000C821E туман, 000C821F дождь, 000C8220 гроза, 0004D7FB снег, 000C8221 метель; час — «set gamehour to N»";
+                    continue;
+                }
+                $kept[] = 'fw ' . $wxId;
+                continue;
             }
             // Live 2026-10-04 13:46-13:47 "прокачай полное древо навыков": «player.setav allskills 100» is
             // "Invalid actor value" - the console knows no such value; one setav per real skill.
