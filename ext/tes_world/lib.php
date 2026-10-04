@@ -78,6 +78,27 @@ if (!function_exists('tesWorldEnsureTable')) {
     }
 
     /**
+     * Edit distance in LETTERS. PHP's levenshtein() counts bytes, and two Cyrillic letters often
+     * differ in one byte only - "Какого" came out two "letters" away from "Кадорд" and was
+     * rewritten into the guard's name (live 2026-10-04 13:33).
+     */
+    function tesWorldLev(string $a, string $b): int
+    {
+        static $map = [];
+        $conv = function (string $s) use (&$map): string {
+            $out = '';
+            foreach (preg_split('//u', $s, -1, PREG_SPLIT_NO_EMPTY) as $ch) {
+                if (!isset($map[$ch])) {
+                    $map[$ch] = chr(33 + (count($map) % 200));
+                }
+                $out .= $map[$ch];
+            }
+            return $out;
+        };
+        return levenshtein($conv($a), $conv($b));
+    }
+
+    /**
      * A name as it was heard -> the full name of someone around, or '' when nobody is close enough.
      * Capitalised words (speech recognition marks what it took for a name) may differ by a letter
      * or two; lower-case ones only when they are a piece of the name ("рилет" -> Айрилет) - a
@@ -104,7 +125,7 @@ if (!function_exists('tesWorldEnsureTable')) {
                 if ($form === $want) {
                     return $name;
                 }
-                $d = intdiv(levenshtein($want, $form) + 1, 2);  // Cyrillic letters are two bytes each
+                $d = tesWorldLev($want, $form);
                 $piece = $len >= 5 && $fl > $len && $fl - $len <= 3 && mb_strpos($form, $want) !== false;
                 $ok = $piece
                     || ($capital && ($d <= 1 || ($d === 2 && $len >= 6 && mb_substr($want, 0, 1) === mb_substr($form, 0, 1))))
@@ -140,8 +161,8 @@ if (!function_exists('tesWorldEnsureTable')) {
             foreach ($names as $name) {
                 foreach (preg_split('/\s+/u', trim(preg_replace('/\s*\[[^\]]*\]/u', '', $name) ?? $name)) as $part) {
                     $form = tesWorldNorm($part);
-                    $d = intdiv(levenshtein($joined, $form) + 1, 2);
-                    $alone = min(intdiv(levenshtein(tesWorldNorm($m[1]), $form) + 1, 2), intdiv(levenshtein(tesWorldNorm($m[2]), $form) + 1, 2));
+                    $d = tesWorldLev($joined, $form);
+                    $alone = min(tesWorldLev(tesWorldNorm($m[1]), $form), tesWorldLev(tesWorldNorm($m[2]), $form));
                     // the two pieces together must be at least as close to the name as either alone
                     if (mb_strlen($form) >= 6 && $d <= (mb_strlen($form) >= 7 ? 2 : 1) && $d <= $alone && $alone > 0) {
                         $changes[] = "{$m[0]} → " . tesWorldShortName($name);
@@ -193,6 +214,7 @@ if (!function_exists('tesWorldEnsureTable')) {
             'strip' => '(?:раздеть|раздень\p{L}*|раздева\p{L}*|(?:снять|сними\p{L}*|сорвать|сорви\p{L}*|стащить|стащи\p{L}*)\s+(?:всю\s+|вс[её]\s+)?(?:одежду|броню|вещи|наряд)?\s*(?:с|со)(?=\s))',
             'kill' => '(?:казнить|казни\p{L}*|убить|убей\p{L}*)',
             'take' => '(?:забрать|забери\p{L}*|отобрать|отбери\p{L}*|изъять|взять)\s+вс[её]\s+у',
+            'jail' => '(?:посадить|посади\p{L}*|арестовать|арестуй\p{L}*|(?:бросить|брось\p{L}*|кинуть|кинь\p{L}*|отправить|отправь\p{L}*|заключить)(?=.*(?:тюрьм|темниц|камер)))(?:\s+в\s+(?:тюрьму|темницу|камеру))?',
         ];
         $kind = '';
         $rest = '';
@@ -213,6 +235,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         $player = strval($GLOBALS['PLAYER_NAME'] ?? '');
         // what comes after the people: "… к Шаману", "… догола", "… ярлу"
         $rest = preg_replace('/\s+(к|ко)\s+.+$/iu', '', $rest) ?? $rest;
+        $rest = preg_replace('/\s+(в\s+(тюрьму|темницу|камеру)|на\s+\S+\s+(сут|дн|день|дня|год|лет)\p{L}*|на\s+(сутки|день|год)|за\s+).*$/iu', '', $rest) ?? $rest;
         $rest = preg_replace('/\s+и\s+(отдать|отдай|передать|передай|принести|принеси|вернуть|верни)(?![\p{L}]).*$/iu', '', $rest) ?? $rest;
         $rest = preg_replace('/\s+(догола|донага|до\s*гола|до нитки|полностью|до конца|сюда|немедленно|сейчас же|ярлу|мне)(?![\p{L}]).*$/iu', '', $rest) ?? $rest;
         if (mb_strlen($player) >= 4) {

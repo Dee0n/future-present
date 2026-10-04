@@ -58,7 +58,7 @@ if (!function_exists('tesCrimeNumberNear')) {
                 if ($form === $want) {
                     return $name;
                 }
-                $d = levenshtein($want, $form) / 2;  // Cyrillic letters are two bytes each
+                $d = function_exists('tesWorldLev') ? tesWorldLev($want, $form) : levenshtein($want, $form) / 2;
                 if ($d < $bestD) {
                     $bestD = $d;
                     $best = $name;

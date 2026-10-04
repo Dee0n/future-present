@@ -66,6 +66,17 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                                     continue;
                                 }
                             }
+                            if ($fast['kind'] === 'jail' && function_exists('tesCrimeJail')) {
+                                $saidAll = strval($GLOBALS['gameRequest'][3] ?? '') . ' ' . $order;
+                                $days = function_exists('tesCrimeNumberNear') ? tesCrimeNumberNear($saidAll, '(?:сут|дн|день|дня)') : 0;
+                                $years = function_exists('tesCrimeNumberNear') ? tesCrimeNumberNear($saidAll, '(?:год|лет)') : 0;
+                                tesCrimeJail($who, tesWorldRefOf($who), "арестован по приказу через {$actor}", max(1, min(365, $years > 0 ? 365 : ($days ?: 1))), $actor);
+                                continue;
+                            }
+                            if ($fast['kind'] === 'jail') {
+                                $text[] = '{npc:' . $who . '}.jail';
+                                continue;
+                            }
                             $text[] = '{npc:' . $who . '}.' . ['bring' => 'moveto player', 'strip' => 'unequipall', 'kill' => 'kill', 'take' => 'giveall'][$fast['kind']];
                         }
                         $queued = 0;
