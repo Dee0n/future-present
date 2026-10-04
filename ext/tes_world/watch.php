@@ -118,6 +118,9 @@ if (!function_exists('tesWatchNotify')) {
             if ($who) {
                 tesWatchSet('imp_guard', '1');
                 $cmds = [];
+                if (tesBridgeVersion() >= 7) {
+                    $cmds[] = 'tespeace';  // the whole cell stops, Whiterun's guards are allies of the player's faction
+                }
                 foreach (array_slice(array_keys($who), 0, 6) as $name) {
                     $ref = tesWorldRefOf($name);
                     if ($ref === '') {
@@ -149,7 +152,7 @@ if (!function_exists('tesWatchNotify')) {
             if (tesBridgeVersion() >= 4 && function_exists('tesWorldQueue')) {
                 // + member of the Whiterun crime faction: its guards and citizens take him for one of their own
                 // (live 16:14-16:35: they kept attacking him with the bounty at 0 and crime reporting off)
-                tesWorldQueue(['tesimpunity 1', 'player.addfac 000267EA 0']);
+                tesWorldQueue(array_merge(['tesimpunity 1', 'player.addfac 000267EA 0'], tesBridgeVersion() >= 7 ? ['tespeace'] : []));
             }
         }
         // --- self-check: an old bridge in the game

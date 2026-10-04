@@ -221,6 +221,36 @@ bool Function TESRunAndReport(String command) Global
         AIAgentFunctions.logMessage("tesungive@@" + taker.GetDisplayName() + ": " + moved + " kinds of items returned", "tes_god_console")
         return true
     endif
+    if command == "tespeace"
+        ; Whiterun's crime faction (its guards and citizens) becomes an ALLY of the player's faction
+        ; both ways, and everyone in the cell stops fighting. The "bounty 0 + crime reporting off"
+        ; of tesimpunity did not keep the guards of Dragonsreach off the player (live 2026-10-04
+        ; 16:14-16:37: assault on a citizen makes his friends and the guards join in).
+        Faction whiterunCrime = Game.GetForm(0x000267EA) as Faction
+        Faction playerFac = Game.GetForm(0x00000013) as Faction
+        if whiterunCrime && playerFac
+            whiterunCrime.SetReaction(playerFac, 2)
+            playerFac.SetReaction(whiterunCrime, 2)
+        endif
+        Actor peaceMe = Game.GetPlayer()
+        peaceMe.StopCombat()
+        Cell peaceCell = peaceMe.GetParentCell()
+        int peaceN = 0
+        if peaceCell
+            int peaceRefs = peaceCell.GetNumRefs(43)
+            int peaceI = 0
+            while peaceI < peaceRefs
+                Actor peaceActor = peaceCell.GetNthRef(peaceI, 43) as Actor
+                if peaceActor && peaceActor != peaceMe && peaceActor.IsInCombat()
+                    peaceActor.StopCombat()
+                    peaceN += 1
+                endif
+                peaceI += 1
+            endwhile
+        endif
+        AIAgentFunctions.logMessage("tespeace@@" + peaceN + " calmed", "tes_god_console")
+        return true
+    endif
     if command == "tesplace here"
         ; a persistent marker where the player stands (the court's place, "суд будет в зале ярла");
         ; the server takes the reference's FormID from the report and moves people to it
@@ -235,8 +265,8 @@ bool Function TESRunAndReport(String command) Global
     if command == "tesversion"
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
         ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
-        ; 6 = also "tesplace here"
-        AIAgentFunctions.logMessage("tesversion@@6", "tes_god_console")
+        ; 6 = also "tesplace here"; 7 = also "tespeace"
+        AIAgentFunctions.logMessage("tesversion@@7", "tes_god_console")
         return true
     endif
     if command == "teskill"
