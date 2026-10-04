@@ -24,6 +24,22 @@ if (!function_exists('tesWorldStrictSchema')) {
         $props = $GLOBALS['structuredOutputTemplate']['json_schema']['schema']['properties'] ?? null;
         if (is_array($props) && $props) {
             $GLOBALS['structuredOutputTemplate']['json_schema']['schema']['required'] = array_keys($props);
+            // Cost (2026-10-04): the core's field descriptions are ~2K chars, sent twice (the
+            // response_format and the text copy of the template) with EVERY request. The model
+            // needs the point, not the manual - the actions' own descriptions carry the details.
+            $short = [
+                'target' => 'Who/what the action is aimed at: exact name of a person nearby, a place, or a plain number (gold). Never empty; for self-directed actions your own name. Narrator actions: the player name/PLAYER/me is the player.',
+                'item' => 'Only when the action needs it: exact BaseID:ItemName from inventory/nearby items, spell name, gold amount as a number string, or a destination name. Otherwise empty.',
+                'amount' => 'Quantity (integer) for Spawn/Give actions; otherwise 0.',
+            ];
+            foreach ($short as $key => $text) {
+                if (isset($GLOBALS['structuredOutputTemplate']['json_schema']['schema']['properties'][$key])) {
+                    $GLOBALS['structuredOutputTemplate']['json_schema']['schema']['properties'][$key]['description'] = $text;
+                }
+                if (isset($GLOBALS['responseTemplate'][$key]) && is_string($GLOBALS['responseTemplate'][$key]) && strlen($GLOBALS['responseTemplate'][$key]) > strlen($text)) {
+                    $GLOBALS['responseTemplate'][$key] = $text;
+                }
+            }
         }
     }
 }

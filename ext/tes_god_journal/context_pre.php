@@ -128,7 +128,7 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
         $commandText = trim(implode('; ', array_map('strval', $commands)));
         $npc = $refId !== '' ? tesGodJournalNpc($refId) : ['name' => '', 'status' => null];
         $who = $npc['name'] !== '' ? $npc['name'] : $nearName;
-        $label = ($who !== '' ? $who . ': ' : '') . $commandText;
+        $label = mb_substr(($who !== '' ? $who . ': ' : '') . $commandText, 0, 220);
 
         $status = strtolower(strval($row['status'] ?? ''));
         $ageSec = intval($row['age_sec'] ?? 0);
@@ -182,7 +182,8 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
 
     function tesGodJournalBuild(): string
     {
-        $minutes = max(1, intval($GLOBALS["TES_GOD_JOURNAL_MINUTES"] ?? 30));
+        // 10 minutes, not 30 (cost, 2026-10-04): the journal went to ~3.5K tokens in every Narrator request
+        $minutes = max(1, intval($GLOBALS["TES_GOD_JOURNAL_MINUTES"] ?? 10));
         $rows = $GLOBALS["db"]->fetchAll("
             SELECT o.payload_json::text AS payload_json, o.status,
                    COALESCE(o.result_json::text, '') AS result_json,
@@ -211,7 +212,7 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
             foreach (array_reverse(is_array($refusals) ? $refusals : []) as $refusal) {
                 $label = ['repeat' => 'повтор не отправлен', 'server' => 'СДЕЛАНО (память CHIM)'][$refusal['verdict']] ?? 'ЗАБЛОКИРОВАНО';
                 foreach (array_filter(explode("\n", strval($refusal['reasons'] ?? ''))) as $reason) {
-                    $lines[] = "- " . (mb_strpos($reason, 'урезано') !== false ? 'ИЗМЕНЕНО' : $label) . ": {$reason}.";
+                    $lines[] = "- " . (mb_strpos($reason, 'урезано') !== false ? 'ИЗМЕНЕНО' : $label) . ": " . mb_substr($reason, 0, 190) . '.';
                 }
             }
             // ext/tes_god_guard's ScriptProxy channel (equip/resurrect-kill) - a real
@@ -286,8 +287,11 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
             $lines[] = '- ' . tesGodJournalLine($row);
         }
         if (!empty($created)) {
-            $lines[] = '- Созданы во время игры (клоны, призванные, новые персонажи): ' . implode(', ', array_keys($created))
-                . '. Лишних, кого заменил или кто больше не нужен, убери: {near:Имя}.unsummon.';
+            // at most 8 names (cost): the list grew to dozens after mass spawns
+            $createdNames = array_keys($created);
+            $lines[] = '- Созданы во время игры: ' . implode(', ', array_slice($createdNames, 0, 8))
+                . (count($createdNames) > 8 ? ' и ещё ' . (count($createdNames) - 8) : '')
+                . '. Лишних убери: {near:Имя}.unsummon.';
         }
         // Roadmap B: a hard stop after a run of failures, not just a soft suggestion in the
         // closing rule below (the model can and does ignore that and keeps retrying variants
@@ -298,13 +302,11 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
             $lines[] = "- ОСТАНОВИСЬ: подряд не прошло уже {$streak} команд. Не изобретай ещё один вариант той же просьбы. "
                 . 'Одной фразой честно скажи, что не можешь это выполнить (или чего именно не хватает — например, точного имени), и жди новой просьбы игрока.';
         }
-        return "## Журнал твоих божественных команд (проверяет сервер, последние 30 минут)\n"
-            . implode("\n", $lines) . "\n"
-            . "Не говори, что команда сработала, если здесь не написано «сделано». "
-            . "«ЗАБЛОКИРОВАНО» почти всегда значит проблему в КОНКРЕТНОЙ команде из причины (неизвестный предмет, заклинание, неверный синтаксис) — все персонажи из пачки найдены и проверены по базе. "
-            . "Не говори «персонаж не найден», если причина не об этом: исправь в причине и повтори команду тем же действием. "
-            . "Если игрок просил одно (убить), а в журнале видно другое (паралич, лечение) — ты исполнил не ту просьбу: признай и сделай то, что просили. "
-            . "Если «НЕ вышло» — признай это одной фразой и попробуй иначе; если «не проверено» — не утверждай результат.";
+        return "## Журнал твоих команд (проверяет сервер, последние {$minutes} мин)\n"
+            . implode("\n", array_slice($lines, -14)) . "\n"
+            . "Не говори, что сработало, если не написано «сделано». «ЗАБЛОКИРОВАНО» — проблема в конкретной команде из причины: "
+            . "исправь её и повтори; не говори «не найден», если причина не об этом. «НЕ вышло» — признай одной фразой и попробуй иначе; "
+            . "«не проверено» — не утверждай результат. Если исполнил не то, что просили, — признай и сделай нужное.";
     }
 }
 

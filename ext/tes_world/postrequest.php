@@ -69,6 +69,24 @@ try {
     error_log('[tes_world sharmat] ' . $e->getMessage());
 }
 
+// Rumors go into EVERY prompt (25 of them = ~1.7K tokens, with duplicates: owner, 2026-10-04,
+// "расход огромный"). Once a minute: duplicates out, at most 8 newest stay (backup in tes_backup_rumors).
+try {
+    $tesRumorMark = sys_get_temp_dir() . '/tes_rumors_trim.ts';
+    if (isset($GLOBALS['db']) && (time() - intval(@file_get_contents($tesRumorMark))) > 60) {
+        @file_put_contents($tesRumorMark, strval(time()));
+        $db = $GLOBALS['db'];
+        $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_backup_rumors AS SELECT *, now() AS saved_at FROM public.rumors WHERE false");
+        $db->execQuery("INSERT INTO public.tes_backup_rumors SELECT r.*, now() FROM public.rumors r WHERE r.id IN ("
+            . "SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY content ORDER BY id DESC) AS dup, row_number() OVER (ORDER BY id DESC) AS pos FROM public.rumors) t WHERE dup > 1 OR pos > 8)"
+            . " AND r.id NOT IN (SELECT id FROM public.tes_backup_rumors)");
+        $db->execQuery("DELETE FROM public.rumors WHERE id IN ("
+            . "SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY content ORDER BY id DESC) AS dup, row_number() OVER (ORDER BY id DESC) AS pos FROM public.rumors) t WHERE dup > 1 OR pos > 8)");
+    }
+} catch (Throwable $e) {
+    error_log('[tes_world rumors] ' . $e->getMessage());
+}
+
 try {
     if (isset($GLOBALS['db']) && empty($GLOBALS['TES_WORLD_POST'])) {
         $GLOBALS['TES_WORLD_POST'] = true;
@@ -94,21 +112,51 @@ try {
                 }
             }
 
-            // 1. a guard who walked up: the law is done on the spot, the guard goes back to duty
+            $db->execQuery("ALTER TABLE public.tes_world_patrols ADD COLUMN IF NOT EXISTS looked_at timestamptz, ADD COLUMN IF NOT EXISTS enforced boolean NOT NULL DEFAULT false");
+            // 1a. a guard who walked up looks at her: what is she wearing? (the game answers tesstate "; worn BODY=…")
             $walk = $db->fetchOne("SELECT * FROM public.tes_world_patrols WHERE stage = 'walk' AND created_at > now() - interval '3 minutes' ORDER BY id DESC LIMIT 1");
             if (!empty($walk['id']) && strtotime(strval($walk['created_at'])) <= time() - 15) {
                 $ref = tesWorldRefOf(strval($walk['target']));
                 if ($ref !== '' && !tesWorldIsChild(strval($walk['target']))) {
-                    tesWorldQueue(['prid ' . $ref, 'unequipall']);
-                    if (function_exists('tesCrimeNotify')) {
-                        tesCrimeNotify("{$walk['guard']}: закон правителя — {$walk['target']} раздета");
+                    tesWorldQueue(['prid ' . $ref, 'tesstate']);
+                    $db->execQuery("UPDATE public.tes_world_patrols SET stage = 'look', looked_at = now() WHERE id = " . intval($walk['id']));
+                } else {
+                    $db->execQuery("UPDATE public.tes_world_patrols SET stage = 'done' WHERE id = " . intval($walk['id']));
+                }
+            }
+            // 1b. the answer is in: naked - fine; dressed for the first time - undressed by force;
+            //     dressed AGAIN after having been forced before - the guard takes her to the Whiterun jail
+            //     (owner, 2026-10-04: "все кто должен быть в тюрьме должны быть за решёткой в Вайтране")
+            $look = $db->fetchOne("SELECT * FROM public.tes_world_patrols WHERE stage = 'look' ORDER BY id DESC LIMIT 1");
+            if (!empty($look['id'])) {
+                $short = trim(preg_replace('/\s*\[[^\]]*\]/u', '', strval($look['target'])) ?? '');
+                $ans = $db->fetchOne("SELECT output FROM public.tes_god_console_log WHERE command = 'tesstate' AND output LIKE '" . $db->escape($short) . "; level%' AND created_at >= '" . $db->escape(strval($look['looked_at'])) . "' ORDER BY id DESC LIMIT 1");
+                $waited = time() - strtotime(strval($look['looked_at']));
+                if (!empty($ans['output']) || $waited > 45) {
+                    $dressed = !empty($ans['output']) ? (bool)preg_match('/; worn.*\bBODY=/u', strval($ans['output'])) : true;  // no answer: act as before
+                    $ref = tesWorldRefOf(strval($look['target']));
+                    $before = $db->fetchOne("SELECT 1 AS x FROM public.tes_world_patrols WHERE target = '" . $db->escape(strval($look['target'])) . "' AND enforced AND id <> " . intval($look['id']) . " AND created_at > now() - interval '12 hours' LIMIT 1");
+                    $verdict = '';
+                    if ($ref !== '' && $dressed && !empty($before) && function_exists('tesCrimeJail') && !(function_exists('tesCrimeIsJailed') && tesCrimeIsJailed(strval($look['target'])))) {
+                        [$ok, $msg] = tesCrimeJail(strval($look['target']), $ref, 'снова нарушила закон правителя (ходит одетой)', 1, strval($look['guard']));
+                        $verdict = $ok ? 'в темницу' : 'темница не вышла: ' . $msg;
+                        $db->execQuery("UPDATE public.tes_world_patrols SET enforced = true WHERE id = " . intval($look['id']));
+                    } elseif ($ref !== '' && $dressed) {
+                        tesWorldQueue(['prid ' . $ref, 'unequipall']);
+                        if (function_exists('tesCrimeNotify')) {
+                            tesCrimeNotify("{$look['guard']}: закон правителя — {$look['target']} раздета");
+                        }
+                        $verdict = 'раздета';
+                        $db->execQuery("UPDATE public.tes_world_patrols SET enforced = true WHERE id = " . intval($look['id']));
+                    } else {
+                        $verdict = 'уже без одежды';
                     }
-                    error_log("[tes_world] round: {$walk['guard']} enforced the law on {$walk['target']}");
+                    error_log("[tes_world] round: {$look['guard']} -> {$look['target']}: {$verdict}");
+                    if ($verdict !== 'в темницу' && function_exists('tesCrimeNpcCommand')) {
+                        tesCrimeNpcCommand(strval($look['guard']), 'Relax@');  // back to duty (a jailing guard escorts her)
+                    }
+                    $db->execQuery("UPDATE public.tes_world_patrols SET stage = 'done' WHERE id = " . intval($look['id']));
                 }
-                if (function_exists('tesCrimeNpcCommand')) {
-                    tesCrimeNpcCommand(strval($walk['guard']), 'Relax@');
-                }
-                $db->execQuery("UPDATE public.tes_world_patrols SET stage = 'done' WHERE id = " . intval($walk['id']));
             }
 
             // 2. a new round step, at most once a minute

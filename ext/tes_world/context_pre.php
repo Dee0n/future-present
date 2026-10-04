@@ -37,8 +37,11 @@ try {
         if (in_array($tesWorldType, ['inputtext', 'inputtext_s', 'narrator_inputtext', 'ginputtext'], true)) {
             $tesWorldNear = tesWorldNearbyNames();
             if ($tesWorldNear) {
-                $tesWorldHint .= ($tesWorldHint !== '' ? ' ' : '') . 'Слова игрока распознаны с голоса: имена бывают исковерканы или разбиты на части. Рядом сейчас: '
-                    . implode(', ', $tesWorldNear) . '. Искажённое имя — это тот из них, чьё имя ближе по звучанию; в действиях пиши имя точно как в этом списке, а игрока за оговорку не поправляй.';
+                // short on purpose (cost): at most 8 names, without the [race/post] tags
+                $tesWorldNearShort = array_slice(array_values(array_unique(array_map(
+                    fn($n) => trim(preg_replace('/\s*\[[^\]]*\]/u', '', $n) ?? $n), $tesWorldNear))), 0, 8);
+                $tesWorldHint .= ($tesWorldHint !== '' ? ' ' : '') . 'Речь с голоса, имена искажены. Рядом: '
+                    . implode(', ', $tesWorldNearShort) . '. Искажённое имя = ближайшее из списка; пиши имя как в списке, игрока не поправляй.';
             }
         }
         // the scene that is going on right now is a fact for the one who is in it
