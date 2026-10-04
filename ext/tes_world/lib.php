@@ -819,6 +819,7 @@ if (!function_exists('tesWorldEnsureTable')) {
                         $cmds[] = 'additem ' . $r . ' 1';
                         $cmds[] = 'equipitem ' . $r;
                     }
+                    $cmds[] = 'tesoutfit ' . hexdec('00028B60');  // BeggarOutfit as the default: or the game dresses him back in his own
                     tesWorldQueue($cmds);
                     continue;
                 }
