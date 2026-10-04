@@ -207,7 +207,9 @@ if (!function_exists('tesCrimeFine')) {
      */
     function tesCrimeLegIrons(): array
     {
-        return ['setav speedmult 0', 'modav carryweight 1', 'modav carryweight -1'];
+        // 17:15: speedmult 0 made the prisoners "walk in place" (the sandbox package kept sending them
+        // somewhere and the legs did not move). teshold's SetDontMove holds them without that.
+        return [];
     }
 
     function tesCrimeFreeLegs(): array
@@ -280,9 +282,12 @@ if (!function_exists('tesCrimeFine')) {
         }
         $now = tesCrimeGamets();
         $db->execQuery("UPDATE public.tes_crime_jail SET status = 'released' WHERE status = 'jailed' AND refid = '{$refId}'");
+        $db->execQuery("ALTER TABLE public.tes_crime_jail ADD COLUMN IF NOT EXISTS release_at timestamptz");
         $db->insert('tes_crime_jail', ['npc' => $npc, 'refid' => $refId, 'inside_ref' => $inside, 'outside_ref' => $outside,
             'jailed_gamets' => $now, 'release_gamets' => $now + TES_CRIME_DAY * max(1, $days), 'reason' => mb_substr($reason, 0, 300),
             'stage' => $escort ? 'catch' : 'in', 'guard_ref' => $escort ? $guardRef : '']);
+        // real-time term: a game day = 72 real minutes (timescale 20), capped at a year of real time
+        $db->execQuery("UPDATE public.tes_crime_jail SET release_at = now() + (" . min(max(1, $days) * 72, 525600) . " * interval '1 minute') WHERE id = (SELECT max(id) FROM public.tes_crime_jail WHERE refid = '{$refId}')");
         tesCrimeNotify($escort ? "{$guard} идёт арестовывать: {$npc}" : "{$npc} в темнице на " . max(1, $days) . ' сут.');
         return [true, $escort
             ? "{$npc}: {$guard} идёт за ним и ведёт в темницу пешком; там его разденут, переоденут в тюремное и запрут на " . max(1, $days) . ' сут.'
