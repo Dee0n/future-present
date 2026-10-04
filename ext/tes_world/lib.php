@@ -547,6 +547,10 @@ if (!function_exists('tesWorldEnsureTable')) {
                 }
                 tesWorldQueue(['prid ' . $ref, 'unequipall']);
             } elseif ($fast['kind'] === 'bring') {
+                if (function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($who)) {
+                    $done[] = "{$who}: сидит в темнице — его не приводят, а выпускают";
+                    continue;
+                }
                 tesWorldQueue(['prid ' . $ref, 'moveto player']);
             } elseif ($fast['kind'] === 'take') {
                 if (tesWorldIsChild($who)) {

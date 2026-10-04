@@ -89,6 +89,15 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
             $call = explode('@', strval($parts[2] ?? ''));
             $code = function_exists('getFunctionCodeName') ? getFunctionCodeName($call[0]) : false;
             $code = $code ?: $call[0];
+            // A prisoner acts with words only. Owner, 2026-10-04: "с тюрьмы все сбегают как-то":
+            // the prisoner's own model chose Travel_To / Return_Home / Follow, and CHIM's package
+            // for that action (priority 100, after a package reset) walked him out of the cell.
+            $who = trim(strval($parts[0] ?? ''));
+            if (($parts[1] ?? '') === 'command' && $who !== '' && !in_array($code, ['Talk', ''], true) && tesCrimeIsJailed($who)) {
+                unset($actions[$n]);
+                error_log("[tes_crime] {$who} is in jail: action {$code} dropped");
+                continue;
+            }
             if (!in_array($code, ['ArrestPlayer', 'AddBounty', 'ArrestNPC', 'FineNPC'], true)) {
                 continue;
             }

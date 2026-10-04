@@ -143,6 +143,23 @@ if (!function_exists('tesCrimeFine')) {
             ADD COLUMN IF NOT EXISTS stage_at timestamptz NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS guard_ref text NOT NULL DEFAULT ''");
     }
 
+    /** Is this NPC (by name) under arrest or in a cell right now? */
+    function tesCrimeIsJailed(string $npc): bool
+    {
+        static $names = null;
+        if ($names === null) {
+            $names = [];
+            $has = $GLOBALS['db']->fetchOne("SELECT to_regclass('public.tes_crime_jail') AS t");
+            if (!empty($has['t'])) {
+                $rows = $GLOBALS['db']->fetchAll("SELECT npc FROM public.tes_crime_jail WHERE status = 'jailed'");
+                foreach (is_array($rows) ? $rows : [] as $r) {
+                    $names[trim(strval($r['npc']))] = true;
+                }
+            }
+        }
+        return isset($names[trim($npc)]);
+    }
+
     function tesCrimeGamets(): int
     {
         $g = intval($GLOBALS['gameRequest'][2] ?? 0);

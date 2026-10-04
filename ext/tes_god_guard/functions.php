@@ -1355,6 +1355,13 @@ if (!function_exists('tesGodGuardValidate')) {
             // giveall / takeall: everything the NPC carries and wears goes to the player (bridge
             // "tesgive all"). Live 2026-10-04 03:14-03:20: "отдай всё мясо и деньги" - three agent
             // tasks in a row ran out of steps probing getitemcount item by item.
+            if ($verb === 'moveto' && function_exists('tesCrimeIsJailed') && preg_match('/^\{npc:([^}]+)\}$/u', $target, $jm)) {
+                $jRow = class_exists('RelationshipManager') ? tesGodGuardResolveNpcLoose(trim($jm[1])) : null;
+                if ($jRow && tesCrimeIsJailed(strval($jRow['npc_name']))) {
+                    $reasons[] = "«{$command}»: {$jRow['npc_name']} сидит в темнице — сначала выпусти: {npc:{$jRow['npc_name']}}.unjail (он сам окажется рядом с игроком)";
+                    continue;
+                }
+            }
             if (in_array($verb, ['giveall', 'takeall', 'removeallitems'], true)) {
                 if ($target === '' || strtolower($target) === 'player') {
                     $reasons[] = "«{$command}»: giveall только для NPC: {npc:Имя}.giveall";

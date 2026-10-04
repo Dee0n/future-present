@@ -35,7 +35,23 @@ try {
                     $inJail = (bool)preg_match('/подземель|тюрьм|темниц|казарм|холодн|сидна|кровав/iu', strval($l['data'] ?? ''));
                     $near = $inJail ? [] : array_map(fn($x) => trim(preg_replace('/(\s*\((?:busy|restrained|far away|sleeping|sitting|[a-z ]+)\))+\s*$/u', '', trim($x)) ?? ''), explode('/', strval($n['data'] ?? '')));
                 }
-                if (strval($row['stage'] ?? 'in') === 'in' && in_array(strval($row['npc']), $near, true)) {
+                if (strval($row['stage'] ?? 'in') !== 'in') {
+                    continue;
+                }
+                $state = $db->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE upper(refid) = '" . $db->escape(strtoupper(strval($row['refid']))) . "' LIMIT 1");
+                if (strval($state['d'] ?? '') === 'true') {
+                    $db->execQuery("UPDATE public.tes_crime_jail SET status = 'released' WHERE id = " . intval($row['id']));
+                    continue;
+                }
+                // not only when he shows up next to the player: while the player is elsewhere a
+                // prisoner is sent back to his cell every 4 minutes, wherever he has got to
+                $stale = $inJail ? null : $db->fetchOne("SELECT 1 AS x FROM public.tes_crime_jail WHERE id = " . intval($row['id']) . " AND (last_hold IS NULL OR last_hold < now() - interval '240 seconds')");
+                if (!empty($stale)) {
+                    tesCrimeQueue(tesCrimeHoldCommands(strval($row['refid']), strval($row['inside_ref'])));
+                    $db->execQuery("UPDATE public.tes_crime_jail SET last_hold = now() WHERE id = " . intval($row['id']));
+                    continue;
+                }
+                if (in_array(strval($row['npc']), $near, true)) {
                     $held = $db->fetchOne("SELECT 1 AS x FROM public.tes_crime_jail WHERE id = " . intval($row['id']) . " AND (last_hold IS NULL OR last_hold < now() - interval '60 seconds')");
                     if (!empty($held)) {
                         tesCrimeQueue(tesCrimeHoldCommands(strval($row['refid']), strval($row['inside_ref'])));

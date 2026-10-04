@@ -10,6 +10,13 @@ try {
     $tesCrimeSpeaker = strval($GLOBALS['HERIKA_NAME'] ?? '');
     if ($tesCrimeSpeaker !== '' && $tesCrimeSpeaker !== 'The Narrator' && function_exists('chimRegisterPromptInjection')) {
         require_once __DIR__ . '/functions.php';
+        if (tesCrimeIsJailed($tesCrimeSpeaker)) {
+            $tesCrimeCell = 'Ты арестован и заперт в камере темницы: на тебе тюремная одежда, вещи отобраны, дверь заперта. Ты никуда не идёшь и ни за кем не следуешь — только говоришь. Выйти можно, лишь когда отпустит правитель или выйдет срок.';
+            chimRegisterPromptInjection('prompt_bottom', 'tes_crime_cell', $tesCrimeCell, 97);
+            if (isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
+                $GLOBALS['request'] = '(' . $tesCrimeCell . ') ' . $GLOBALS['request'];
+            }
+        }
         $tesCrimeSaid = mb_strtolower(strval($GLOBALS['gameRequest'][3] ?? ''));
         if (tesCrimeIsAuthority($tesCrimeSpeaker) && preg_match('/сади|сажа|арест|темниц|тюрьм|тюрьгу|за реш[её]тк|штраф|оштраф|накаж/u', $tesCrimeSaid)) {
             $tesCrimePlayer = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
