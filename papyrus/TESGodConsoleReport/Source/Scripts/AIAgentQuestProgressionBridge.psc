@@ -211,6 +211,27 @@ bool Function TESRunAndReport(String command) Global
         AIAgentFunctions.logMessage("tesautosave@@requested", "tes_god_console")
         return true
     endif
+    if StringUtil.Find(command, "teslove ") == 0
+        ; "teslove <partner FormID, decimal>": an OStim scene for the selected actor and the
+        ; partner (20 = the player). Children are never part of it.
+        Actor lover = ConsoleUtil.GetSelectedReference() as Actor
+        Actor partner = Game.GetForm(StringUtil.Substring(command, 8) as int) as Actor
+        if !lover || !partner || lover == partner
+            AIAgentFunctions.logMessage(command + "@@error: who or with whom is missing", "tes_god_console")
+            return true
+        endif
+        if lover.IsChild() || partner.IsChild() || lover.IsDead() || partner.IsDead()
+            AIAgentFunctions.logMessage(command + "@@error: refused (a child or a dead body)", "tes_god_console")
+            return true
+        endif
+        int thread = TESLove.Start(partner, lover)
+        if thread >= 0
+            AIAgentFunctions.logMessage(command + "@@scene started: " + lover.GetDisplayName() + " and " + partner.GetDisplayName(), "tes_god_console")
+        else
+            AIAgentFunctions.logMessage(command + "@@error: OStim did not start a scene", "tes_god_console")
+        endif
+        return true
+    endif
     if StringUtil.Find(command, "tesperkpoints ") == 0
         ; the console has no command for perk points ("player.addperkpoints" does not exist)
         int points = StringUtil.Substring(command, 14) as int

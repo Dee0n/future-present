@@ -2347,3 +2347,18 @@ stopcombat участникам, `coc WhiterunBreezehome` + Назим к игр
   к игроку вручную (16 человек).
 - Не сделано: мод в игре ещё не прислал серверу регистрацию (в conf_opts нет `_minai_*`) — нужна
   загрузка сохранения / перезапуск игры; действия MinAI включаются в его MCM. В игре не проверено.
+
+## 2026-10-04 14:20 — сцены OStim напрямую, почему молчит MinAI
+
+- OStim 7.5.1.2 на 1.5.97 загрузился (skse64.log: «loaded correctly», OStim.log: scene integrity verified);
+  Papyrus Tweaks NG и JContainers — тоже.
+- MinAI в игре серверу ничего не прислал (в AIAgent.log нет ни одного события minai). По его исходникам
+  (minai_MainQuestController.psc:111-116): при первом запуске он только ставит флаг и пишет «First time
+  setup complete. Save/reload» — работать начинает после загрузки сохранения, СДЕЛАННОГО уже с модом.
+- [Papyrus, установлено, после перезапуска] свой путь без MinAI: `TESLove.psc` (единственный скрипт,
+  трогающий OStim — отдельно от моста, чтобы без OStim мост не ломался) и команда моста
+  `teslove <партнёр dec>` → OThread.QuickStart. Дети и мёртвые отклоняются в самом скрипте.
+  [ext, выложено] tes_god_guard: `{npc:X}.sex` (с игроком) / `{npc:X}.sex {npc:Y}`; детям отказ.
+  Нарратору дана подсказка. **В игре не проверено.**
+- [ini] MO2\profiles\RFAD_SE\SkyrimCustom.ini: включён журнал Papyrus (было 0; копия
+  SkyrimCustom.ini.bak-before-papyrus-log) — чтобы видеть ошибки скриптов MinAI. Действует со следующего запуска.

@@ -1013,7 +1013,7 @@ if (!function_exists('tesGodGuardValidate')) {
             'equipitem', 'unequipitem', 'addspell', 'removespell', 'addperk', 'fw', 'sw', 'set',
             'advlevel', 'incpcs', 'tgm', 'setrelationshiprank', 'stopcombat', 'setscale', 'moveto',
             'placeatme', 'addfac', 'removefac', 'setplayerteammate', 'recycleactor', 'evp', 'resetai',
-            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
+            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'teslove', 'sex', 'love', 'ostim', 'fuck', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
             'tesownhouse', 'tesclaim', 'tesstate', 'tesinspect', 'tesunfollow',
         ];
         $refused = [
@@ -1384,6 +1384,23 @@ if (!function_exists('tesGodGuardValidate')) {
             // book at the player's feet, twice (live 2026-10-04 03:19).
             if ($verb === 'placeatme' && !preg_match('/^placeatme\s+(\{[a-z]+:[^}]+\}|[0-9A-Fa-f]{8})(\s+\d+)?\s*$/iu', $body)) {
                 $reasons[] = "«{$command}»: placeatme создаёт НОВЫЙ объект по базовому FormID (8 знаков) — привести существующего: {npc:Имя}.moveto player; дать предмет: additem";
+                continue;
+            }
+            // sex / love: an OStim scene (bridge teslove). "{npc:X}.sex" - with the player,
+            // "{npc:X}.sex {npc:Y}" - the two of them. Adults only.
+            if (in_array($verb, ['sex', 'love', 'ostim', 'fuck'], true)) {
+                $a = (preg_match('/^\{npc:([^}]+)\}$/u', $target, $am) && class_exists('RelationshipManager')) ? tesGodGuardResolveNpcLoose(trim($am[1])) : null;
+                $b = (preg_match('/\{npc:([^}]+)\}/u', $body, $bm) && class_exists('RelationshipManager')) ? tesGodGuardResolveNpcLoose(trim($bm[1])) : null;
+                if (!$a || !preg_match('/^[0-9A-Fa-f]{8}$/', strval($a['refid'] ?? ''))) {
+                    $reasons[] = "«{$command}»: пиши {npc:Имя}.sex (с игроком) или {npc:Имя}.sex {npc:Другое имя}";
+                    continue;
+                }
+                if (tesGodGuardIsChild('{npc:' . $a['npc_name'] . '}') || ($b && tesGodGuardIsChild('{npc:' . $b['npc_name'] . '}'))) {
+                    $reasons[] = "«{$command}»: с детьми — никогда";
+                    continue;
+                }
+                $partner = ($b && preg_match('/^[0-9A-Fa-f]{8}$/', strval($b['refid'] ?? ''))) ? hexdec(strval($b['refid'])) : 20;
+                $kept[] = strtoupper(strval($a['refid'])) . '.teslove ' . $partner;
                 continue;
             }
             // perk points: the console has no such command; the bridge adds them (Game.AddPerkPoints).
