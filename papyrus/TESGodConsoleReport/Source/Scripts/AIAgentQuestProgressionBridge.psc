@@ -266,8 +266,8 @@ bool Function TESRunAndReport(String command) Global
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
         ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
         ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place);
-        ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"
-        AIAgentFunctions.logMessage("tesversion@@10", "tes_god_console")
+        ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"; 11 = also "tesscale", "tesspeed", held people stand in the do-nothing package (no T-pose)
+        AIAgentFunctions.logMessage("tesversion@@11", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -362,6 +362,14 @@ bool Function TESRunAndReport(String command) Global
     endif
     if StringUtil.Find(command, "tesdressbest ") == 0
         TESDressBest(StringUtil.Substring(command, 13))
+        return true
+    endif
+    if StringUtil.Find(command, "tesscale ") == 0
+        TESScale(StringUtil.Substring(command, 9))
+        return true
+    endif
+    if StringUtil.Find(command, "tesspeed ") == 0
+        TESSpeed(StringUtil.Substring(command, 9))
         return true
     endif
     if StringUtil.Find(command, "tesswapworn ") == 0
@@ -1325,6 +1333,11 @@ Function TESHold(String arg) Global
             StorageUtil.UnsetIntValue(target, "TESAIOff")
         endif
         if StorageUtil.GetIntValue(target, "TESHeld") == 1
+            Package heldPackage = StorageUtil.GetFormValue(target, "TESHoldPackage") as Package
+            if heldPackage
+                ActorUtil.RemovePackageOverride(target, heldPackage)
+                StorageUtil.UnsetFormValue(target, "TESHoldPackage")
+            endif
             ActorUtil.RemovePackageOverride(target, sandboxWork)
             target.RemoveFromFaction(sandboxFaction)
             PO3_SKSEFunctions.SetLinkedRef(target, None)
@@ -1351,14 +1364,23 @@ Function TESHold(String arg) Global
     StorageUtil.SetIntValue(target, "TESHeld", 1)
     target.SetFactionRank(sandboxFaction, 1)
     PO3_SKSEFunctions.SetLinkedRef(target, place)
-    ActorUtil.AddPackageOverride(target, sandboxWork, 100, 0)
+    ; a held person must STAND, not walk in place and not freeze in the T-pose (owner, 22:08: "люди в тюрьме
+    ; в T позе"): EnableAI(false) killed the animation graph. CHIM's own "do nothing" package (AIAgent.esp
+    ; 0x027374) holds him with the idles alive; no sandbox, so no pacing against SetDontMove.
+    if StorageUtil.GetIntValue(target, "TESAIOff") == 1
+        target.EnableAI(true)
+        StorageUtil.UnsetIntValue(target, "TESAIOff")
+    endif
+    Package doNothing = Game.GetFormFromFile(0x027374, "AIAgent.esp") as Package
+    if doNothing
+        ActorUtil.RemovePackageOverride(target, sandboxWork)
+        ActorUtil.AddPackageOverride(target, doNothing, 100, 0)
+        StorageUtil.SetFormValue(target, "TESHoldPackage", doNothing)
+    else
+        ActorUtil.AddPackageOverride(target, sandboxWork, 100, 0)
+    endif
     target.EvaluatePackage()
-    ; the Whiterun cell has a way out and a sandboxing prisoner finds it: he does not move at all
     target.SetDontMove(true)
-    ; and no walking animation either (owner, 17:20: "пусть анимации вырубит" - held people kept walking in
-    ; place): the actor's AI is switched off, he just stands; "teshold 0" switches it on again
-    target.EnableAI(false)
-    StorageUtil.SetIntValue(target, "TESAIOff", 1)
     AIAgentFunctions.logMessage("teshold " + arg + "@@" + target.GetDisplayName() + " is held there", "tes_god_console")
 EndFunction
 
@@ -1433,6 +1455,50 @@ Function TESDressBest(String mode) Global
     AIAgentFunctions.logMessage("tesdressbest " + mode + "@@" + npc.GetDisplayName() + " dressed (" + how + ")", "tes_god_console")
 EndFunction
 
+; TES-Speech-Adapter: "tesscale <0.3..3>" - the player's size, done right (owner, 22:04: the Narrator set
+; player.setscale 1.25, 1.5 - "ты увеличил мой размер, но я вижу-то на том же уровне"): the model grows but the
+; first-person camera keeps its old height until the view is switched. So: scale, speed compensated (a bigger
+; stride is faster: owner "я слишком быстрый"), and the camera refreshed by a quick third/first person flip.
+Function TESScale(String arg) Global
+    float s = arg as float
+    if s < 0.3 || s > 3.0
+        AIAgentFunctions.logMessage("tesscale " + arg + "@@error: scale must be 0.3 .. 3.0", "tes_god_console")
+        return
+    endif
+    Actor p = Game.GetPlayer()
+    p.SetScale(s)
+    StorageUtil.SetFloatValue(p, "TESScale", s)
+    TESSetSpeed(p, 100.0)
+    if Game.GetCameraState() == 0
+        Game.ForceThirdPerson()
+        Utility.Wait(0.4)
+        Game.ForceFirstPerson()
+    endif
+    AIAgentFunctions.logMessage("tesscale " + arg + "@@player scale " + s + ", speed " + (100.0 / s) + ", camera refreshed", "tes_god_console")
+EndFunction
+
+; "tesspeed <percent>" - how fast the player walks: 100 is normal AT ANY SIZE (divided by the scale).
+Function TESSpeed(String arg) Global
+    float pct = arg as float
+    if pct < 20.0 || pct > 400.0
+        AIAgentFunctions.logMessage("tesspeed " + arg + "@@error: 20 .. 400", "tes_god_console")
+        return
+    endif
+    TESSetSpeed(Game.GetPlayer(), pct)
+    AIAgentFunctions.logMessage("tesspeed " + arg + "@@player speed " + pct + "% of normal at the current size", "tes_god_console")
+EndFunction
+
+Function TESSetSpeed(Actor p, float pct) Global
+    float sc = p.GetScale()
+    if sc < 0.3
+        sc = 1.0
+    endif
+    float mult = pct / sc
+    p.ForceActorValue("SpeedMult", mult)
+    ; the game recomputes the walk speed on a change of the value
+    p.ModActorValue("SpeedMult", 0.01)
+    p.ModActorValue("SpeedMult", -0.01)
+EndFunction
 ; TES-Speech-Adapter: "tesswapworn <other actor FormID, decimal>" - the selected actor and the other one
 ; swap what they wear (head, hair, body, hands, feet, circlet). Owner, live 21:43: "Балгруф, отдай Бренуину
 ; свою одежду, пусть он в ней ходит, а ты ходи в его" - the agent undressed both and stopped there.

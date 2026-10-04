@@ -1020,7 +1020,7 @@ if (!function_exists('tesGodGuardValidate')) {
             'advlevel', 'incpcs', 'tgm', 'setrelationshiprank', 'stopcombat', 'setscale', 'moveto',
             'placeatme', 'addfac', 'removefac', 'setplayerteammate', 'recycleactor', 'evp', 'resetai',
             'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'teslove', 'sex', 'love', 'ostim', 'fuck', 'tesfollow', 'follow', 'unfollow', 'tesclone', 'clone', 'tesessential', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
-            'tesownhouse', 'tesclaim', 'tesstate', 'tesinspect', 'tesunfollow',
+            'tesownhouse', 'tesclaim', 'tesstate', 'tesinspect', 'tesunfollow', 'tesscale', 'tesspeed',
         ];
         $refused = [
             'disable' => 'disable/enable ломает модель NPC',
@@ -1765,6 +1765,21 @@ if (!function_exists('tesGodGuardValidate')) {
                 continue;
             }
 
+            // The player's size and speed (owner, 22:04): plain setscale grows the model but not the first-person
+            // camera, and a bigger stride is faster. Bridge v11 does it right (scale, speed/scale, camera flip).
+            if (strtolower($target) === 'player' && function_exists('tesWatchGet') && intval(tesWatchGet('bridge_ver')['value']) >= 11) {
+                if ($verb === 'setscale' && preg_match('/^setscale\s+([0-9]+(?:\.[0-9]+)?)$/i', $body, $scm)) {
+                    $target = '';
+                    $verb = 'tesscale';
+                    $body = 'tesscale ' . $scm[1];
+                    $command = $body;
+                } elseif ($verb === 'setav' && preg_match('/^setav\s+speedmult\s+([0-9]+(?:\.[0-9]+)?)$/i', $body, $spm)) {
+                    $target = '';
+                    $verb = 'tesspeed';
+                    $body = 'tesspeed ' . $spm[1];
+                    $command = $body;
+                }
+            }
             if (isset($refused[$verb])) {
                 $reasons[] = "«{$command}»: {$refused[$verb]}";
                 continue;
