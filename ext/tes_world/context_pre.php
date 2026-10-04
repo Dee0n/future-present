@@ -103,7 +103,9 @@ try {
         if ($tesWorldMe !== '' && $tesWorldMe !== 'The Narrator') {
             $tesWorldMute = function_exists('tesRealmMuteLine') ? tesRealmMuteLine($tesWorldMe) : '';
             chimRegisterPromptInjection('prompt_bottom', 'tes_world_brief',
-                $tesWorldMute !== '' ? $tesWorldMute : 'Говори коротко: одна-две короткие фразы, без монологов; без повода сам не заговаривай и не комментируй чужие разговоры.', 101);
+                $tesWorldMute !== '' ? $tesWorldMute : ((function_exists('tesRealmPartyActive') && tesRealmPartyActive($tesWorldMe))
+                    ? 'Ты на гулянке: пьёшь, смеёшься, болтаешь с соседями, подшучиваешь, поёшь, поднимаешь кружку; говори сам, без повода, живо и коротко — одна-две фразы.'
+                    : 'Говори коротко: одна-две короткие фразы, без монологов; без повода сам не заговаривай и не комментируй чужие разговоры.'), 101);
         }
         // What the ruler ordered THIS person lately and how it went: the dialogue window is short
         // (cost) and the order would fall out of it - the NPC then asked "что значит раздеть?" again

@@ -24,7 +24,7 @@ if (!function_exists('tesRealmAfterOrder')) {
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_undo (id serial PRIMARY KEY, kind text NOT NULL, who text NOT NULL, ref text NOT NULL, undone boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now())");
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_posts (role text PRIMARY KEY, npc text NOT NULL, since timestamptz NOT NULL DEFAULT now())");
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_gatherings (id serial PRIMARY KEY, what text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())");
-        $db->execQuery("ALTER TABLE public.tes_gatherings ADD COLUMN IF NOT EXISTS refs text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS released boolean NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS party boolean NOT NULL DEFAULT false");
+        $db->execQuery("ALTER TABLE public.tes_gatherings ADD COLUMN IF NOT EXISTS refs text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS released boolean NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS party boolean NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS anchor text NOT NULL DEFAULT 'player'");
     }
 
     /**
@@ -75,6 +75,81 @@ if (!function_exists('tesRealmAfterOrder')) {
     function tesRealmGatherTick(): void
     {
         tesRealmGatherRelease(false);
+        tesRealmPartyTick();
+    }
+
+    /** Is $me at a feast that is going on (not just gathered)? Those are not told to be silent. */
+    function tesRealmPartyActive(string $me): bool
+    {
+        tesRealmEnsure();
+        $ref = $me !== '' ? tesWorldRefOf($me) : '';
+        if ($ref === '') {
+            return false;
+        }
+        $g = $GLOBALS['db']->fetchOne("SELECT refs FROM public.tes_gatherings WHERE party AND NOT released AND created_at > now() - interval '20 minutes' ORDER BY id DESC LIMIT 1");
+        return !empty($g['refs']) && in_array($ref, explode(',', strval($g['refs'])), true);
+    }
+
+    /**
+     * The feast keeper (owner, 22:41: "все молчат, никто не пьёт, многие уходят"):
+     *  - every ~25 s four of the guests raise a cup (the game's DrinkIdle, what CHIM's Drink action plays);
+     *  - every ~75 s the guests' distance to the place is asked, and whoever walked off is brought back.
+     */
+    function tesRealmPartyTick(): void
+    {
+        tesRealmEnsure();
+        $db = $GLOBALS['db'];
+        $g = $db->fetchOne("SELECT id, refs, anchor FROM public.tes_gatherings WHERE party AND NOT released AND refs <> '' AND created_at > now() - interval '20 minutes' ORDER BY id DESC LIMIT 1");
+        if (empty($g['refs'])) {
+            return;
+        }
+        $refs = array_values(array_filter(explode(',', strval($g['refs']))));
+        $anchor = trim(strval($g['anchor'] ?? 'player')) ?: 'player';
+        // drinking
+        $dr = tesWatchGet('party_drink');
+        if ($dr['value'] === '' || $dr['age'] >= 25) {
+            tesWatchSet('party_drink', '1');
+            shuffle($refs);
+            foreach (array_slice($refs, 0, 4) as $ref) {
+                tesWorldQueue(['prid ' . $ref, 'playidle 00103656']);
+            }
+        }
+        // who walked off: ask, and on the next round read the answers
+        $probe = tesWatchGet('party_probe');
+        if ($probe['value'] !== '' && $probe['age'] >= 10 && $probe['age'] < 120) {
+            $log = $db->fetchAll("SELECT command, output FROM public.tes_god_console_log WHERE id > " . intval($probe['value']) . " ORDER BY id LIMIT 200");
+            $who = '';
+            $far = [];
+            foreach (is_array($log) ? $log : [] as $l) {
+                $cmd = strtolower(trim(strval($l['command'])));
+                if (preg_match('/^prid ([0-9a-f]{8})$/', $cmd, $m)) {
+                    $who = strtoupper($m[1]);
+                } elseif ($who !== '' && strpos($cmd, 'getdistance') === 0 && preg_match('/GetDistance >> ([0-9.]+)/', strval($l['output']), $dm)) {
+                    if (floatval($dm[1]) > 900.0 && in_array($who, $refs, true)) {
+                        $far[] = $who;
+                    }
+                    $who = '';
+                }
+            }
+            tesWatchSet('party_probe', '');
+            foreach (array_slice(array_unique($far), 0, 12) as $ref) {
+                tesWorldQueue(['prid ' . $ref, 'moveto ' . $anchor, $anchor === 'player' ? 'tesroutine here' : 'tesroutine at ' . hexdec($anchor)]);
+            }
+            if ($far) {
+                error_log('[tes_world] feast: ' . count($far) . ' guests had walked off - brought back');
+            }
+        } elseif ($probe['value'] === '' || $probe['age'] >= 120) {
+            $pd = tesWatchGet('party_dist');
+            if ($pd['value'] === '' || $pd['age'] >= 75) {
+                tesWatchSet('party_dist', '1');
+                $max = $db->fetchOne("SELECT coalesce(max(id), 0) AS m FROM public.tes_god_console_log");
+                tesWatchSet('party_probe', strval(intval($max['m'] ?? 0)));
+                $target = $anchor === 'player' ? '20' : $anchor;
+                foreach (array_slice($refs, 0, 24) as $ref) {
+                    tesWorldQueue(['prid ' . $ref, 'getdistance ' . ($anchor === 'player' ? '20' : hexdec($anchor))]);
+                }
+            }
+        }
     }
 
     function tesRealmKindWord(string $kind): string
@@ -362,8 +437,8 @@ if (!function_exists('tesRealmAfterOrder')) {
             }
             if ($done) {
                 tesRealmEnsure();
-                $GLOBALS['db']->execQuery("INSERT INTO public.tes_gatherings (what, refs, party) VALUES ('" . $GLOBALS['db']->escape(mb_substr($line, 0, 120)) . "', '"
-                    . ($stay ? implode(',', $refs) : '') . "', " . ($party ? 'true' : 'false') . ")");
+                $GLOBALS['db']->execQuery("INSERT INTO public.tes_gatherings (what, refs, party, anchor) VALUES ('" . $GLOBALS['db']->escape(mb_substr($line, 0, 120)) . "', '"
+                    . ($stay ? implode(',', $refs) : '') . "', " . ($party ? 'true' : 'false') . ", '" . $GLOBALS['db']->escape($anchor) . "')");
                 if ($party) {
                     tesRealmChatter(true);
                 }
