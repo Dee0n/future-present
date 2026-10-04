@@ -756,10 +756,24 @@ while (!$finish['done'] && $steps < $maxSteps && time() - $started < $maxSeconds
         if ($finish['done']) {
             break;
         }
+        if (!in_array($name, ['find', 'npc_info', 'relationships', 'quest_log', 'get_state', 'inspect_here', 'check', 'finish', 'give_up'], true) && empty($result['error'])) {
+            $wroteAny = true;
+            $wroteRound = true;
+        }
+    }
+    // an order passed on by an NPC (--quick): the cheap model does the job and then goes on checking
+    // until the limit (live 2026-10-04: 8 of 8 such tasks "failed" at 16-21 steps with the undressing
+    // done at step 7). Once something was done - tell it to finish.
+    if (isset($args['quick']) && !empty($wroteRound) && !$finish['done']) {
+        $messages[] = ['role' => 'user', 'content' => 'Действие выполнено. Следующим вызовом — только finish (summary одной строкой, expect пустой), без проверок.'];
+        $wroteRound = false;
     }
 }
 
-$status = $finish['done'] ? ($finish['gave_up'] ? 'gave_up' : ($finish['failed'] ? 'failed' : 'done')) : 'failed';
+$status = $finish['done'] ? ($finish['gave_up'] ? 'gave_up' : ($finish['failed'] ? 'failed' : 'done')) : (!empty($wroteAny) && isset($args['quick']) ? 'done' : 'failed');
+if (!$finish['done'] && !empty($wroteAny) && isset($args['quick']) && $finish['summary'] === '') {
+    $finish['summary'] = 'выполнено, подтверждение не дождался (быстрый приказ)';
+}
 if (!$finish['done'] && $finish['summary'] === '') {
     $finish['summary'] = "не успел: лимит шагов или времени (шагов {$steps})";
 }
