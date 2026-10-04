@@ -1765,7 +1765,18 @@ if (!function_exists('tesGodGuardValidate')) {
                 continue;
             }
 
-            // The player's size and speed (owner, 22:04): plain setscale grows the model but not the first-person
+            // "Сделай мне модификатор удара … убивать с одного удара" (owner, 22:29): the Narrator sent
+            // setav unarmeddamage 999999999 - an absurd number the game does not keep (UnarmedDamage stayed 55).
+            // What works for a blow with ANYTHING (fists too) is the damage multiplier; capped at 1000.
+            if (strtolower($target) === 'player' && in_array($verb, ['setav', 'forceav', 'modav'], true)
+                && preg_match('/^' . $verb . '\s+(unarmeddamage|attackdamagemult|weapondamage|meleedamage|damagemult)\s+(-?[0-9]+(?:\.[0-9]+)?)$/i', $body, $dmm)) {
+                $val = floatval($dmm[2]);
+                $val = $val < 1 ? 1 : ($val > 1000 ? 1000 : $val);
+                $verb = 'forceav';
+                $body = 'forceav attackdamagemult ' . rtrim(rtrim(number_format($val, 2, '.', ''), '0'), '.');
+                $command = 'player.' . $body;
+                $reasons[] = "«{$dmm[1]} {$dmm[2]}» заменено на множитель урона attackdamagemult (кулаком и любым оружием), потолок 1000";
+            }            // The player's size and speed (owner, 22:04): plain setscale grows the model but not the first-person
             // camera, and a bigger stride is faster. Bridge v11 does it right (scale, speed/scale, camera flip).
             if (strtolower($target) === 'player' && function_exists('tesWatchGet') && intval(tesWatchGet('bridge_ver')['value']) >= 11) {
                 if ($verb === 'setscale' && preg_match('/^setscale\s+([0-9]+(?:\.[0-9]+)?)$/i', $body, $scm)) {
