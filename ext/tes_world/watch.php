@@ -89,6 +89,36 @@ if (!function_exists('tesWatchNotify')) {
                 }
             }
         }
+        // --- impunity, for a game with the old bridge too: whoever has just gone for the player in
+        // combat (the guards: bounty 200 in Whiterun, live 16:14-16:23) gets the bounty cleared and
+        // is stopped. Owner: "какого хуя они меня пиздят". Every 20 s at most.
+        if (tesWatchGet('impunity')['value'] !== '0' && tesWatchGet('imp_guard')['age'] >= 20) {
+            $pn = trim(strval($GLOBALS['PLAYER_NAME'] ?? ''));
+            $ev = $db->fetchAll("SELECT data FROM eventlog WHERE type = 'infoaction' AND localts > " . (time() - 90) . " AND data LIKE '%engages combat with%' ORDER BY rowid DESC LIMIT 12");
+            $who = [];
+            foreach (is_array($ev) ? $ev : [] as $e) {
+                if (preg_match('/\)\s*(.+?) engages combat with (.+)$/u', strval($e['data']), $em) || preg_match('/^(.+?) engages combat with (.+)$/u', strval($e['data']), $em)) {
+                    $target = trim($em[2]);
+                    if ($target === 'The Narrator' || ($pn !== '' && $target === $pn)) {
+                        $who[trim($em[1])] = true;
+                    }
+                }
+            }
+            if ($who) {
+                tesWatchSet('imp_guard', '1');
+                $cmds = [];
+                foreach (array_slice(array_keys($who), 0, 6) as $name) {
+                    $ref = tesWorldRefOf($name);
+                    if ($ref !== '') {
+                        array_push($cmds, 'prid ' . $ref, 'setcrimegold 0', 'stopcombat', 'resetai');
+                    }
+                }
+                if ($cmds && function_exists('tesWorldQueue')) {
+                    tesWorldQueue($cmds);
+                    error_log('[tes_world watch] impunity: stopped ' . implode(', ', array_keys($who)));
+                }
+            }
+        }
         // --- impunity: crimes of the player are not reported (Game.SetPlayerReportCrime) - on by
         // default, put again every 3 minutes (the flag is not kept by a save), needs bridge 4
         $imp = tesWatchGet('impunity');
