@@ -1783,6 +1783,7 @@ if (!function_exists('tesGodGuardValidate')) {
                     $target = '';
                     $verb = 'tesscale';
                     $body = 'tesscale ' . $scm[1];
+                    tesWatchSet('player_scale', $scm[1]);  // watch.php repeats tescam while the size is not 1 (a save load resets the camera)
                     $command = $body;
                 } elseif ($verb === 'setav' && preg_match('/^setav\s+speedmult\s+([0-9]+(?:\.[0-9]+)?)$/i', $body, $spm)) {
                     $target = '';

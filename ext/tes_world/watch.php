@@ -50,6 +50,17 @@ if (!function_exists('tesWatchNotify')) {
     {
         tesWatchEnsure();
         $db = $GLOBALS['db'];
+        // The player's first-person eyes sit at size x 1.087 (owner, 22:40: size 1.15 -> camera node 1.25). A save
+        // load makes the "First Person Camera Height Fix" mod put them back at plain size: every 3 minutes
+        // while the size is not 1 the factor is applied again (bridge 14+).
+        $ps = tesWatchGet('player_scale');
+        if ($ps['value'] !== '' && abs(floatval($ps['value']) - 1.0) > 0.01) {
+            $cs = tesWatchGet('cam_sent');
+            if (($cs['value'] === '' || $cs['age'] >= 180) && function_exists('tesWorldQueue') && function_exists('tesBridgeVersion') && tesBridgeVersion() >= 14) {
+                tesWatchSet('cam_sent', '1');
+                tesWorldQueue(['tescam 1.087']);
+            }
+        }
         // --- budget: every 10 minutes
         if (tesWatchGet('budget_check')['age'] >= 600) {
             tesWatchSet('budget_check', '1');

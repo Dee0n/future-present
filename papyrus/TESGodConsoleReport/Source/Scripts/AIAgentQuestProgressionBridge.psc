@@ -266,8 +266,8 @@ bool Function TESRunAndReport(String command) Global
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
         ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
         ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place);
-        ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"; 13 = tesscale sets the first-person skeleton node scale (camera height), speed not divided; 11 = also "tesscale", "tesspeed", held people stand in the do-nothing package (no T-pose)
-        AIAgentFunctions.logMessage("tesversion@@13", "tes_god_console")
+        ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"; 14 = first-person eyes = size x 1.087 (tescam <factor> changes it); 13 = tesscale sets the first-person skeleton node scale (camera height), speed not divided; 11 = also "tesscale", "tesspeed", held people stand in the do-nothing package (no T-pose)
+        AIAgentFunctions.logMessage("tesversion@@14", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -362,6 +362,10 @@ bool Function TESRunAndReport(String command) Global
     endif
     if StringUtil.Find(command, "tesdressbest ") == 0
         TESDressBest(StringUtil.Substring(command, 13))
+        return true
+    endif
+    if StringUtil.Find(command, "tescam ") == 0
+        TESCam(StringUtil.Substring(command, 7))
         return true
     endif
     if StringUtil.Find(command, "tesscale ") == 0
@@ -1477,12 +1481,31 @@ Function TESScale(String arg) Global
     string fpMsg = "no first-person node"
     if NetImmerse.HasNode(p, "skeleton.nif", true)
         float oldNode = NetImmerse.GetNodeScale(p, "skeleton.nif", true)
-        NetImmerse.SetNodeScale(p, "skeleton.nif", p.GetScale(), true)
+        NetImmerse.SetNodeScale(p, "skeleton.nif", p.GetScale() * StorageUtil.GetFloatValue(p, "TESCamFactor", 1.087), true)
         fpMsg = "first-person node " + oldNode + " -> " + NetImmerse.GetNodeScale(p, "skeleton.nif", true)
     endif
     AIAgentFunctions.logMessage("tesscale " + arg + "@@player scale " + p.GetScale() + ", " + fpMsg, "tes_god_console")
 EndFunction
 
+
+; "tescam <factor>" - how high the first-person eyes sit relative to the body: node = size x factor.
+; Owner, 22:40: size 1.15 and the camera node 1.25 (= 1.087). Raise it for a higher view, lower for a lower one.
+Function TESCam(String arg) Global
+    float f = arg as float
+    if f < 0.5 || f > 2.0
+        AIAgentFunctions.logMessage("tescam " + arg + "@@error: 0.5 .. 2.0", "tes_god_console")
+        return
+    endif
+    Actor p = Game.GetPlayer()
+    StorageUtil.SetFloatValue(p, "TESCamFactor", f)
+    if NetImmerse.HasNode(p, "skeleton.nif", true)
+        float oldNode = NetImmerse.GetNodeScale(p, "skeleton.nif", true)
+        NetImmerse.SetNodeScale(p, "skeleton.nif", p.GetScale() * f, true)
+        AIAgentFunctions.logMessage("tescam " + arg + "@@first-person node " + oldNode + " -> " + NetImmerse.GetNodeScale(p, "skeleton.nif", true) + " (size " + p.GetScale() + " x " + f + ")", "tes_god_console")
+    else
+        AIAgentFunctions.logMessage("tescam " + arg + "@@no first-person node", "tes_god_console")
+    endif
+EndFunction
 ; "tesspeed <percent>" - how fast the player walks: 100 is normal.
 Function TESSpeed(String arg) Global
     float pct = arg as float
