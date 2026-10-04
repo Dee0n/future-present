@@ -47,7 +47,7 @@ try {
                 // his cell every 2 minutes, wherever he has got to - also while the player is in
                 // the jail himself (owner, 2026-10-04: "из решетки все сбегают… все кто в тюрьме
                 // должен быть тпшни их в тюрьму")
-                $stale = $db->fetchOne("SELECT 1 AS x FROM public.tes_crime_jail WHERE id = " . intval($row['id']) . " AND (last_hold IS NULL OR last_hold < now() - interval '120 seconds')");
+                $stale = $db->fetchOne("SELECT 1 AS x FROM public.tes_crime_jail WHERE id = " . intval($row['id']) . " AND (last_hold IS NULL OR last_hold < now() - interval '45 seconds')");
                 if (!empty($stale)) {
                     tesCrimeQueue(tesCrimeHoldCommands(strval($row['refid']), strval($row['inside_ref'])));
                     $db->execQuery("UPDATE public.tes_crime_jail SET last_hold = now() WHERE id = " . intval($row['id']));

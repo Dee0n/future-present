@@ -147,7 +147,7 @@ try {
                     $before = $db->fetchOne("SELECT 1 AS x FROM public.tes_world_patrols WHERE target = '" . $db->escape(strval($look['target'])) . "' AND enforced AND id <> " . intval($look['id']) . " AND created_at > now() - interval '12 hours' LIMIT 1");
                     $verdict = '';
                     if ($ref !== '' && $dressed && !empty($before) && function_exists('tesCrimeJail') && !(function_exists('tesCrimeIsJailed') && tesCrimeIsJailed(strval($look['target'])))) {
-                        [$ok, $msg] = tesCrimeJail(strval($look['target']), $ref, 'снова нарушила закон правителя (ходит одетой)', 1, strval($look['guard']));
+                        [$ok, $msg] = tesCrimeJail(strval($look['target']), $ref, 'снова нарушила закон правителя (ходит одетой)', 30, strval($look['guard']));  // a day was served within the hour (time jumps) - she "escaped"
                         $verdict = $ok ? 'в темницу' : 'темница не вышла: ' . $msg;
                         $db->execQuery("UPDATE public.tes_world_patrols SET enforced = true WHERE id = " . intval($look['id']));
                     } elseif ($ref !== '' && $dressed) {
