@@ -406,12 +406,24 @@ if (!function_exists('tesWorldEnsureTable')) {
         return $out;
     }
 
+    /** Is the game behind with our console sequences (more than three rows waiting)? */
+    function tesWorldQueueBusy(): bool
+    {
+        $r = $GLOBALS['db']->fetchOne("SELECT count(*) AS n FROM public.skyrim_quest_action_outbox WHERE status = 'pending' AND created_at > now() - interval '2 minutes'");
+        return intval($r['n'] ?? 0) > 3;
+    }
+
     /** One console sequence into the game (same channel as tes_crime). */
     function tesWorldQueue(array $commands): bool
     {
         $db = $GLOBALS['db'];
         $quest = $db->fetchOne("SELECT quest_key FROM public.skyrim_quest_instances ORDER BY quest_key LIMIT 1");
         if (empty($quest['quest_key'])) {
+            return false;
+        }
+        require_once __DIR__ . '/childsafe.php';
+        $commands = tesChildSafeCommands($commands);  // children are never undressed, whoever asked
+        if (!$commands) {
             return false;
         }
         if (function_exists('tesWornTouched')) {

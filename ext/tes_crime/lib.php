@@ -30,12 +30,28 @@ if (!function_exists('tesCrimeFine')) {
         ");
     }
 
+    /** Is the one with this RefID a child? Asked of the NPC table directly: no other plugin is needed. */
+    function tesCrimeIsChildRef(string $ref): bool
+    {
+        $db = $GLOBALS['db'];
+        $row = $db->fetchOne("SELECT race FROM public.core_npc_master WHERE upper(refid) = '" . $db->escape(strtoupper(trim($ref))) . "' LIMIT 1");
+        return (bool)preg_match('/реб[её]нок|child/iu', strval($row['race'] ?? ''));
+    }
+
     function tesCrimeQueue(array $commands): bool
     {
         $db = $GLOBALS['db'];
         $quest = $db->fetchOne("SELECT quest_key FROM public.skyrim_quest_instances ORDER BY quest_key LIMIT 1");
         if (empty($quest['quest_key'])) {
             return false;
+        }
+        // children are never undressed, whoever asked (tes_world/childsafe.php)
+        if (is_readable(__DIR__ . '/../tes_world/childsafe.php')) {
+            require_once __DIR__ . '/../tes_world/childsafe.php';
+            $commands = tesChildSafeCommands($commands);
+            if (!$commands) {
+                return false;
+            }
         }
         $db->insert('skyrim_quest_action_outbox', [
             'quest_key' => $quest['quest_key'], 'beat_id' => 'tes_crime', 'action_type' => 'console_command_sequence',
@@ -241,7 +257,9 @@ if (!function_exists('tesCrimeFine')) {
         // dresses him again. teshold: the cell becomes his schedule (without it the game walked
         // Хеймскр back to his statue). A bridge without these prints "not found" and goes on.
         // Children are held but never undressed.
-        $child = function_exists('tesGodGuardIsChild') && tesGodGuardIsChild($ref);
+        // (the check used to be "function_exists('tesGodGuardIsChild') && …": with that plugin not loaded a child
+        // passed for an adult and was stripped - Люсия, 2026-10-04)
+        $child = tesCrimeIsChildRef($ref);
         $strip = $child ? [] : ['tesjailbox in', 'unequipall',
             'additem ' . TES_CRIME_RAGS . ' 1', 'equipitem ' . TES_CRIME_RAGS . ' 1',
             'additem ' . TES_CRIME_WRAPS . ' 1', 'equipitem ' . TES_CRIME_WRAPS . ' 1'];
@@ -251,7 +269,7 @@ if (!function_exists('tesCrimeFine')) {
     /** Put an escaped prisoner back: he already wears the rags, so only move and hold. */
     function tesCrimeHoldCommands(string $ref, string $insideRef): array
     {
-        $child = function_exists('tesGodGuardIsChild') && tesGodGuardIsChild($ref);
+        $child = tesCrimeIsChildRef($ref);
         return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $child ? [] : ['equipitem ' . TES_CRIME_RAGS . ' 1'],
             array_merge(['setrestrained 1'], tesCrimeHoldCmd($insideRef)), tesCrimeLegIrons());
     }

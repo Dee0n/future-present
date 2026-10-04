@@ -72,17 +72,25 @@ EndFunction
 ; whole body of both functions below serializes every row through this bridge. StorageUtil
 ; values persist in the co-save, so a save made mid-sequence would otherwise leave the lock
 ; held forever after loading; TESLockAcquire force-takes it after a 10 s wait instead.
-bool Function TESLockAcquire(float timeoutSeconds = 10.0) Global
+; v15 (2026-10-04 23:50): the lock used to be force-taken by anyone who had WAITED 10 s. Behind a backlog every
+; row waits longer than that, so the rows ran together again and a command landed on whoever another row had
+; selected (a kill meant for the condemned removed Эйла; a child lost her clothes). Now the holder stamps the
+; time of its last command ("TESConsoleLockAt"), and the lock is force-taken only when that stamp is 30 s old or
+; lies in the future (a save made mid-sequence, loaded in a new game session) - never from a live holder.
+bool Function TESLockAcquire(float timeoutSeconds = 30.0) Global
     Actor player = Game.GetPlayer()
-    float started = Utility.GetCurrentRealTime()
     while StorageUtil.AdjustIntValue(player, "TESConsoleLock", 1) != 1
         StorageUtil.AdjustIntValue(player, "TESConsoleLock", -1)
-        if Utility.GetCurrentRealTime() - started > timeoutSeconds
+        float now = Utility.GetCurrentRealTime()
+        float at = StorageUtil.GetFloatValue(player, "TESConsoleLockAt", 0.0)
+        if at > now || now - at > timeoutSeconds
+            StorageUtil.SetFloatValue(player, "TESConsoleLockAt", now)
             StorageUtil.SetIntValue(player, "TESConsoleLock", 1)
             return true
         endif
         Utility.Wait(0.05)
     endwhile
+    StorageUtil.SetFloatValue(player, "TESConsoleLockAt", Utility.GetCurrentRealTime())
     return true
 EndFunction
 
@@ -106,6 +114,7 @@ Function ExecuteConsoleCommandSequence(String commands) Global
     while splitIndex >= 0
         String command = StringUtil.Substring(commands, 0, splitIndex)
         if command != ""
+            StorageUtil.SetFloatValue(Game.GetPlayer(), "TESConsoleLockAt", Utility.GetCurrentRealTime())
             if !TESRunAndReport(command)
                 AIAgentFunctions.logMessage(StringUtil.Substring(commands, splitIndex + 2) + "@@error: aborted, target not found", "tes_god_console")
                 TESLockRelease()
@@ -267,7 +276,8 @@ bool Function TESRunAndReport(String command) Global
         ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
         ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place);
         ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"; 14 = first-person eyes = size x 1.087 (tescam <factor> changes it); 13 = tesscale sets the first-person skeleton node scale (camera height), speed not divided; 11 = also "tesscale", "tesspeed", held people stand in the do-nothing package (no T-pose)
-        AIAgentFunctions.logMessage("tesversion@@14", "tes_god_console")
+        ; 15 = also "tesgrab [all]": the selected NPC picks up loose things lying near the player
+        AIAgentFunctions.logMessage("tesversion@@15", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -514,6 +524,14 @@ bool Function TESRunAndReport(String command) Global
         endif
         if diaryBase
             diaryBase.SetGoldValue(5)
+        endif
+        return true
+    endif
+    if command == "tesgrab" || StringUtil.Find(command, "tesgrab ") == 0
+        if command == "tesgrab"
+            TESGrab("")
+        else
+            TESGrab(StringUtil.Substring(command, 8))
         endif
         return true
     endif
@@ -1705,6 +1723,55 @@ Function TESRoutine(String mode) Global
     ActorUtil.AddPackageOverride(target, sandboxWork, 90, 0)
     target.EvaluatePackage()
     AIAgentFunctions.logMessage("tesroutine here@@" + target.GetDisplayName() + " now lives around this place", "tes_god_console")
+EndFunction
+
+; TES-Speech-Adapter: "tesgrab [all]" - the selected NPC picks up loose things lying near the player
+; (owner, 2026-10-04: "на полу я физически им предметы кидаю … пусть забирают"): food and drink, ingredients,
+; armour, weapons, books, ammunition, and misc items worth 20+ gold (plates and buckets stay; "all" takes
+; those too). At most three things per call, so a pile is taken apart by several guests in turn.
+Function TESGrab(String mode) Global
+    Actor who = ConsoleUtil.GetSelectedReference() as Actor
+    Actor p = Game.GetPlayer()
+    if !who || who == p || who.IsDead()
+        AIAgentFunctions.logMessage("tesgrab@@error: no living actor selected", "tes_god_console")
+        return
+    endif
+    Cell c = p.GetParentCell()
+    if !c
+        AIAgentFunctions.logMessage("tesgrab@@error: no cell", "tes_god_console")
+        return
+    endif
+    int[] types = new int[7]
+    types[0] = 46 ; potions, food, drink
+    types[1] = 30 ; ingredients
+    types[2] = 26 ; armour, clothes
+    types[3] = 41 ; weapons
+    types[4] = 27 ; books
+    types[5] = 42 ; ammunition
+    types[6] = 32 ; misc
+    int taken = 0
+    String names = ""
+    int t = 0
+    while t < 7 && taken < 3
+        int i = c.GetNumRefs(types[t])
+        while i > 0 && taken < 3
+            i -= 1
+            ObjectReference r = c.GetNthRef(i, types[t])
+            if r && !r.IsDisabled() && r.Is3DLoaded() && r.GetDistance(p) < 900.0
+                Form base = r.GetBaseObject()
+                if base && (types[t] != 32 || mode == "all" || base.GetGoldValue() >= 20)
+                    if taken == 0
+                        Debug.SendAnimationEvent(who, "IdlePickup_Ground")
+                    endif
+                    names += base.GetName() + ", "
+                    who.AddItem(r, 1, true)
+                    taken += 1
+                endif
+            endif
+        endwhile
+        t += 1
+    endwhile
+    AIAgentFunctions.logMessage("tesgrab@@" + who.GetDisplayName() + " picked up " + taken + ": " + names, "tes_god_console")
 EndFunction
 
 ; TES-Speech-Adapter: "tesoutfit <runtime FormID as decimal>" - change the selected NPC's

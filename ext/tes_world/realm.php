@@ -173,12 +173,40 @@ if (!function_exists('tesRealmAfterOrder')) {
                 tesRealmDrinkAnim($ref, true);
             }
             $fd = tesWatchGet('party_food');
-            if ($fd['value'] === '' || $fd['age'] >= 600) {
+            if ($fd['value'] === '' || $fd['age'] >= 150) {
                 tesWatchSet('party_food', '1');
-                foreach ($refs as $ref) {
-                    tesWorldQueue(['prid ' . $ref, 'additem 00065C97 2', 'additem 00064B3D 2', 'additem 00034C5E 2']);
+                $foodCmds = [];
+                foreach (array_slice($refs, 0, 3) as $ref) {
+                    $foodCmds[] = 'prid ' . $ref;
+                    $foodCmds[] = 'additem 00065C97 1';
+                    $foodCmds[] = 'additem 00034C5E 1';
+                }
+                if (!tesWorldQueueBusy()) {
+                    tesWorldQueue($foodCmds);
                 }
             }
+        }
+        // The bridge runs one console sequence at a time and waits at most 10 s for its turn; behind a backlog the
+        // sequences start to run TOGETHER and a command lands on whoever another row selected (live 23:43: a kill
+        // meant for the condemned removed Эйла, a child lost her clothes). Nothing optional is sent into a backlog.
+        if (tesWorldQueueBusy()) {
+            return;
+        }
+        // "ВСЕХ ЖЕНЩИН КРОМЕ БАБОК РАЗДЕВАЙ" (owner, 23:45): the women had been undressed and were dressed again
+        // within a minute - every additem (ale, bread) makes the game put the default outfit back on. While the
+        // feast lasts, the grown women around (not the old, never children) are undressed again once a minute, in
+        // one sequence.
+        $nk = tesWatchGet('party_naked');
+        if (tesWatchGet('party_naked_on')['value'] === '1' && ($nk['value'] === '' || $nk['age'] >= 25)) {
+            tesWatchSet('party_naked', '1');
+            tesRealmStripWomen($refs);  // only those not stripped yet: it is done once per person
+        }
+        // things on the floor (owner: "на земле пусть тоже предметы забирают"): one guest picks up to three of
+        // them every ~20 s (bridge 15 "tesgrab")
+        $gr = tesWatchGet('party_grab');
+        if (function_exists('tesBridgeVersion') && tesBridgeVersion() >= 15 && ($gr['value'] === '' || $gr['age'] >= 20) && $refs) {
+            tesWatchSet('party_grab', '1');
+            tesWorldQueue(['prid ' . $refs[array_rand($refs)], 'tesgrab']);
         }
         // talk: every ~40 s one guest is told to turn to a neighbour and say something live (a toast, a joke, gossip,
         // a jab) - the others can answer on their own (RECHAT is raised for the feast). The Narrator's own
@@ -234,11 +262,71 @@ if (!function_exists('tesRealmAfterOrder')) {
                 $max = $db->fetchOne("SELECT coalesce(max(id), 0) AS m FROM public.tes_god_console_log");
                 tesWatchSet('party_probe', strval(intval($max['m'] ?? 0)));
                 $target = $anchor === 'player' ? '20' : $anchor;
-                foreach (array_slice($refs, 0, 30) as $ref) {
-                    tesWorldQueue(['prid ' . $ref, 'getdistance ' . ($anchor === 'player' ? '14' : $anchor)]);
+                // ONE sequence for all: thirty separate rows every 30 s choked the bridge (see tesWorldQueueBusy)
+                // five guests a round, in turn (ten commands, ~6 s): the old bridge lets a waiting row break into
+                // any sequence that runs longer than 10 s
+                sort($refs);
+                $off = intval(tesWatchGet('party_probe_off')['value']);
+                if ($off >= count($refs)) {
+                    $off = 0;
                 }
+                tesWatchSet('party_probe_off', strval($off + 5));
+                $probeCmds = [];
+                foreach (array_slice($refs, $off, 5) as $ref) {
+                    $probeCmds[] = 'prid ' . $ref;
+                    $probeCmds[] = 'getdistance ' . ($anchor === 'player' ? '14' : $anchor);
+                }
+                tesWorldQueue($probeCmds);
             }
         }
+    }
+
+    /** Undress every grown woman among $refs and around the player (not the old, never children); returns their names. */
+    function tesRealmStripWomen(array $refs = []): array
+    {
+        $db = $GLOBALS['db'];
+        $where = [];
+        if ($refs) {
+            $where[] = "upper(refid) IN ('" . implode("','", array_map(fn($r) => $db->escape(strtoupper($r)), $refs)) . "')";
+        }
+        $names = array_unique(array_map('trim', tesWorldNearbyNames(60)));
+        if ($names) {
+            $where[] = "npc_name IN ('" . implode("','", array_map(fn($n) => $db->escape($n), $names)) . "')";
+        }
+        if (!$where) {
+            return [];
+        }
+        $rows = $db->fetchAll("SELECT npc_name, upper(refid) AS refid, race FROM public.core_npc_master WHERE lower(gender) = 'female' AND refid ~* '^[0-9a-f]{8}$' AND (" . implode(' OR ', $where) . ")");
+        $cmds = [];
+        $done = [];
+        foreach (is_array($rows) ? $rows : [] as $r) {
+            $name = strval($r['npc_name']);
+            if (preg_match('/реб[её]нок|child|old|стар/iu', strval($r['race'])) || preg_match('/Немощн|Старая|Старуха|Бабушк/u', $name) || isset($done[$r['refid']])) {
+                continue;
+            }
+            // "tesjailbox in" (bridge): what she wears is remembered and EVERYTHING she carries goes into her own
+            // hidden chest - with "unequipall" alone the clothes stayed in the pocket and were put back on within a
+            // minute (owner, 23:46: "ВСЕ ОДЕТЫ"). Once per person: a second "in" would forget what she wore.
+            // "tesjailbox out" gives it all back.
+            // Who is stripped is read from the game's own answers ("tesjailbox in -> Имя: N kinds of items taken
+            // away"), not from what was sent: on the old bridge a command can land on another person.
+            // Two people per call: a sequence longer than ~10 s is broken into by other rows (see tesWorldQueueBusy).
+            $short = trim(preg_replace('/\s*\[[^\]]*\]/u', '', $name) ?? $name);
+            $was = $db->fetchOne("SELECT 1 AS x FROM public.tes_god_console_log WHERE command = 'tesjailbox in' AND created_at > now() - interval '3 hours' AND output LIKE '" . $db->escape($short) . ":%' LIMIT 1");
+            if (!empty($was) || count($cmds) >= 4) {
+                continue;
+            }
+            $done[$r['refid']] = $name;
+            $cmds[] = 'prid ' . $r['refid'];
+            $cmds[] = 'tesjailbox in';
+        }
+        if ($cmds) {
+            $GLOBALS['TES_WORN_SKIP'] = true;
+            tesWorldQueue($cmds);
+            $GLOBALS['TES_WORN_SKIP'] = false;
+            tesWatchSet('worn_dirty', '1');
+        }
+        return array_values($done);
     }
 
     function tesRealmKindWord(string $kind): string

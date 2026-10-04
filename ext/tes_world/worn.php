@@ -42,8 +42,8 @@ if (!function_exists('tesWornAsk')) {
                 $extra[$ref] = true;
             }
         }
-        if (!$extra) {
-            return $commands;
+        if (!$extra || !empty($GLOBALS['TES_WORN_SKIP'])) {
+            return $commands;  // (the feast keeper strips a dozen people every minute: no questions after those)
         }
         tesWatchSet('worn_dirty', '1');
         foreach (array_keys($extra) as $r) {
