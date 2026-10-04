@@ -579,6 +579,51 @@ if (!function_exists('tesWorldEnsureTable')) {
         return implode('; ', $done);
     }
 
+    /**
+     * OStim action / scene tags for what was asked. $what is a MinAI command name
+     * ("ExtCmdStartBlowjob") or free words, Russian or English ("минет", "сзади", "anal").
+     * '' = no particular kind (OStim's own start). The pairs follow MinAI's own table.
+     */
+    function tesWorldLoveTags(string $what): string
+    {
+        $w = mb_strtolower(str_replace('ё', 'е', $what));
+        $map = [
+            'vaginalsex' => 'startvaginal|vaginal|вагин|в киск|в пизд|трах|ебат|ебл|секс',
+            'analsex' => 'startanal|anal|анал|в зад|в жоп|в поп',
+            'blowjob' => 'startblowjob|blowjob|минет|отсос|соси|сосат|в рот',
+            'deepthroat' => 'deepthroat|глубок\\w* (минет|глотк)|в горло|в глотку',
+            'handjob' => 'handjob|рукой|дроч|подроч',
+            'footjob' => 'footjob|ногами|ступн',
+            'boobjob' => 'boobjob|между груд|сиськами|грудью',
+            'cunnilingus,lickingvagina,oralfingering' => 'cunnilingus|кунилинг|куннилинг|лиз|вылиж',
+            'vaginalfingering' => 'fingering|пальц',
+            'rimjob' => 'rimjob|римминг|анилингус',
+            'facial' => 'facial|на лицо',
+            'cumonchest' => 'cumonchest|chestcum|на грудь',
+            'rubbingclitoris' => 'rubbingclitoris|клитор',
+            'missionary' => 'missionary|миссионер|сверху на ней|лицом к лицу',
+            'reversecowgirl' => 'reversecowgirl|обратн\\w* наездниц',
+            'cowgirl' => 'cowgirl|наездниц|верхом|сядь на',
+            'doggystyle' => 'doggystyle|раком|сзади|по-собачьи|на четвереньк',
+            'facesitting' => 'facesitting|на лицо сяд|сядь на лицо',
+            'sixtynine,69' => 'start69|sixtynine|69|шестьдесят девять',
+            'grindingpenis,buttjob' => 'grinding|buttjob|потрис|трись',
+            'thighjob' => 'thighjob|между б[её]дер|б[её]драми',
+            'cuddling' => 'cuddle|hugging|обним',
+            'frenchkissing' => 'kissing|поцел|целуй|целов',
+        ];
+        // the more specific kinds are listed so that they win over plain "sex"
+        $order = ['deepthroat', 'reversecowgirl', 'facesitting', 'sixtynine,69', 'analsex', 'blowjob', 'handjob', 'footjob', 'boobjob',
+            'cunnilingus,lickingvagina,oralfingering', 'vaginalfingering', 'rimjob', 'facial', 'cumonchest', 'rubbingclitoris', 'missionary',
+            'cowgirl', 'doggystyle', 'grindingpenis,buttjob', 'thighjob', 'cuddling', 'frenchkissing', 'vaginalsex'];
+        foreach ($order as $tags) {
+            if (preg_match('/(' . $map[$tags] . ')/u', $w)) {
+                return $tags;
+            }
+        }
+        return '';
+    }
+
     /** Set (or clear) the player's title. Returns [ok, message]. */
     function tesWorldSetTitle(string $title): array
     {

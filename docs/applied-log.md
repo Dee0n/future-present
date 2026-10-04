@@ -2406,3 +2406,21 @@ stopcombat участникам, `coc WhiterunBreezehome` + Назим к игр
   **Проверено в игре 14:29:04:** `teslove 20` → «scene started: Сигрид and Шаман».
 - Заглушки для скриптов MinAI (stubs.ps1) владелец не запускал — игровая часть MinAI по-прежнему не
   загружена; остальные её функции (возбуждение, комментарии во время сцены, «одеться») не работают.
+
+## 2026-10-04 14:35 — сцена по смыслу сказанного; заглушки для MinAI
+
+- Владелец: «он просто вызывает кнопку секса, а должен понимать по контексту, какую сцену я хочу».
+  [Papyrus, установлено, после перезапуска] TESLove.Start(a, b, tags): сцена подбирается по тегам OStim
+  (OLibrary.GetRandomSceneWithAnyActionCSV → …AnySceneTagCSV), мужчина первым; если эти двое уже в сцене —
+  она переключается (OThread.WarpTo); `teslove stop` — конец. Мост: `teslove <партнёр> [теги]`.
+  [ext, выложено] tes_world: tesWorldLoveTags — действие MinAI (ExtCmdStartBlowjob…) или слова игрока
+  («отсоси», «раком», «наездницей», «в жопу», «поцелуй») → теги OStim по таблице самого MinAI;
+  ExtCmdEndSex → stop. tes_god_guard: `{npc:X}.sex минет`, `… {npc:Y} раком`, `… стоп`.
+  **Проверено** сопоставление на 13 фразах и валидатор; в игре не проверено.
+- Владелец: «заглушки делай». [MO2, установлено] в `MinAI 1.0.5 (mme)\Scripts` скомпилированы 17 пустых
+  скриптов-типов (SexLabFramework, SexLabThread, sslThreadController, sslBaseAnimation, slaUtilScr, zadLibs,
+  zadDeviceLists, _DFtools, _DFDealUberController, SLAppPCSexQuestScript, DefeatConfig,
+  BaboDialogueConfigMenu, vkjmcm, vkjMQ, _SunHelmMain, _shweathersystem, QF__Gift_09000D62) и возвращён
+  MantellaConversation.pex из архива MinAI; исходники — `Scripts\Source\stubs`.
+  ⚠ Если поставить настоящий SexLab / Devious Devices / SunHelm — эти файлы надо удалить.
+  Игра перезапущена в 14:30 — ДО заглушек и нового моста; нужен ещё один перезапуск.

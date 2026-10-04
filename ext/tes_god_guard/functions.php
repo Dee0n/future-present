@@ -1400,7 +1400,12 @@ if (!function_exists('tesGodGuardValidate')) {
                     continue;
                 }
                 $partner = ($b && preg_match('/^[0-9A-Fa-f]{8}$/', strval($b['refid'] ?? ''))) ? hexdec(strval($b['refid'])) : 20;
-                $kept[] = strtoupper(strval($a['refid'])) . '.teslove ' . $partner;
+                $loveTags = function_exists('tesWorldLoveTags') ? tesWorldLoveTags(preg_replace('/\{npc:[^}]+\}/u', ' ', $body) ?? '') : '';
+                if (preg_match('/(?<![\p{L}])(stop|end|хватит|стоп|законч)/iu', $body)) {
+                    $kept[] = strtoupper(strval($a['refid'])) . '.teslove stop';
+                    continue;
+                }
+                $kept[] = trim(strtoupper(strval($a['refid'])) . '.teslove ' . $partner . ' ' . $loveTags);
                 continue;
             }
             // perk points: the console has no such command; the bridge adds them (Game.AddPerkPoints).

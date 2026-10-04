@@ -212,10 +212,27 @@ bool Function TESRunAndReport(String command) Global
         return true
     endif
     if StringUtil.Find(command, "teslove ") == 0
-        ; "teslove <partner FormID, decimal>": an OStim scene for the selected actor and the
-        ; partner (20 = the player). Children are never part of it.
+        ; "teslove <partner FormID, decimal> [tags]": an OStim scene for the selected actor and
+        ; the partner (20 = the player); tags = what kind ("vaginalsex", "blowjob,deepthroat"...),
+        ; a running scene of the two is switched to it. "teslove stop" ends the actor's scene.
+        ; Children are never part of it.
         Actor lover = ConsoleUtil.GetSelectedReference() as Actor
-        Actor partner = Game.GetForm(StringUtil.Substring(command, 8) as int) as Actor
+        String loveArgs = StringUtil.Substring(command, 8)
+        if loveArgs == "stop"
+            if lover && TESLove.Stop(lover)
+                AIAgentFunctions.logMessage(command + "@@scene ended", "tes_god_console")
+            else
+                AIAgentFunctions.logMessage(command + "@@no scene to end", "tes_god_console")
+            endif
+            return true
+        endif
+        String loveTags = ""
+        int loveSplit = StringUtil.Find(loveArgs, " ")
+        if loveSplit > 0
+            loveTags = StringUtil.Substring(loveArgs, loveSplit + 1)
+            loveArgs = StringUtil.Substring(loveArgs, 0, loveSplit)
+        endif
+        Actor partner = Game.GetForm(loveArgs as int) as Actor
         if !lover || !partner || lover == partner
             AIAgentFunctions.logMessage(command + "@@error: who or with whom is missing", "tes_god_console")
             return true
@@ -224,9 +241,9 @@ bool Function TESRunAndReport(String command) Global
             AIAgentFunctions.logMessage(command + "@@error: refused (a child or a dead body)", "tes_god_console")
             return true
         endif
-        int thread = TESLove.Start(partner, lover)
+        int thread = TESLove.Start(partner, lover, loveTags)
         if thread >= 0
-            AIAgentFunctions.logMessage(command + "@@scene started: " + lover.GetDisplayName() + " and " + partner.GetDisplayName(), "tes_god_console")
+            AIAgentFunctions.logMessage(command + "@@scene started: " + lover.GetDisplayName() + " and " + partner.GetDisplayName() + " [" + TESLove.SceneOf(thread) + "]", "tes_god_console")
         else
             AIAgentFunctions.logMessage(command + "@@error: OStim did not start a scene", "tes_god_console")
         endif
