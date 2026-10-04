@@ -602,8 +602,12 @@ if (!function_exists('tesWorldEnsureTable')) {
     {
         $t = ' ' . str_replace('ё', 'е', $line) . ' ';
         $verbs = [
-            // "иди на улице подбираться" (live 13:18): lives as a beggar around the market
-            'beg' => '(побира\p{L}*|подбира\p{L}*|попрошайнича\p{L}*|милостын\p{L}*|пош[её]л\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь)|уходи|уйди|свали\p{L}*|исчезни|пошла\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь))',
+            // "оденься (в богатое)", first: live 21:42 "Бренуин, оденься в богатую одежду … ты хули бухаешь на улице,
+            // побираешься" sent him to beg - the reproach "побираешься" was read as the order
+            'dress' => '(оденься|оденьтесь|одевайся|одевайтесь|приоденься|переоденься|надень\p{L}*)',
+            // "иди на улице подбираться" (live 13:18): lives as a beggar around the market - only the
+            // imperative ("побирайся", "иди побирайся"), never "ты побираешься"
+            'beg' => '(побирайся|побирайтесь|подбирайся|попрошайничай\p{L}*|(?:иди|идите|ступай|пош[её]л|пошла)\s+(?:\p{L}+\s+){0,3}?(?:побира|подбира|попрошайнича)\p{L}*|проси\s+милостын\p{L}*|пош[её]л\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь)|уходи|уйди|свали\p{L}*|исчезни|пошла\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь))',
             // "стой", "стоять на месте", "не уходи", "жди здесь": he stays where he is (live 16:57: the accused
             // kept walking off); "свободен", "можешь идти": let go
             'stay' => '(стой(?:те)?(?=[\s!.,?]|$)|стоять|не\s+уходи|не\s+двигайся|не\s+иди|оставайся|оставайтесь|жди\s+(?:здесь|тут|меня)|ждите\s+(?:здесь|тут))',
@@ -625,6 +629,16 @@ if (!function_exists('tesWorldEnsureTable')) {
                 }
                 $kind = $k;
                 break;
+            }
+        }
+        // "Балгруф, отдай Бренуину свою одежду, а ты ходи в его" / "поменяйтесь одеждой" (live 21:43: the agent
+        // undressed both and reported done): the one spoken to and the named one swap what they wear
+        if ($addressee !== '' && preg_match('/(?<![\p{L}])((?:отдай|отдавай|дай)\p{L}*\s+(?:\p{L}+\s+){0,3}?(?:свою\s+|свой\s+)?(?:одежд\p{L}*|наряд\p{L}*|шмот\p{L}*|тряпк\p{L}*)|поменяй\p{L}*\s+(?:\p{L}+\s+){0,2}?(?:одежд\p{L}*|наряд\p{L}*)|обменяй\p{L}*\s+(?:\p{L}+\s+){0,2}?одежд\p{L}*)/iu', $t)) {
+            foreach (preg_split('/[^\p{L}\-]+/u', $line, -1, PREG_SPLIT_NO_EMPTY) as $i => $word) {
+                $hit = tesWorldHeardName($word, tesWorldNearbyNames(30)) ?: ($i > 0 ? tesWorldKnownName($word) : '');
+                if ($hit !== '' && $hit !== $addressee && tesWorldNorm($hit) !== tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''))) {
+                    return ['kind' => 'swap', 'targets' => [$hit]];
+                }
             }
         }
         $self = (bool)preg_match('/(?<![\p{L}])(раздевайся|раздевайтесь|разденься|снимай\s+с\s+себя|сними\s+с\s+себя|снять\s+с\s+себя|скидывай\s+одежду)(?![\p{L}])/iu', $t);
@@ -660,7 +674,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         if (!$targets && $self && $addressee !== '') {
             return ['kind' => 'strip', 'targets' => [$addressee]];
         }
-        if (!$targets && in_array($kind, ['beg', 'post', 'stay', 'free', 'face'], true) && $addressee !== '') {
+        if (!$targets && in_array($kind, ['dress', 'beg', 'post', 'stay', 'free', 'face'], true) && $addressee !== '') {
             return ['kind' => $kind, 'targets' => [$addressee]];
         }
         if (!$targets && $kind !== '') {
@@ -780,6 +794,25 @@ if (!function_exists('tesWorldEnsureTable')) {
                 }
                 tesWorldQueue(['prid ' . $ref, 'moveto player']);
                 tesWorldVerifyAdd('bring', $who, $ref);
+            } elseif ($fast['kind'] === 'dress') {
+                // bridge 10 "tesdressbest": the best of his OWN things first; "богато" with nothing rich of his own -
+                // Богатое одеяние + Сапоги с оковкой (JarlClothesOutfit03) as his new default outfit
+                $rich = (bool)preg_match('/(богат\p{L}*|роскошн\p{L}*|дорог\p{L}*|наряд\p{L}*|нарядн\p{L}*|знатн\p{L}*|как\s+(?:ярл|дворян))/iu', $said);
+                if (function_exists('tesBridgeVersion') && tesBridgeVersion() >= 10) {
+                    tesWorldQueue(['prid ' . $ref, 'tesdressbest ' . ($rich ? 'rich' : 'any')]);
+                } elseif ($rich) {
+                    tesWorldQueue(['prid ' . $ref, 'unequipall', 'additem 000CEE76 1', 'equipitem 000CEE76', 'additem 000CEE78 1', 'equipitem 000CEE78', 'tesoutfit ' . hexdec('000DAB7A')]);
+                } else {
+                    tesWorldQueue(['prid ' . $ref, 'tesredress']);
+                }
+            } elseif ($fast['kind'] === 'swap') {
+                // $by and $who swap what they wear (bridge 10 "tesswapworn <other>")
+                $byRef = tesWorldRefOf($by);
+                if ($byRef === '' || tesWorldIsChild($who) || tesWorldIsChild($by) || !function_exists('tesBridgeVersion') || tesBridgeVersion() < 10) {
+                    $done[] = "{$who}: обмен одеждой — нужен мост v10 (перезапуск игры)";
+                    continue;
+                }
+                tesWorldQueue(['prid ' . $byRef, 'tesswapworn ' . hexdec($ref)]);
             } elseif ($fast['kind'] === 'beg') {
                 // beggar's life around the market: linked to Бренуин (0002C90F), the town's beggar;
                 // undressed too if the ruler said so. Needs the bridge's "tesroutine at" (pex 42272+).
@@ -1044,3 +1077,4 @@ require_once __DIR__ . '/watch.php';
 require_once __DIR__ . '/court.php';
 require_once __DIR__ . '/realm.php';
 require_once __DIR__ . '/talk.php';
+require_once __DIR__ . '/errand.php';

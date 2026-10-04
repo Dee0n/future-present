@@ -84,8 +84,15 @@ try {
                 error_log("[tes_world] court/treasury: {$tesWorldCourt}");
             }
         }
+        // errands: "иди купи себе богатую одежду" / to the Narrator "пусть Бренуин купит себе …" (errand.php)
+        $tesWorldErrand = function_exists('tesErrandSpoken') ? tesErrandSpoken($tesWorldLine, $tesWorldType === 'narrator_inputtext' ? 'The Narrator' : $tesWorldTo) : '';
+        if ($tesWorldErrand !== '') {
+            $GLOBALS['TES_ERRAND_NOW'] = true;  // functions.php: the NPC's Carry_Out_Order is not a second errand
+            $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . $tesWorldErrand . $tesWorldTail;
+            error_log("[tes_world] errand: {$tesWorldErrand}");
+        }
         // what the ruler plainly ordered is done at once, whether or not the NPC passes it on
-        if ($tesWorldType !== 'narrator_inputtext' && !empty(tesWorldFacts()['player_title'])) {
+        if ($tesWorldErrand === '' && $tesWorldType !== 'narrator_inputtext' && !empty(tesWorldFacts()['player_title'])) {
             $tesWorldWhom = $tesWorldTo;
             $tesWorldOrder = tesWorldSpokenOrder($tesWorldLine, $tesWorldWhom);
             if ($tesWorldOrder) {

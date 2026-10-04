@@ -163,7 +163,7 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                 $order = trim(is_array($payload) ? strval($payload['target'] ?? '') : $raw);
                 $actor = trim(strval($parts[0] ?? ''));
                 $facts = tesWorldFacts();
-                if (empty($facts['player_title']) || mb_strlen($order) < 8 || !function_exists('tesAgentStart')) {
+                if (!empty($GLOBALS['TES_ERRAND_NOW']) || empty($facts['player_title']) || mb_strlen($order) < 8 || !function_exists('tesAgentStart')) {
                     continue;  // no authority to act on, or nothing to do
                 }
                 // An order comes from the player's own line. Live 2026-10-04 13:13: the agent told the

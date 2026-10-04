@@ -266,8 +266,8 @@ bool Function TESRunAndReport(String command) Global
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
         ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
         ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place);
-        ; 9 = also "testalk on|off"
-        AIAgentFunctions.logMessage("tesversion@@9", "tes_god_console")
+        ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"
+        AIAgentFunctions.logMessage("tesversion@@10", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -358,6 +358,14 @@ bool Function TESRunAndReport(String command) Global
     endif
     if StringUtil.Find(command, "testalk ") == 0
         TESTalk(StringUtil.Substring(command, 8))
+        return true
+    endif
+    if StringUtil.Find(command, "tesdressbest ") == 0
+        TESDressBest(StringUtil.Substring(command, 13))
+        return true
+    endif
+    if StringUtil.Find(command, "tesswapworn ") == 0
+        TESSwapWorn(StringUtil.Substring(command, 12))
         return true
     endif
     if StringUtil.Find(command, "tesoutfit ") == 0
@@ -1204,6 +1212,15 @@ Function TESEscort(String arg) Global
     Actor npc = ConsoleUtil.GetSelectedReference() as Actor
     Package travelPackage = Game.GetFormFromFile(0x01ABFE, "AIAgent.esp") as Package
     Faction travelFaction = Game.GetFormFromFile(0x01A69C, "AIAgent.esp") as Faction
+    if npc && travelPackage && travelFaction && arg == "0"
+        ; "tesescort 0": the walk is over (an errand done) - back to his own life
+        ActorUtil.RemovePackageOverride(npc, travelPackage)
+        npc.RemoveFromFaction(travelFaction)
+        PO3_SKSEFunctions.SetLinkedRef(npc, None)
+        npc.EvaluatePackage()
+        AIAgentFunctions.logMessage("tesescort 0@@" + npc.GetDisplayName() + " is free to go", "tes_god_console")
+        return
+    endif
     ObjectReference place = Game.GetForm(arg as int) as ObjectReference
     if !npc || !travelPackage || !travelFaction || !place
         AIAgentFunctions.logMessage("tesescort " + arg + "@@error: who or where is missing", "tes_god_console")
@@ -1343,6 +1360,143 @@ Function TESHold(String arg) Global
     target.EnableAI(false)
     StorageUtil.SetIntValue(target, "TESAIOff", 1)
     AIAgentFunctions.logMessage("teshold " + arg + "@@" + target.GetDisplayName() + " is held there", "tes_god_console")
+EndFunction
+
+; TES-Speech-Adapter: "tesdressbest any|rich" - the selected NPC dresses (owner, 21:45: "а они не могут надеть
+; одежду из своего инвентаря? и пусть наряд по умолчанию тоже меняют"):
+;   the best (dearest) clothing/armour he CARRIES is put on, slot by slot (body, feet, hands, head);
+;   rich - when nothing on his body is worth 150+, he gets the jarl's set JarlClothesOutfit03 (Богатое
+;          одеяние + Сапоги с оковкой) and it becomes his DEFAULT outfit, so a reload keeps it;
+;   any  - with nothing for the body at all, FineClothesOutfit01 (Красивая одежда + Красивые сапоги).
+Function TESDressBest(String mode) Global
+    Actor npc = ConsoleUtil.GetSelectedReference() as Actor
+    if !npc
+        AIAgentFunctions.logMessage("tesdressbest " + mode + "@@error: no actor selected", "tes_god_console")
+        return
+    endif
+    int[] masks = new int[4]
+    masks[0] = 0x00000004
+    masks[1] = 0x00000080
+    masks[2] = 0x00000008
+    masks[3] = 0x00000003
+    Armor[] best = new Armor[4]
+    int[] bestValue = new int[4]
+    int n = npc.GetNumItems()
+    int i = 0
+    while i < n
+        Armor piece = npc.GetNthForm(i) as Armor
+        if piece && piece.IsPlayable()
+            int slot = 0
+            while slot < 4
+                if Math.LogicalAnd(piece.GetSlotMask(), masks[slot]) != 0 && piece.GetGoldValue() > bestValue[slot]
+                    best[slot] = piece
+                    bestValue[slot] = piece.GetGoldValue()
+                endif
+                slot += 1
+            endwhile
+        endif
+        i += 1
+    endwhile
+    Outfit given = None
+    if mode == "rich" && bestValue[0] < 150
+        given = Game.GetForm(0x000DAB7A) as Outfit
+    elseif !best[0]
+        given = Game.GetForm(0x0009D5E0) as Outfit
+    endif
+    if given
+        int k = 0
+        while k < given.GetNumParts()
+            Armor part = given.GetNthPart(k) as Armor
+            if part
+                if npc.GetItemCount(part) == 0
+                    npc.AddItem(part, 1, true)
+                endif
+                npc.EquipItem(part, false, true)
+            endif
+            k += 1
+        endwhile
+        npc.SetOutfit(given, false)
+    endif
+    int worn = 0
+    i = 0
+    while i < 4
+        if best[i] && !(given && i < 2)
+            npc.EquipItem(best[i], false, true)
+            worn += 1
+        endif
+        i += 1
+    endwhile
+    string how = "own things: " + worn
+    if given
+        how = how + "; new default outfit given"
+    endif
+    AIAgentFunctions.logMessage("tesdressbest " + mode + "@@" + npc.GetDisplayName() + " dressed (" + how + ")", "tes_god_console")
+EndFunction
+
+; TES-Speech-Adapter: "tesswapworn <other actor FormID, decimal>" - the selected actor and the other one
+; swap what they wear (head, hair, body, hands, feet, circlet). Owner, live 21:43: "Балгруф, отдай Бренуину
+; свою одежду, пусть он в ней ходит, а ты ходи в его" - the agent undressed both and stopped there.
+Function TESSwapWorn(String arg) Global
+    Actor a = ConsoleUtil.GetSelectedReference() as Actor
+    Actor b = Game.GetForm(arg as int) as Actor
+    if !a || !b || a == b
+        AIAgentFunctions.logMessage("tesswapworn " + arg + "@@error: one of the two was not found", "tes_god_console")
+        return
+    endif
+    int[] masks = new int[6]
+    masks[0] = 0x00000001
+    masks[1] = 0x00000002
+    masks[2] = 0x00000004
+    masks[3] = 0x00000008
+    masks[4] = 0x00000080
+    masks[5] = 0x00001000
+    Form[] fromA = new Form[6]
+    Form[] fromB = new Form[6]
+    int i = 0
+    while i < 6
+        Form wa = a.GetWornForm(masks[i])
+        Form wb = b.GetWornForm(masks[i])
+        if wa && fromA.Find(wa) < 0
+            fromA[i] = wa
+        endif
+        if wb && fromB.Find(wb) < 0
+            fromB[i] = wb
+        endif
+        i += 1
+    endwhile
+    int moved = 0
+    i = 0
+    while i < 6
+        if fromA[i]
+            a.UnequipItem(fromA[i], false, true)
+            a.RemoveItem(fromA[i], 1, true, b)
+            moved += 1
+        endif
+        if fromB[i]
+            b.UnequipItem(fromB[i], false, true)
+            b.RemoveItem(fromB[i], 1, true, a)
+            moved += 1
+        endif
+        i += 1
+    endwhile
+    i = 0
+    while i < 6
+        if fromA[i]
+            b.EquipItem(fromA[i], false, true)
+        endif
+        if fromB[i]
+            a.EquipItem(fromB[i], false, true)
+        endif
+        i += 1
+    endwhile
+    ; and the default outfits too, or a reload dresses each back in his own
+    Outfit outfitA = a.GetActorBase().GetOutfit(false)
+    Outfit outfitB = b.GetActorBase().GetOutfit(false)
+    if outfitA && outfitB && outfitA != outfitB
+        a.SetOutfit(outfitB, false)
+        b.SetOutfit(outfitA, false)
+    endif
+    AIAgentFunctions.logMessage("tesswapworn " + arg + "@@" + a.GetDisplayName() + " and " + b.GetDisplayName() + " swapped clothes (" + moved + " things) and default outfits", "tes_god_console")
 EndFunction
 
 ; TES-Speech-Adapter: "testalk on|off" - the player is talking to the selected NPC.
