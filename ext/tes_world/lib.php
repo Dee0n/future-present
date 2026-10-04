@@ -611,7 +611,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         $verbs = [
             // "оденься (в богатое)", first: live 21:42 "Бренуин, оденься в богатую одежду … ты хули бухаешь на улице,
             // побираешься" sent him to beg - the reproach "побираешься" was read as the order
-            'dress' => '(оденься|оденьтесь|одевайся|одевайтесь|одеться|одеваться|приоденься|приоденьтесь|переоденься|переоденьтесь|нарядись|нарядитесь|принаряд\p{L}*|надень\p{L}*|надева\p{L}*|надеть|прикрой\s+(?:свой\s+)?срам|прикройся|одень\s+на\s+себя|облачись|облачитесь|приведи\s+себя\s+в\s+порядок)',
+            'dress' => '(оденься|оденьтесь|одевайся|одевайтесь|одеться|одеваться|приоденься|приоденьтесь|переоденься|переоденьтесь|нарядись|нарядитесь|принаряд\p{L}*|надень\p{L}*|надева\p{L}*|надеть|прикрой\s+(?:свой\s+)?срам|прикройся|одень\s+на\s+себя|облачись|облачитесь|приведи\s+себя\s+в\s+порядок|в\s+(?:сво[юеи]\s+)?(?:бомж\p{L}*|рван\p{L}*|нищенск\p{L}*)\s+(?:одежд\p{L}*|тряпк\p{L}*|тряпь\p{L}*|балахон\p{L}*)|в\s+(?:сво[юеи]\s+)?лохмотья)',
             // "иди на улице подбираться" (live 13:18): lives as a beggar around the market - only the
             // imperative ("побирайся", "иди побирайся"), never "ты побираешься"
             'beg' => '(побирайся|побирайтесь|подбирайся|попрошайничай\p{L}*|(?:иди|идите|ступай|пош[её]л|пошла)\s+(?:\p{L}+\s+){0,3}?(?:побира|подбира|попрошайнича)\p{L}*|(?:проси|просить|клянч\p{L}*)\s+(?:\p{L}+\s+){0,2}?(?:милостын\p{L}*|подаяни\p{L}*|мелочь|деньги)|пош[её]л\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь)|уходи|уйди|свали\p{L}*|исчезни|пошла\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь))',
@@ -787,7 +787,9 @@ if (!function_exists('tesWorldEnsureTable')) {
         $said = strval($GLOBALS['gameRequest'][3] ?? '') . ' ' . $order;
         foreach ($fast['targets'] as $who) {
             $key = $fast['kind'] . ': ' . $who;
-            $once = $db->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '90 seconds' AND status = 'fast' AND goal = '" . $db->escape($key) . "' LIMIT 1");
+            // the same order twice within 90 s is one order heard twice - but not "оденься": "ты его не надел, надевай"
+            // 32 s after the first one was swallowed here (live 23:22, Балгруф)
+            $once = $db->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '" . ($fast['kind'] === 'dress' ? 10 : 90) . " seconds' AND status = 'fast' AND goal = '" . $db->escape($key) . "' LIMIT 1");
             $ref = tesWorldRefOf($who);
             if (!empty($once) || $ref === '') {
                 continue;
@@ -816,7 +818,13 @@ if (!function_exists('tesWorldEnsureTable')) {
                 // Богатое одеяние + Сапоги с оковкой (JarlClothesOutfit03) as his new default outfit
                 // "рваный балахон надень", "в лохмотья" - the beggar's rags of RfaD (балахон, сапоги, шапка), what
                 // the owner asked for by name (live 21:56-21:58: Балгруф stayed in his own clothes four times)
-                if (preg_match('/(рван\p{L}*|лохмот\p{L}*|тряпк\p{L}*|обмотк\p{L}*|нищенск\p{L}*|бомжацк\p{L}*)/iu', $said)) {
+                // Whoever was put into rags stays a man of rags: a plain "оденься" gave Балгруф fine clothes again
+                // ("tesdressbest any" - nothing of his own, a new outfit; owner 23:21: "в свою бомжатскую одежду, а не
+                // в ярловскую"). Remembered per person until he is told to dress richly.
+                $rich = (bool)preg_match('/(богат\p{L}*|роскошн\p{L}*|дорог\p{L}*|наряд\p{L}*|нарядн\p{L}*|знатн\p{L}*|как\s+(?:ярл|дворян))/iu', $said);
+                $ragsWord = (bool)preg_match('/(рван\p{L}*|лохмот\p{L}*|тряпк\p{L}*|тряпь\p{L}*|обмотк\p{L}*|нищенск\p{L}*|бомж\p{L}*)/iu', $said);
+                if ($ragsWord || (!$rich && tesWatchGet('rags_' . $ref)['value'] === '1')) {
+                    tesWatchSet('rags_' . $ref, '1');
                     $rags = ['00013105', '00013106'];
                     if (preg_match('/(шапк\p{L}*|головн\p{L}*)/iu', $said)) {
                         $rags[] = '00013104';
@@ -830,7 +838,9 @@ if (!function_exists('tesWorldEnsureTable')) {
                     tesWorldQueue($cmds);
                     continue;
                 }
-                $rich = (bool)preg_match('/(богат\p{L}*|роскошн\p{L}*|дорог\p{L}*|наряд\p{L}*|нарядн\p{L}*|знатн\p{L}*|как\s+(?:ярл|дворян))/iu', $said);
+                if ($rich) {
+                    tesWatchSet('rags_' . $ref, '0');
+                }
                 if (function_exists('tesBridgeVersion') && tesBridgeVersion() >= 10) {
                     tesWorldQueue(['prid ' . $ref, 'tesdressbest ' . ($rich ? 'rich' : 'any')]);
                 } elseif ($rich) {
