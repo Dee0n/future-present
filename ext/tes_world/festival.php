@@ -155,7 +155,15 @@ if (!function_exists('tesFestTick')) {
                 tesWatchNotify($p);
             } elseif ($kind === 'drink' && function_exists('tesRealmDrinkAnim')) {
                 tesRealmDrinkAnim($p);
+            } elseif ($kind === 'idle' && function_exists('tesSheoIdle') && strpos($p, '|') !== false) {
+                [$iref, $iidle] = explode('|', $p, 2);
+                tesSheoIdle($iref, $iidle);
             }
+        }
+        // a wonder by itself every ~100 s while the Games run (sheo.php)
+        $act = $db->fetchOne("SELECT 1 AS x FROM public.tes_festival WHERE active LIMIT 1");
+        if (!empty($act) && function_exists('tesSheoWonder') && tesWatchGet('sheo_at')['age'] >= 100 && !tesWorldQueueBusy()) {
+            tesSheoWonder();
         }
         // 2. the next number of the programme
         $f = $db->fetchOne("SELECT id FROM public.tes_festival WHERE active AND next_at <= now() ORDER BY id DESC LIMIT 1");

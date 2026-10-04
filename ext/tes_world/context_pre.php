@@ -118,7 +118,9 @@ try {
             $tesWorldMute = function_exists('tesRealmMuteLine') ? tesRealmMuteLine($tesWorldMe) : '';
             // owner, 23:30: "че они про честь заладили. ебут голову" - the models moralise about honour, shame and
             // the ruler's power in every other line (9 of the last hour's lines, the same people over and over)
-            $tesWorldNoHonor = ' Не рассуждай о чести, позоре, достоинстве, унижении, святости и о том, каков ярл как правитель; не вздыхай и не поучай — говори о деле, о том, что перед тобой сейчас, о своём.';
+            $tesWorldNoHonor = ' Не рассуждай о чести, позоре, достоинстве, унижении, святости и о том, каков ярл как правитель; не вздыхай и не поучай — говори о деле, о том, что перед тобой сейчас, о своём.'
+                // owner, 00:09: "заебали про приказы и про раздевание мозг ебать"
+                . ' Не заговаривай сам о приказах, воле и слове ярла, о послушании, о раздевании, одежде и наготе — ни своей, ни чужой; если ярл сам об этом не спросил, этих тем нет.';
             chimRegisterPromptInjection('prompt_bottom', 'tes_world_brief',
                 $tesWorldMute !== '' ? $tesWorldMute : (((function_exists('tesRealmPartyActive') && tesRealmPartyActive($tesWorldMe))
                     ? 'Ты на гулянке: пьёшь, ешь, смеёшься, болтаешь с соседями, подшучиваешь, поёшь, поднимаешь кружку; говори сам, без повода, живо и коротко — одна-две фразы.'
