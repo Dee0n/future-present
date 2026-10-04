@@ -211,6 +211,15 @@ bool Function TESRunAndReport(String command) Global
         AIAgentFunctions.logMessage("tesautosave@@requested", "tes_god_console")
         return true
     endif
+    if StringUtil.Find(command, "tesperkpoints ") == 0
+        ; the console has no command for perk points ("player.addperkpoints" does not exist)
+        int points = StringUtil.Substring(command, 14) as int
+        if points > 0 && points <= 250
+            Game.AddPerkPoints(points)
+        endif
+        AIAgentFunctions.logMessage(command + "@@perk points now " + Game.GetPerkPoints(), "tes_god_console")
+        return true
+    endif
     if command == "tesheal"
         TESHeal()
         return true
@@ -1046,6 +1055,7 @@ Function TESHold(String arg) Global
             target.RemoveFromFaction(sandboxFaction)
             PO3_SKSEFunctions.SetLinkedRef(target, None)
             StorageUtil.UnsetIntValue(target, "TESHeld")
+            target.SetDontMove(false)
             target.EvaluatePackage()
         endif
         AIAgentFunctions.logMessage("teshold 0@@" + target.GetDisplayName() + " is no longer held", "tes_god_console")
@@ -1069,6 +1079,8 @@ Function TESHold(String arg) Global
     PO3_SKSEFunctions.SetLinkedRef(target, place)
     ActorUtil.AddPackageOverride(target, sandboxWork, 100, 0)
     target.EvaluatePackage()
+    ; the Whiterun cell has a way out and a sandboxing prisoner finds it: he does not move at all
+    target.SetDontMove(true)
     AIAgentFunctions.logMessage("teshold " + arg + "@@" + target.GetDisplayName() + " is held there", "tes_god_console")
 EndFunction
 

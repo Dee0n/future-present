@@ -1013,7 +1013,7 @@ if (!function_exists('tesGodGuardValidate')) {
             'equipitem', 'unequipitem', 'addspell', 'removespell', 'addperk', 'fw', 'sw', 'set',
             'advlevel', 'incpcs', 'tgm', 'setrelationshiprank', 'stopcombat', 'setscale', 'moveto',
             'placeatme', 'addfac', 'removefac', 'setplayerteammate', 'recycleactor', 'evp', 'resetai',
-            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems',
+            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
             'tesownhouse', 'tesclaim', 'tesstate', 'tesinspect', 'tesunfollow',
         ];
         $refused = [
@@ -1380,6 +1380,13 @@ if (!function_exists('tesGodGuardValidate')) {
             // book at the player's feet, twice (live 2026-10-04 03:19).
             if ($verb === 'placeatme' && !preg_match('/^placeatme\s+(\{[a-z]+:[^}]+\}|[0-9A-Fa-f]{8})(\s+\d+)?\s*$/iu', $body)) {
                 $reasons[] = "«{$command}»: placeatme создаёт НОВЫЙ объект по базовому FormID (8 знаков) — привести существующего: {npc:Имя}.moveto player; дать предмет: additem";
+                continue;
+            }
+            // perk points: the console has no such command; the bridge adds them (Game.AddPerkPoints).
+            // Live 2026-10-04 13:46: "дай очков навыков" -> "player.addperkpoints 7" was refused.
+            if (in_array($verb, ['addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints'], true)) {
+                $pp = preg_match('/(\d+)/', $body, $ppm) ? max(1, min(250, intval($ppm[1]))) : 10;
+                $kept[] = 'tesperkpoints ' . $pp;
                 continue;
             }
             if (in_array($verb, ['unequipall', 'unequipitem'], true) && tesGodGuardIsChild($target)) {

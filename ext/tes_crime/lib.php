@@ -170,6 +170,22 @@ if (!function_exists('tesCrimeFine')) {
         return $g;
     }
 
+    /**
+     * A prisoner cannot walk. Owner, 2026-10-04 15:10: "все неписи с камер сбегают" - "restrained"
+     * and a package near the prison marker were not enough: the Whiterun cell has a way out, and a
+     * sandboxing NPC finds it. Speed 0 holds whatever package the game or CHIM gives him (the
+     * carry-weight nudge makes the engine re-read the speed). tesCrimeFreeLegs() undoes it.
+     */
+    function tesCrimeLegIrons(): array
+    {
+        return ['setav speedmult 0', 'modav carryweight 1', 'modav carryweight -1'];
+    }
+
+    function tesCrimeFreeLegs(): array
+    {
+        return ['setav speedmult 100', 'modav carryweight 1', 'modav carryweight -1'];
+    }
+
     /** Console sequence that puts the actor into the cell: prisoner clothes, cannot leave. */
     function tesCrimeJailCommands(string $ref, string $insideRef): array
     {
@@ -184,7 +200,7 @@ if (!function_exists('tesCrimeFine')) {
         $strip = $child ? [] : ['tesjailbox in', 'unequipall',
             'additem ' . TES_CRIME_RAGS . ' 1', 'equipitem ' . TES_CRIME_RAGS . ' 1',
             'additem ' . TES_CRIME_WRAPS . ' 1', 'equipitem ' . TES_CRIME_WRAPS . ' 1'];
-        return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $strip, ['setrestrained 1', 'teshold ' . hexdec($insideRef)]);
+        return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $strip, ['setrestrained 1', 'teshold ' . hexdec($insideRef)], tesCrimeLegIrons());
     }
 
     /** Put an escaped prisoner back: he already wears the rags, so only move and hold. */
@@ -192,7 +208,7 @@ if (!function_exists('tesCrimeFine')) {
     {
         $child = function_exists('tesGodGuardIsChild') && tesGodGuardIsChild($ref);
         return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $child ? [] : ['equipitem ' . TES_CRIME_RAGS . ' 1'],
-            ['setrestrained 1', 'teshold ' . hexdec($insideRef)]);
+            ['setrestrained 1', 'teshold ' . hexdec($insideRef)], tesCrimeLegIrons());
     }
 
     /**
@@ -285,9 +301,9 @@ if (!function_exists('tesCrimeFine')) {
     function tesCrimeRelease(array $row, bool $toPlayer): void
     {
         $ref = strval($row['refid']);
-        tesCrimeQueue(['prid ' . $ref, 'teshold 0', 'setrestrained 0', 'unequipitem ' . TES_CRIME_RAGS, 'removeitem ' . TES_CRIME_RAGS . ' 1',
+        tesCrimeQueue(array_merge(['prid ' . $ref, 'teshold 0', 'setrestrained 0'], tesCrimeFreeLegs(), ['unequipitem ' . TES_CRIME_RAGS, 'removeitem ' . TES_CRIME_RAGS . ' 1',
             'unequipitem ' . TES_CRIME_WRAPS, 'removeitem ' . TES_CRIME_WRAPS . ' 1', 'tesjailbox out',
-            'moveto ' . ($toPlayer ? 'player' : strval($row['outside_ref'])), 'resetai']);
+            'moveto ' . ($toPlayer ? 'player' : strval($row['outside_ref'])), 'resetai']));
         $GLOBALS['db']->execQuery("UPDATE public.tes_crime_jail SET status = 'released' WHERE id = " . intval($row['id']));
     }
 
