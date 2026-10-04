@@ -265,8 +265,9 @@ bool Function TESRunAndReport(String command) Global
     if command == "tesversion"
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
         ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
-        ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place)
-        AIAgentFunctions.logMessage("tesversion@@8", "tes_god_console")
+        ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place);
+        ; 9 = also "testalk on|off"
+        AIAgentFunctions.logMessage("tesversion@@9", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -353,6 +354,10 @@ bool Function TESRunAndReport(String command) Global
     endif
     if StringUtil.Find(command, "teshold ") == 0
         TESHold(StringUtil.Substring(command, 8))
+        return true
+    endif
+    if StringUtil.Find(command, "testalk ") == 0
+        TESTalk(StringUtil.Substring(command, 8))
         return true
     endif
     if StringUtil.Find(command, "tesoutfit ") == 0
@@ -1338,6 +1343,57 @@ Function TESHold(String arg) Global
     target.EnableAI(false)
     StorageUtil.SetIntValue(target, "TESAIOff", 1)
     AIAgentFunctions.logMessage("teshold " + arg + "@@" + target.GetDisplayName() + " is held there", "tes_god_console")
+EndFunction
+
+; TES-Speech-Adapter: "testalk on|off" - the player is talking to the selected NPC.
+;   on  - he stops where he is and looks at the player: CHIM's own soft wait (AIAgent.esp
+;         0x0268b1, the package CHIM puts on a listener - but CHIM does it only while the
+;         player SITS, so people walked away mid-talk when he stood; owner 2026-10-04:
+;         "когда с ними говоришь пусть стоят а не уходят"). The package also ends by itself.
+;   off - the wait and the look are taken off; the server sends it after a pause in the talk.
+; Not touched: followers, the dead, fighters, people in a scene, sitting or riding, held
+; prisoners and anyone given a new routine (tesroutine) - their packages are someone's order.
+; (CHIM's StartWaitSoft/EndWaitSoft are copied here: calling AIAgentAIMind pulls its whole
+; source into the compile, and that does not build against PO3 for 1.5.97.)
+Function TESTalk(String mode) Global
+    Actor target = ConsoleUtil.GetSelectedReference() as Actor
+    Actor player = Game.GetPlayer()
+    if !target || target == player
+        AIAgentFunctions.logMessage("testalk " + mode + "@@error: no actor selected", "tes_god_console")
+        return
+    endif
+    Package waitSoft = Game.GetFormFromFile(0x0268b1, "AIAgent.esp") as Package
+    Faction waitFaction = Game.GetFormFromFile(0x02021E, "AIAgent.esp") as Faction
+    Faction followFaction = Game.GetFormFromFile(0x01BC24, "AIAgent.esp") as Faction
+    if !waitSoft || !waitFaction
+        AIAgentFunctions.logMessage("testalk " + mode + "@@error: CHIM wait package not found", "tes_god_console")
+        return
+    endif
+    if mode == "off"
+        if StorageUtil.GetIntValue(target, "TESTalk") == 1
+            StorageUtil.UnsetIntValue(target, "TESTalk")
+            target.RemoveFromFaction(waitFaction)
+            ActorUtil.RemovePackageOverride(target, waitSoft)
+            target.EvaluatePackage()
+            target.ClearLookAt()
+        endif
+        AIAgentFunctions.logMessage("testalk off@@" + target.GetDisplayName() + " is free to go", "tes_god_console")
+        return
+    endif
+    if target.IsDead() || target.IsInCombat() || target.IsPlayerTeammate() || target.GetCurrentScene() || target.GetSitState() != 0 || target.IsOnMount() || target.IsUnconscious() || StorageUtil.GetIntValue(target, "TESHeld") == 1 || StorageUtil.GetIntValue(target, "TESAIOff") == 1 || StorageUtil.GetFormValue(target, "TESRoutineMarker") || target.GetDistance(player) > 1500
+        AIAgentFunctions.logMessage("testalk on@@" + target.GetDisplayName() + " left as is", "tes_god_console")
+        return
+    endif
+    if followFaction && target.IsInFaction(followFaction)
+        AIAgentFunctions.logMessage("testalk on@@" + target.GetDisplayName() + " is following someone - left as is", "tes_god_console")
+        return
+    endif
+    StorageUtil.SetIntValue(target, "TESTalk", 1)
+    target.SetFactionRank(waitFaction, 1)
+    ActorUtil.AddPackageOverride(target, waitSoft, 60)
+    target.EvaluatePackage()
+    target.SetLookAt(player)
+    AIAgentFunctions.logMessage("testalk on@@" + target.GetDisplayName() + " stands and listens", "tes_god_console")
 EndFunction
 
 ; TES-Speech-Adapter: "tesroutine here|reset" - a new daily life for the selected NPC.

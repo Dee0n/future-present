@@ -92,7 +92,7 @@ try {
         $GLOBALS['TES_WORLD_POST'] = true;
         require_once __DIR__ . '/lib.php';
         tesWorldDuelTick();
-        foreach (['tesWorldVerifyTick', 'tesWatchTick', 'tesTreasuryTax', 'tesRealmReport', 'tesRealmPlots', 'tesCourtTick'] as $tesWorldTick) {
+        foreach (['tesWorldVerifyTick', 'tesWatchTick', 'tesTreasuryTax', 'tesRealmReport', 'tesRealmPlots', 'tesCourtTick', 'tesTalkTick', 'tesRealmGatherTick'] as $tesWorldTick) {
             try {
                 if (function_exists($tesWorldTick)) {
                     $tesWorldTick();
@@ -187,9 +187,12 @@ try {
                 }
             }
 
-            // 3. laws the round does not understand: the agent, quietly, at most once in 10 minutes
+            // 3. laws the round does not understand: the agent, quietly, at most once in 10 minutes.
+            //    OFF since 2026-10-04 evening: 9 of 10 such rounds failed at the step limit and left
+            //    half-done orders in the world (owner: "полный бред который нейронка ... делала").
+            //    Set TES_WORLD_AGENT_PATROL to true to bring it back.
             $otherLaws = array_values(array_filter($tesWorldLaws, fn($l) => $l !== $nudeLaw));
-            if ($otherLaws && function_exists('tesAgentStart') && function_exists('tesAgentRunningTask')) {
+            if (defined('TES_WORLD_AGENT_PATROL') && TES_WORLD_AGENT_PATROL && $otherLaws && function_exists('tesAgentStart') && function_exists('tesAgentRunningTask')) {
                 $recentAgent = $db->fetchOne("SELECT 1 AS x FROM public.tes_world_patrols WHERE stage = 'agent' AND created_at > now() - interval '600 seconds' LIMIT 1");
                 $near = tesWorldNearbyNames(20);
                 if (empty($recentAgent) && !tesAgentRunningTask() && $guard !== '' && count($near) >= 2) {

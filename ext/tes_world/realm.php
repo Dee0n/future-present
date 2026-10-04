@@ -24,6 +24,30 @@ if (!function_exists('tesRealmAfterOrder')) {
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_undo (id serial PRIMARY KEY, kind text NOT NULL, who text NOT NULL, ref text NOT NULL, undone boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now())");
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_posts (role text PRIMARY KEY, npc text NOT NULL, since timestamptz NOT NULL DEFAULT now())");
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_gatherings (id serial PRIMARY KEY, what text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())");
+        $db->execQuery("ALTER TABLE public.tes_gatherings ADD COLUMN IF NOT EXISTS refs text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS released boolean NOT NULL DEFAULT false");
+    }
+
+    /** Send the gathered home: everyone of gatherings not yet released ($all) or older than 20 minutes. */
+    function tesRealmGatherRelease(bool $all): int
+    {
+        tesRealmEnsure();
+        $db = $GLOBALS['db'];
+        $rows = $db->fetchAll("SELECT id, refs FROM public.tes_gatherings WHERE NOT released AND refs <> ''"
+            . ($all ? '' : " AND created_at < now() - interval '20 minutes'") . " ORDER BY id LIMIT 4");
+        $n = 0;
+        foreach (is_array($rows) ? $rows : [] as $g) {
+            foreach (array_filter(explode(',', strval($g['refs']))) as $ref) {
+                tesWorldQueue(['prid ' . $ref, 'tesroutine reset']);
+                $n++;
+            }
+            $db->execQuery("UPDATE public.tes_gatherings SET released = true WHERE id = " . intval($g['id']));
+        }
+        return $n;
+    }
+
+    function tesRealmGatherTick(): void
+    {
+        tesRealmGatherRelease(false);
     }
 
     function tesRealmKindWord(string $kind): string
@@ -241,6 +265,13 @@ if (!function_exists('tesRealmAfterOrder')) {
             }
             return " *налог теперь {$new}% от обычного — торговцы " . ($new > $cur ? 'ропщут' : ($new < $cur ? 'довольны' : 'не заметили')) . '; подтверди*';
         }
+        // the end of it: "разойдитесь", "все по домам", "праздник окончен"
+        if (preg_match('/(?<![\p{L}])(разойд\p{L}*|расходи(?:тесь|сь)|по\s+домам|свободны|праздник\s+(?:окончен|закончен)|гулянк\p{L}*\s+(?:окончен|закончен)\p{L}*)(?![\p{L}])/u', $t)) {
+            $n = tesRealmGatherRelease(true);
+            if ($n > 0) {
+                return " *по слову ярла собравшиеся ({$n}) расходятся по своим делам; это уже происходит*";
+            }
+        }
         // gatherings: "собери всех женщин", "Всех жителей Вайтрана собери, в Гарцующей кобыле будем бухать" (verb
         // and object in either order; a place may be named - live 17:13, the Narrator said "собираю" and nobody
         // came: the old code wanted the verb first and brought only 8 people from near, always to the player)
@@ -265,21 +296,29 @@ if (!function_exists('tesRealmAfterOrder')) {
             }
             $wide = (bool)preg_match('/(?<![\p{L}])(всех|жител\p{L}*|народ|горожан\p{L}*|вайтран\p{L}*)(?![\p{L}])/u', $t);
             $group = $wide ? tesRealmResidents($to) : tesWorldGroup(mb_substr($t, mb_strpos($t, $gw[1])), $to);
+            // they STAY there: a bare moveto dropped people at the inn and they walked straight back to
+            // their schedule (the sabantuy at the Bannered Mare, live 17:14). CHIM's sandbox around the
+            // place (tesroutine) - they sit, drink and mill about; tesRealmGatherTick lets them go.
+            $stay = function_exists('tesBridgeVersion') && tesBridgeVersion() >= 2;
+            $stayCmd = $anchor === 'player' ? 'tesroutine here' : 'tesroutine at ' . hexdec($anchor);
             $done = [];
+            $refs = [];
             foreach ($group as $name) {
                 $ref = tesWorldRefOf($name);
                 if ($ref === '' || tesWorldIsChild($name) || (function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($name))) {
                     continue;
                 }
-                tesWorldQueue(['prid ' . $ref, 'moveto ' . $anchor]);
+                tesWorldQueue($stay ? ['prid ' . $ref, 'moveto ' . $anchor, $stayCmd] : ['prid ' . $ref, 'moveto ' . $anchor]);
                 $done[] = $name;
+                $refs[] = $ref;
                 if (count($done) >= 24) {
                     break;
                 }
             }
             if ($done) {
                 tesRealmEnsure();
-                $GLOBALS['db']->execQuery("INSERT INTO public.tes_gatherings (what) VALUES ('" . $GLOBALS['db']->escape(mb_substr($line, 0, 120)) . "')");
+                $GLOBALS['db']->execQuery("INSERT INTO public.tes_gatherings (what, refs) VALUES ('" . $GLOBALS['db']->escape(mb_substr($line, 0, 120)) . "', '"
+                    . ($stay ? implode(',', $refs) : '') . "')");
                 tesWatchNotify('Собраны ' . $placeName . ': ' . implode(', ', array_slice($done, 0, 5)) . (count($done) > 5 ? ' и ещё ' . (count($done) - 5) : ''));
                 return ' *по приказу ярла согнали ' . count($done) . ' человек ' . $placeName . ': ' . implode(', ', array_slice($done, 0, 6)) . '; это уже сделано, подтверди*';
             }
@@ -379,7 +418,7 @@ if (!function_exists('tesRealmAfterOrder')) {
     function tesRealmCrowdLine(): string
     {
         tesRealmEnsure();
-        $g = $GLOBALS['db']->fetchOne("SELECT what FROM public.tes_gatherings WHERE created_at > now() - interval '10 minutes' ORDER BY id DESC LIMIT 1");
-        return !empty($g['what']) ? 'Правитель созвал людей к себе («' . mb_substr(strval($g['what']), 0, 80) . '»): ты в толпе, смотришь и слушаешь.' : '';
+        $g = $GLOBALS['db']->fetchOne("SELECT what FROM public.tes_gatherings WHERE created_at > now() - interval '20 minutes' AND NOT released ORDER BY id DESC LIMIT 1");
+        return !empty($g['what']) ? 'Правитель созвал людей («' . mb_substr(strval($g['what']), 0, 80) . '»): ты здесь среди собравшихся и ведёшь себя по поводу — на гулянке пьёшь и веселишься, на сборе слушаешь.' : '';
     }
 }

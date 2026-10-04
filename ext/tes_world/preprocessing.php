@@ -38,6 +38,14 @@ try {
         if ($tesWorldTo === '' && strval($GLOBALS['HERIKA_NAME'] ?? '') !== 'The Narrator') {
             $tesWorldTo = trim(strval($GLOBALS['HERIKA_NAME'] ?? ''));
         }
+        // the one spoken to stops and listens (bridge v9 testalk; talk.php)
+        if ($tesWorldType !== 'narrator_inputtext' && $tesWorldTo !== '' && function_exists('tesTalkHold')) {
+            try {
+                tesTalkHold($tesWorldTo);
+            } catch (Throwable $e) {
+                error_log('[tes_world talk] ' . $e->getMessage());
+            }
+        }
         $tesWorldNames = tesWorldNearbyNames(30);
         if ($tesWorldNames && $tesWorldLine !== '' && mb_substr(ltrim($tesWorldLine), 0, 1) !== '*') {
             [$tesWorldFixed, $tesWorldChanges] = tesWorldFixHeardNames($tesWorldLine, $tesWorldNames);

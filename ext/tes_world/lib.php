@@ -1041,3 +1041,4 @@ require_once __DIR__ . '/verify.php';
 require_once __DIR__ . '/watch.php';
 require_once __DIR__ . '/court.php';
 require_once __DIR__ . '/realm.php';
+require_once __DIR__ . '/talk.php';
