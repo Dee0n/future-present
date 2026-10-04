@@ -147,7 +147,9 @@ if (!function_exists('tesWatchNotify')) {
         if ($imp['value'] !== '0' && tesWatchGet('impunity_sent')['age'] >= 180) {
             tesWatchSet('impunity_sent', '1');
             if (tesBridgeVersion() >= 4 && function_exists('tesWorldQueue')) {
-                tesWorldQueue(['tesimpunity 1']);
+                // + member of the Whiterun crime faction: its guards and citizens take him for one of their own
+                // (live 16:14-16:35: they kept attacking him with the bounty at 0 and crime reporting off)
+                tesWorldQueue(['tesimpunity 1', 'player.addfac 000267EA 0']);
             }
         }
         // --- self-check: an old bridge in the game
