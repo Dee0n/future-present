@@ -930,6 +930,11 @@ if (!function_exists('tesWorldEnsureTable')) {
                 $exec = function_exists('tesRealmExecutioner') ? tesRealmExecutioner() : '';
                 if ($exec !== '' && $exec !== $who) {
                     $guard = $exec;
+                } elseif ($by !== '' && $by !== $who && stripos($by, 'Narrator') === false && !tesWorldIsChild($by) && tesWorldRefOf($by) !== '') {
+                    // "Лилит, казни Провентуса": the one who was told does it with his own hands. Before, anyone but
+                    // a guard was skipped, and with no guard near the condemned simply dropped dead (owner, 23:53:
+                    // "казнь снова мгновенное убийство, должно быть атакой").
+                    $guard = $by;
                 }
                 if ($guard === '' || !tesWorldDuel($guard, $who)) {
                     tesWorldQueue(['prid ' . $ref, 'teskill', 'kill']);
