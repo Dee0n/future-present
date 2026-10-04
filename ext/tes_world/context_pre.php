@@ -38,6 +38,19 @@ try {
                     . implode(', ', $tesWorldNear) . '. Искажённое имя — это тот из них, чьё имя ближе по звучанию; в действиях пиши имя точно как в этом списке, а игрока за оговорку не поправляй.';
             }
         }
+        // the scene that is going on right now is a fact for the one who is in it
+        $tesWorldMe = strval($GLOBALS['HERIKA_NAME'] ?? '');
+        if ($tesWorldMe !== '' && $tesWorldMe !== 'The Narrator' && !tesWorldIsChild($tesWorldMe)) {
+            $tesWorldScene = tesWorldSceneWith($tesWorldMe);
+            if ($tesWorldScene !== '') {
+                $tesWorldPlayer = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
+                $tesWorldSceneLine = "ПРЯМО СЕЙЧАС ты и {$tesWorldPlayer} занимаетесь сексом: {$tesWorldScene}. Это происходит на самом деле, вы оба раздеты, твоё тело в этом участвует. "
+                    . "Не отрицай этого, не говори, что стоишь на посту или что ничего не происходит, и не начинай это заново действием — оно уже идёт. "
+                    . "Отвечай коротко и изнутри происходящего, в своём характере: можно стонать, сбиваться, злиться или стыдиться — но это с тобой происходит.";
+                chimRegisterPromptInjection('prompt_bottom', 'tes_world_scene', $tesWorldSceneLine, 100);
+                $tesWorldHint = $tesWorldSceneLine . ($tesWorldHint !== '' ? ' ' . $tesWorldHint : '');
+            }
+        }
         if ($tesWorldHint !== '' && isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
             $GLOBALS['request'] = '(' . $tesWorldHint . ') ' . $GLOBALS['request'];
         }

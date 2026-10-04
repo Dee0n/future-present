@@ -671,6 +671,36 @@ if (!function_exists('tesWorldEnsureTable')) {
         return $tags . '|' . implode(',', array_slice($ids, 0, 3));
     }
 
+    /**
+     * The scene this NPC is in with the player right now, in words ("куннилингус"), or ''.
+     * From the bridge's reports: "scene started: <NPC> and <player> [...]" in the last 6 minutes
+     * with no "scene ended" after it. Live 2026-10-04 15:00: in the middle of the scene Айрилет
+     * said "я не трахаюсь с тобой, я стою на посту" - her model knew nothing about it.
+     */
+    function tesWorldSceneWith(string $npc): string
+    {
+        $db = $GLOBALS['db'];
+        $row = $db->fetchOne("SELECT id, command FROM public.tes_god_console_log WHERE created_at > now() - interval '6 minutes' AND command LIKE 'teslove %'"
+            . " AND output LIKE 'scene started: " . $db->escape($npc) . " and %' ORDER BY id DESC LIMIT 1");
+        if (empty($row['id'])) {
+            return '';
+        }
+        $ended = $db->fetchOne("SELECT 1 AS x FROM public.tes_god_console_log WHERE id > " . intval($row['id']) . " AND command = 'teslove stop' AND output = 'scene ended' LIMIT 1");
+        if (!empty($ended)) {
+            return '';
+        }
+        $kinds = ['vulval' => 'он ласкает тебя языком между ног', 'cunnilingus' => 'он ласкает тебя языком между ног', 'deepthroat' => 'ты берёшь его глубоко в рот',
+            'blowjob' => 'ты ласкаешь его ртом', 'handjob' => 'ты ласкаешь его рукой', 'boobjob' => 'ты ласкаешь его грудью', 'analsex' => 'он берёт тебя сзади, в зад',
+            'doggystyle' => 'он берёт тебя сзади', 'cowgirl' => 'ты сверху на нём', 'missionary' => 'он на тебе, лицом к лицу', 'kissing' => 'вы целуетесь',
+            'cuddling' => 'вы обнимаетесь', 'vaginalsex' => 'он в тебе'];
+        foreach ($kinds as $tag => $words) {
+            if (strpos(strval($row['command']), $tag) !== false) {
+                return $words;
+            }
+        }
+        return 'вы занимаетесь любовью';
+    }
+
     /** Set (or clear) the player's title. Returns [ok, message]. */
     function tesWorldSetTitle(string $title): array
     {
