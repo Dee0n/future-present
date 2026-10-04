@@ -171,6 +171,11 @@ if (!function_exists('tesTreasuryAdd')) {
             }
             // "того стражника, который меня не защитил", "его": the last one the ruler accused
             if ($who === '') {
+                // a bare "суд идёт" while a trial is going is only a remark: no second trial (live 17:00: "Заткнулась,
+                // суд идёт" made Ольфина a defendant)
+                if (!empty($openCourt['defendant'])) {
+                    return '';
+                }
                 $last = trim(strval(tesWatchGet('court_last')['value']));
                 if ($last !== '' && tesWatchGet('court_last')['age'] < 1800) {
                     $who = $last;
@@ -251,6 +256,20 @@ if (!function_exists('tesTreasuryAdd')) {
         $db = $GLOBALS['db'];
         // while the trial goes on the accused faces the ruler, turned again every 30 s
         $open = $db->fetchOne("SELECT defendant FROM public.tes_court WHERE NOT closed AND opened_at > now() - interval '10 minutes' ORDER BY id DESC LIMIT 1");
+        // ...and the court is quiet: no chatter of the others among themselves (owner, 17:01: "под руку
+        // Ольфина пиздит" - the people around kept talking over the trial, 32 lines in 5 minutes)
+        $savedChat = tesWatchGet('chatter_court')['value'];
+        if (!empty($open['defendant']) && $savedChat === '' && tesWatchGet('chatter_saved')['value'] === '') {
+            $meta = $db->fetchOne("SELECT metadata->>'RECHAT_P' AS p, metadata->>'BORED_EVENT' AS b FROM public.core_profiles WHERE id = 1");
+            tesWatchSet('chatter_court', json_encode(['p' => $meta['p'] ?? '10', 'b' => $meta['b'] ?? '3']));
+            $db->execQuery("UPDATE public.core_profiles SET metadata = jsonb_set(jsonb_set(metadata, '{RECHAT_P}', '0'::jsonb), '{BORED_EVENT}', '0'::jsonb) WHERE id = 1");
+        } elseif (empty($open['defendant']) && $savedChat !== '') {
+            $s = json_decode($savedChat, true) ?: ['p' => '10', 'b' => '3'];
+            if (tesWatchGet('chatter_saved')['value'] === '') {  // the budget guard keeps it off by itself
+                $db->execQuery("UPDATE public.core_profiles SET metadata = jsonb_set(jsonb_set(metadata, '{RECHAT_P}', '" . intval($s['p']) . "'::jsonb), '{BORED_EVENT}', '" . intval($s['b']) . "'::jsonb) WHERE id = 1");
+            }
+            tesWatchSet('chatter_court', '');
+        }
         if (!empty($open['defendant']) && tesWatchGet('face_at')['age'] >= 30) {
             tesWatchSet('face_at', '1');
             $fr = tesWorldRefOf(strval($open['defendant']));
@@ -285,6 +304,6 @@ if (!function_exists('tesTreasuryAdd')) {
         if ($me === $d) {
             return "Тебя судит правитель{$charge}. Оправдывайся, умоляй или дерзи — в характере; приговор — его слово.";
         }
-        return "Идёт суд правителя над {$d}" . ($venue !== '' ? " ({$venue})" : '') . "{$charge}. Ты присутствуешь: свидетельствуй по своему знанию и ждёшь приговора правителя.";
+        return "Идёт суд правителя над {$d}" . ($venue !== '' ? " ({$venue})" : '') . "{$charge}. Ты присутствуешь молча: говори только если правитель или судья спросил тебя, одной короткой фразой; между собой не болтайте.";
     }
 }
