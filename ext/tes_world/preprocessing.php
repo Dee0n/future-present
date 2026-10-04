@@ -114,6 +114,11 @@ try {
         // player said to the same person in the last 10 minutes.
         if ($tesWorldWith !== '' && empty($tesWorldStopped) && !tesWorldIsChild($tesWorldWith)) {
             $tesWorldLove = tesWorldLoveTags($tesWorldLine);
+            // "Займись самоудовлетворением", "Драчи себе" (live 15:16): one person, no partner - a solo scene
+            $tesWorldSolo = (bool)preg_match('/(мастурб\p{L}*|самоудовлетвор\p{L}*|(?:дроч\p{L}*|драч\p{L}*|потр\p{L}+|поласкай|ласкай|трогай)\s+(?:себе|себя)|себе\s+(?:клитор|писю|пизду|член|сиськи))/iu', $tesWorldLine);
+            if ($tesWorldSolo) {
+                $tesWorldLove = 'solo';
+            }
             $tesWorldGo = (bool)preg_match('/(?<![\p{L}])(начина\p{L}*|начн\p{L}*|начать|приступ\p{L}*|давай уже|поехали)(?![\p{L}])/iu', $tesWorldLine);
             if ($tesWorldLove === '' && $tesWorldGo) {
                 $tesWorldPrev = $GLOBALS['db']->fetchAll("SELECT data FROM eventlog WHERE type IN ('inputtext', 'inputtext_s') AND localts > " . (time() - 600)
@@ -132,7 +137,14 @@ try {
                 $tesWorldOnce = $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '20 seconds' AND status = 'fast' AND goal = '" . $GLOBALS['db']->escape($tesWorldKey) . "' LIMIT 1");
                 if (empty($tesWorldOnce)) {
                     $GLOBALS['db']->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $GLOBALS['db']->escape($tesWorldKey) . "', 'fast', 'со слов игрока')");
-                    if ($tesWorldThirdRef !== '' && $tesWorldThirdRef !== $tesWorldLoveRef) {
+                    if ($tesWorldSolo) {
+                        // one person alone: not "with the player" - the scene is only hers
+                        if (function_exists('tesBridgeVersion') && tesBridgeVersion() >= 3) {
+                            tesWorldQueue(['prid ' . $tesWorldLoveRef, 'unequipall', 'teslove solo masturbation,femalemasturbation,malemasturbation']);
+                        } else {
+                            error_log("[tes_world] solo scene asked, the game's bridge is old: {$tesWorldWith}");
+                        }
+                    } elseif ($tesWorldThirdRef !== '' && $tesWorldThirdRef !== $tesWorldLoveRef) {
                         tesWorldQueue(['prid ' . $tesWorldLoveRef, 'unequipall', 'prid ' . $tesWorldThirdRef, 'unequipall',
                             'teslove ' . hexdec($tesWorldLoveRef) . ' ' . tesWorldLoveArg($tesWorldLove)]);
                     } else {

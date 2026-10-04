@@ -169,8 +169,9 @@ bool Function TESRunAndReport(String command) Global
         return true
     endif
     if command == "tesversion"
-        ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill
-        AIAgentFunctions.logMessage("tesversion@@2", "tes_god_console")
+        ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
+        ; 3 = also "teslove solo"
+        AIAgentFunctions.logMessage("tesversion@@3", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -288,6 +289,24 @@ bool Function TESRunAndReport(String command) Global
                 AIAgentFunctions.logMessage(command + "@@scene ended", "tes_god_console")
             else
                 AIAgentFunctions.logMessage(command + "@@no scene to end", "tes_god_console")
+            endif
+            return true
+        endif
+        if StringUtil.Find(loveArgs, "solo") == 0
+            ; "teslove solo [tags]": one actor alone (masturbation)
+            if !lover || lover.IsChild() || lover.IsDead()
+                AIAgentFunctions.logMessage(command + "@@error: refused or nobody selected", "tes_god_console")
+                return true
+            endif
+            String soloTags = StringUtil.Substring(loveArgs, 4)
+            if StringUtil.GetLength(soloTags) > 0 && StringUtil.GetNthChar(soloTags, 0) == " "
+                soloTags = StringUtil.Substring(soloTags, 1)
+            endif
+            int soloThread = TESLove.StartSolo(lover, soloTags)
+            if soloThread >= 0
+                AIAgentFunctions.logMessage(command + "@@solo scene started: " + lover.GetDisplayName() + " [" + TESLove.SceneOf(soloThread) + "]", "tes_god_console")
+            else
+                AIAgentFunctions.logMessage(command + "@@error: OStim did not start a solo scene", "tes_god_console")
             endif
             return true
         endif

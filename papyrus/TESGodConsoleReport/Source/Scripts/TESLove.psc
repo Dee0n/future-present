@@ -77,6 +77,29 @@ int Function Start(Actor first, Actor second, String tags = "") Global
     return started
 EndFunction
 
+; A solo scene for one actor (OStim's own masturbation scenes; OSolo adds more).
+; "Займись самоудовлетворением" (live 2026-10-04) had no command at all. Returns the thread id or -1.
+int Function StartSolo(Actor who, String tags = "") Global
+    Actor[] actors = new Actor[1]
+    actors[0] = who
+    int running = ThreadOf(who, None)
+    if running >= 0
+        return running
+    endif
+    String sceneId = ""
+    if tags != ""
+        sceneId = OLibrary.GetRandomSceneWithAnyActionCSV(actors, tags)
+        if sceneId == ""
+            sceneId = OLibrary.GetRandomSceneWithAnySceneTagCSV(actors, tags)
+        endif
+    endif
+    int started = OThread.QuickStart(actors, sceneId)
+    if started < 0 && sceneId != ""
+        started = OThread.QuickStart(actors)
+    endif
+    return started
+EndFunction
+
 ; End the scene the actor is in. Returns true when there was one.
 bool Function Stop(Actor who) Global
     int running = ThreadOf(who, None)
