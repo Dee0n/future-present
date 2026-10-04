@@ -266,8 +266,8 @@ bool Function TESRunAndReport(String command) Global
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
         ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
         ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place);
-        ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"; 12 = tesscale rebuilds the 3D before the camera flip, speed not divided; 11 = also "tesscale", "tesspeed", held people stand in the do-nothing package (no T-pose)
-        AIAgentFunctions.logMessage("tesversion@@12", "tes_god_console")
+        ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"; 13 = tesscale sets the first-person skeleton node scale (camera height), speed not divided; 11 = also "tesscale", "tesspeed", held people stand in the do-nothing package (no T-pose)
+        AIAgentFunctions.logMessage("tesversion@@13", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -1466,28 +1466,21 @@ Function TESScale(String arg) Global
         return
     endif
     Actor p = Game.GetPlayer()
-    float before = p.GetHeight()
     p.SetScale(s)
     StorageUtil.SetFloatValue(p, "TESScale", s)
-    ; the game does not change the walking speed with the size (live 22:25: speed/scale made the owner slow):
-    ; the speed stays what it was, 100 unless set otherwise
+    ; the game does not change the walking speed with the size (live 22:25: speed/scale made the owner slow)
     TESSetSpeed(p, StorageUtil.GetFloatValue(p, "TESSpeedPct", 100.0))
-    ; the first-person camera takes its height from the head node, which the engine rebuilds with the 3D:
-    ; rebuild it, wait, then flip the view (a long enough stay in the third person for the camera to move)
-    p.QueueNiNodeUpdate()
-    Utility.Wait(0.8)
-    int camBefore = Game.GetCameraState()
-    if camBefore == 0
-        Game.ForceThirdPerson()
-        Utility.Wait(1.5)
-        Game.ForceFirstPerson()
-        Utility.Wait(0.5)
+    ; THE FIRST-PERSON CAMERA: the first-person skeleton ("skeleton.nif", first = true) sets the eye height;
+    ; SetScale leaves it alone, which is why "камера низко" (found in the source of the owner's
+    ; "First Person Camera Height Fix" mod, which does the same on a save load). No view flip: a rebuild
+    ; of the skeleton would take the node scale back.
+    string fpMsg = "no first-person node"
+    if NetImmerse.HasNode(p, "skeleton.nif", true)
+        float oldNode = NetImmerse.GetNodeScale(p, "skeleton.nif", true)
+        NetImmerse.SetNodeScale(p, "skeleton.nif", p.GetScale(), true)
+        fpMsg = "first-person node " + oldNode + " -> " + NetImmerse.GetNodeScale(p, "skeleton.nif", true)
     endif
-    string flipped = ""
-    if camBefore == 0
-        flipped = " (flipped)"
-    endif
-    AIAgentFunctions.logMessage("tesscale " + arg + "@@player scale " + s + ", height " + before + " -> " + p.GetHeight() + ", camera state was " + camBefore + flipped, "tes_god_console")
+    AIAgentFunctions.logMessage("tesscale " + arg + "@@player scale " + p.GetScale() + ", " + fpMsg, "tes_god_console")
 EndFunction
 
 ; "tesspeed <percent>" - how fast the player walks: 100 is normal.
