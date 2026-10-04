@@ -564,6 +564,8 @@ if (!function_exists('tesWorldEnsureTable')) {
     {
         $t = ' ' . str_replace('ё', 'е', $line) . ' ';
         $verbs = [
+            // "иди на улице подбираться" (live 13:18): lives as a beggar around the market
+            'beg' => '(побира\p{L}*|подбира\p{L}*|попрошайнича\p{L}*|милостын\p{L}*)',
             'kill' => '(казни\p{L}*|убей\p{L}*|убить|убейте|прикончи\p{L}*)',
             'jail' => '(посади\p{L}*|сади|садите|сажай\p{L}*|арестуй\p{L}*|арестовать|в\s+тюрьму|в\s+темницу|за\s+решетку)',
             'strip' => '(раздень\p{L}*|раздевай|раздевайте|раздеть|сорви\p{L}*|срывай\p{L}*|сорвать\s+одежд\p{L}*|снимай\s+с|сними\s+с|снять\s+одежду\s+с)',
@@ -610,6 +612,9 @@ if (!function_exists('tesWorldEnsureTable')) {
         }
         if (!$targets && $self && $addressee !== '') {
             return ['kind' => 'strip', 'targets' => [$addressee]];
+        }
+        if (!$targets && $kind === 'beg' && $addressee !== '') {
+            return ['kind' => 'beg', 'targets' => [$addressee]];
         }
         if (!$targets && $kind !== '') {
             // bare "Раздеть." said to a woman - her; "Казнить её!" - whoever the last such order was about
@@ -726,6 +731,18 @@ if (!function_exists('tesWorldEnsureTable')) {
                     continue;
                 }
                 tesWorldQueue(['prid ' . $ref, 'moveto player']);
+            } elseif ($fast['kind'] === 'beg') {
+                // beggar's life around the market: linked to Бренуин (0002C90F), the town's beggar;
+                // undressed too if the ruler said so. Needs the bridge's "tesroutine at" (pex 42272+).
+                if (tesWorldIsChild($who)) {
+                    continue;
+                }
+                $cmds = ['prid ' . $ref];
+                if (preg_match('/раздев|голый|голым|догола|нищ/iu', $said)) {
+                    $cmds[] = 'unequipall';
+                }
+                $cmds[] = 'tesroutine at ' . hexdec('0002C90F');
+                tesWorldQueue($cmds);
             } elseif ($fast['kind'] === 'take') {
                 if (tesWorldIsChild($who)) {
                     continue;

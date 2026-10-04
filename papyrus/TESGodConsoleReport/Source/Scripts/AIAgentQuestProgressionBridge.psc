@@ -1213,6 +1213,27 @@ Function TESRoutine(String mode) Global
         AIAgentFunctions.logMessage("tesroutine here@@error: CHIM sandbox package not found", "tes_god_console")
         return
     endif
+    ; "tesroutine at <reference FormID, decimal>": the same life, but around an EXISTING place
+    ; (the market, a beggar's corner) instead of where the player stands - "иди побирайся на
+    ; улице": with "here" the ex-jarl stayed in Dragonsreach where the player was (live 2026-10-04)
+    if StringUtil.Find(mode, "at ") == 0
+        ObjectReference place = Game.GetForm(StringUtil.Substring(mode, 3) as int) as ObjectReference
+        if !place
+            AIAgentFunctions.logMessage("tesroutine " + mode + "@@error: place not found", "tes_god_console")
+            return
+        endif
+        if oldMarker
+            oldMarker.Disable()
+            oldMarker.Delete()
+        endif
+        StorageUtil.UnsetFormValue(target, "TESRoutineMarker")
+        target.SetFactionRank(sandboxFaction, 1)
+        PO3_SKSEFunctions.SetLinkedRef(target, place)
+        ActorUtil.AddPackageOverride(target, sandboxWork, 90, 0)
+        target.EvaluatePackage()
+        AIAgentFunctions.logMessage("tesroutine " + mode + "@@" + target.GetDisplayName() + " now lives around " + place.GetDisplayName(), "tes_god_console")
+        return
+    endif
     ObjectReference marker = Game.GetPlayer().PlaceAtMe(Game.GetForm(0x3B), 1, true, false)
     if oldMarker
         oldMarker.Disable()

@@ -75,7 +75,7 @@ try {
                 $tesWorldOrderLines[] = '«' . mb_substr(trim($txt), 0, 70) . '» — ' . $st;
             }
             if ($tesWorldOrderLines) {
-                chimRegisterPromptInjection('prompt_bottom', 'tes_world_orders', 'Приказы ярла тебе недавно (ты их помнишь): ' . implode('; ', $tesWorldOrderLines) . '.', 97);
+                chimRegisterPromptInjection('prompt_bottom', 'tes_world_orders', 'Приказы правителя тебе недавно (ты их помнишь): ' . implode('; ', $tesWorldOrderLines) . '.', 97);
             }
         }
         if ($tesWorldHint !== '' && isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
