@@ -91,6 +91,30 @@ if (!function_exists('tesRealmAfterOrder')) {
     }
 
     /**
+     * A cup to the lips. CHIM's own Drink action plays the idle through the game's command channel
+     * (SkyrimCommandBuilder PlayIdle, DrinkIdle 00103656; ChairDrinkingStart 00065D07 for the seated); the plain
+     * console "playidle" I used first played nothing (owner, 23:00: "анимацию питья пусть делают").
+     */
+    function tesRealmDrinkAnim(string $ref): void
+    {
+        $db = $GLOBALS['db'];
+        $row = $db->fetchOne("SELECT metadata FROM public.core_npc_master WHERE refid = '" . $db->escape($ref) . "' LIMIT 1");
+        $meta = json_decode(strval($row['metadata'] ?? '{}'), true) ?: [];
+        $act = is_array($meta['activity_status'] ?? null) ? $meta['activity_status'] : [];
+        $seated = (($meta['furniture'] ?? '') === 'Chair') || (($act['use_type'] ?? '') === 'chair');
+        $idle = $seated ? '0x00065d07' : '0x00103656';
+        if (!class_exists('SkyrimCommandBuilder') && is_readable('/var/www/html/HerikaServer/lib/scriptproxy_papyrus.php')) {
+            require_once '/var/www/html/HerikaServer/lib/scriptproxy_papyrus.php';
+        }
+        if (class_exists('SkyrimCommandBuilder')) {
+            $b = new SkyrimCommandBuilder();
+            $json = $b->Actor->PlayIdle('0x' . $ref, $idle);
+            $b->send(cmd: $json);
+            return;
+        }
+        tesWorldQueue(['prid ' . $ref, 'playidle ' . substr($idle, 2)]);
+    }
+    /**
      * The feast keeper (owner, 22:41: "все молчат, никто не пьёт, многие уходят"):
      *  - every ~25 s four of the guests raise a cup (the game's DrinkIdle, what CHIM's Drink action plays);
      *  - every ~75 s the guests' distance to the place is asked, and whoever walked off is brought back.
@@ -111,7 +135,7 @@ if (!function_exists('tesRealmAfterOrder')) {
             tesWatchSet('party_drink', '1');
             shuffle($refs);
             foreach (array_slice($refs, 0, 4) as $ref) {
-                tesWorldQueue(['prid ' . $ref, 'playidle 00103656']);
+                tesRealmDrinkAnim($ref);
             }
         }
         // talk: every ~40 s one guest is told to turn to a neighbour and say something live (a toast, a joke, gossip,

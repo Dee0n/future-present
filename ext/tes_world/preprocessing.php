@@ -114,6 +114,14 @@ try {
             $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . $tesWorldErrand . $tesWorldTail;
             error_log("[tes_world] errand: {$tesWorldErrand}");
         }
+        // drink for sale / bring drink: the bottles really come (drinks.php); not when it was an errand or a scene
+        if ($tesWorldErrand === '' && function_exists('tesDrinksSpoken')) {
+            $tesWorldDrinks = tesDrinksSpoken($tesWorldLine, $tesWorldType === 'narrator_inputtext' ? 'The Narrator' : $tesWorldTo);
+            if ($tesWorldDrinks !== '') {
+                $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . $tesWorldDrinks . $tesWorldTail;
+                error_log("[tes_world] drinks: {$tesWorldDrinks}");
+            }
+        }
         // what the ruler plainly ordered is done at once, whether or not the NPC passes it on
         if ($tesWorldErrand === '' && $tesWorldType !== 'narrator_inputtext' && !empty(tesWorldFacts()['player_title'])) {
             $tesWorldWhom = $tesWorldTo;
