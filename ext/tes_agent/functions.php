@@ -26,6 +26,13 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
                 ? decodeFunctionExecutionParameterPayload($raw)
                 : json_decode($raw, true);
             $text = is_array($payload) ? trim(strval($payload['target'] ?? '')) : trim($raw);
+            // The Narrator sometimes writes a program instead of commands ("foreach {npc} in
+            // nearby_actors.filter(...) { npc.unsummon() }", live 12:30-12:53, seven times, all
+            // refused): that is a many-step goal - it goes to the agent with the player's words.
+            if (preg_match('/^\s*(foreach|for|while|if).*(\{|:|in)/isu', $text)) {
+                $said = trim(preg_replace('/^[^:]{1,40}:\s*/u', '', strval($GLOBALS['gameRequest'][3] ?? '')) ?? '');
+                $text = 'goal: ' . ($said !== '' ? $said . ' (замысел рассказчика: ' . mb_substr($text, 0, 200) . ')' : $text);
+            }
             if (!preg_match('/^\s*(goal|цель|ask|вопрос)\s*:\s*(.+)$/isu', $text, $m)) {
                 continue;
             }

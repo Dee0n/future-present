@@ -621,7 +621,7 @@ if (!function_exists('tesWorldEnsureTable')) {
             'handjob' => 'handjob|рукой|дроч|подроч',
             'footjob' => 'footjob|ногами|ступн',
             'boobjob' => 'boobjob|между груд|сиськами|грудью',
-            'vulvallicking,vulvaleating,cunnilingus,lickingvagina' => 'cunnilingus|кун+и|кунилинг|куннилинг|лиз|вылиж',
+            'vulvallicking,vulvaleating,cunnilingus,lickingvagina' => 'cunnilingus|кун+и|кунилинг|куннилинг|лиз|вылиж|вылеж',
             'vaginalfingering' => 'fingering|пальц',
             'rimjob' => 'rimjob|римминг|анилингус',
             'facial' => 'facial|на лицо',
@@ -699,6 +699,47 @@ if (!function_exists('tesWorldEnsureTable')) {
             }
         }
         return 'вы занимаетесь любовью';
+    }
+
+    /**
+     * The third person named in a line said to $to: one of the people around, not $to and not the
+     * player ("Сигрид, трахни Айрилет" - the scene is of those two, the player is not in it;
+     * owner, 2026-10-04 15:10). Names come mangled from speech ("рилет"): a word of 4+ letters
+     * that is the tail or the head of a name, or one-two letters away from it. '' = nobody.
+     */
+    function tesWorldThirdPerson(string $line, string $to): string
+    {
+        $toN = tesWorldNorm(tesWorldShortName($to));
+        $playerN = tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''));
+        $best = '';
+        $bestScore = 99;
+        foreach (preg_split('/[^\p{L}]+/u', $line) ?: [] as $word) {
+            $w = tesWorldNorm($word);
+            $len = mb_strlen($w);
+            if ($len < 4) {
+                continue;
+            }
+            foreach (tesWorldNearbyNames(30) as $name) {
+                $n = tesWorldNorm(tesWorldShortName($name));
+                if ($n === '' || $n === $toN || $n === $playerN || mb_strlen($n) < 4) {
+                    continue;
+                }
+                // case endings: compare with the name and with the word cut to the name's length
+                $d = min(tesWorldLev($w, $n), tesWorldLev(mb_substr($w, 0, mb_strlen($n)), $n));
+                if (mb_strlen($n) > $len && mb_substr($n, -$len) === $w) {
+                    $d = 1;  // "рилет" is the tail of "айрилет"
+                }
+                // the addressee's own mangled name ("Сигрит" for Сигрид) is not a third person
+                if ($toN !== '' && min(tesWorldLev($w, $toN), tesWorldLev(mb_substr($w, 0, mb_strlen($toN)), $toN)) <= $d) {
+                    continue;
+                }
+                if ($d <= (mb_strlen($n) >= 6 ? 2 : 1) && $d < $bestScore) {
+                    $best = $name;
+                    $bestScore = $d;
+                }
+            }
+        }
+        return $best;
     }
 
     /** Set (or clear) the player's title. Returns [ok, message]. */

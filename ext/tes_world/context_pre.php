@@ -7,6 +7,9 @@
  */
 
 try {
+    if (function_exists('tesWorldStrictSchema')) {
+        tesWorldStrictSchema();
+    }
     if (isset($GLOBALS['db']) && function_exists('chimRegisterPromptInjection')) {
         require_once __DIR__ . '/lib.php';
         $tesWorldFacts = tesWorldFacts();

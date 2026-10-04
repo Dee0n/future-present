@@ -1013,7 +1013,7 @@ if (!function_exists('tesGodGuardValidate')) {
             'equipitem', 'unequipitem', 'addspell', 'removespell', 'addperk', 'fw', 'sw', 'set',
             'advlevel', 'incpcs', 'tgm', 'setrelationshiprank', 'stopcombat', 'setscale', 'moveto',
             'placeatme', 'addfac', 'removefac', 'setplayerteammate', 'recycleactor', 'evp', 'resetai',
-            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'teslove', 'sex', 'love', 'ostim', 'fuck', 'tesfollow', 'follow', 'unfollow', 'tesclone', 'clone', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
+            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems', 'teslove', 'sex', 'love', 'ostim', 'fuck', 'tesfollow', 'follow', 'unfollow', 'tesclone', 'clone', 'tesessential', 'tesperkpoints', 'addperkpoints', 'perkpoints', 'addperkpoint', 'giveperkpoints',
             'tesownhouse', 'tesclaim', 'tesstate', 'tesinspect', 'tesunfollow',
         ];
         $refused = [
@@ -1080,6 +1080,12 @@ if (!function_exists('tesGodGuardValidate')) {
         $text = preg_replace('/\.(remember|order|rumor|hypnosis|jail|fine|title|relation)\s*:\s*/iu', '.$1 ', $text) ?? $text;
         // "{npc:player}" is the player (the agent wrote it, 13:50) - the plain word, not a lookup
         $text = preg_replace('/\{npc:\s*(player|игрок)\s*\}/iu', 'player', $text) ?? $text;
+        // ... and so is {npc:<the player's own name>}: "{npc:Шаман}.addspell" was looked up as a
+        // person and became the guard "Огман Магодин" (live 12:55, 12:51)
+        $tesPlayerName = trim(strval($GLOBALS['PLAYER_NAME'] ?? ''));
+        if ($tesPlayerName !== '') {
+            $text = preg_replace('/\{npc:\s*' . preg_quote($tesPlayerName, '/') . '\s*\}/iu', 'player', $text) ?? $text;
+        }
         // TES-BARE-NAME (live 2026-10-04 02:39): the agent wrote "npc:Изольда.unequipall" and
         // "Ysolda.unequipall" before it found the RefID form. A command that starts with the name
         // of a known NPC is that NPC's command.
@@ -1800,6 +1806,12 @@ if (!function_exists('tesGodGuardValidate')) {
             // teskill (bridge, 2026-10-04): takes "essential"/"protected" off first. Live 02:51-02:54:
             // 45 steps of kill / setessential / player.kill on Хеймскр, who only fell to his knees.
             // A bridge without the command prints "not found" and the plain kill below still runs.
+            // "setessential 0" on a person: the console wants the BASE ("setessential <base> 0") and
+            // answered "Invalid actor base '0'" twice (live 12:57, 12:59). The bridge does it.
+            if ($verb === 'setessential' && $target !== '' && strtolower($target) !== 'player') {
+                $kept[] = $target . '.tesessential ' . (preg_match('/(1|true|on|да)/iu', $body) ? 1 : 0);
+                continue;
+            }
             if ($verb === 'kill' && $target !== '' && strtolower($target) !== 'player') {
                 $kept[] = $target . '.teskill';
             }

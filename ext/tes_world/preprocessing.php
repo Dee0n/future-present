@@ -106,12 +106,21 @@ try {
             }
             $tesWorldLoveRef = $tesWorldLove !== '' ? tesWorldRefOf($tesWorldWith) : '';
             if ($tesWorldLoveRef !== '' && !preg_match('/(?<![\p{L}])(не\s+(буду|хочу|надо|будем)|потом|позже|завтра)(?![\p{L}])/iu', $tesWorldLine)) {
-                $tesWorldKey = "love: {$tesWorldWith} + игрок [{$tesWorldLove}]";
+                // "Сигрид, трахни Айрилет": the scene is of the two of them, the player only watches.
+                // The one spoken to is the one who acts - first in the scene.
+                $tesWorldThird = tesWorldThirdPerson($tesWorldLine, $tesWorldWith);
+                $tesWorldThirdRef = ($tesWorldThird !== '' && !tesWorldIsChild($tesWorldThird)) ? tesWorldRefOf($tesWorldThird) : '';
+                $tesWorldKey = "love: {$tesWorldWith} + " . ($tesWorldThirdRef !== '' ? $tesWorldThird : 'игрок') . " [{$tesWorldLove}]";
                 $tesWorldOnce = $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '20 seconds' AND status = 'fast' AND goal = '" . $GLOBALS['db']->escape($tesWorldKey) . "' LIMIT 1");
                 if (empty($tesWorldOnce)) {
                     $GLOBALS['db']->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $GLOBALS['db']->escape($tesWorldKey) . "', 'fast', 'со слов игрока')");
-                    tesWorldQueue(['prid ' . $tesWorldLoveRef, 'unequipall', 'teslove 20 ' . tesWorldLoveArg($tesWorldLove)]);
-                    $GLOBALS['gameRequest'][3] = rtrim(strval($GLOBALS['gameRequest'][3])) . " *это уже происходит на самом деле — отвечай как участница, а не обещай*" . $tesWorldTail;
+                    if ($tesWorldThirdRef !== '' && $tesWorldThirdRef !== $tesWorldLoveRef) {
+                        tesWorldQueue(['prid ' . $tesWorldLoveRef, 'unequipall', 'prid ' . $tesWorldThirdRef, 'unequipall',
+                            'teslove ' . hexdec($tesWorldLoveRef) . ' ' . tesWorldLoveArg($tesWorldLove)]);
+                    } else {
+                        tesWorldQueue(['prid ' . $tesWorldLoveRef, 'unequipall', 'teslove 20 ' . tesWorldLoveArg($tesWorldLove)]);
+                    }
+                    $GLOBALS['gameRequest'][3] = rtrim(strval($GLOBALS['gameRequest'][3])) . ($tesWorldThirdRef !== '' ? " *ты уже делаешь это с {$tesWorldThird}, на самом деле; игрок только смотрит — отвечай как участница, а не обещай*" : " *это уже происходит на самом деле — отвечай как участница, а не обещай*") . $tesWorldTail;
                     error_log("[tes_world] scene from the player's words: {$tesWorldKey}");
                 }
             }

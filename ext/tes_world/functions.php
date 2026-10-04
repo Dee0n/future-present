@@ -12,6 +12,26 @@
  * The order goes to the goal agent (ext/tes_agent), which has the tools and checks the result.
  */
 
+/*
+ * OpenAI-family models through OpenRouter (connector 20 "GPT 6 LUNA", live 2026-10-04 15:xx: 70
+ * failures an hour) refuse a json_schema whose "required" does not list every property - the
+ * core schema leaves "amount" out. Every reply of that connector failed with 400. All properties
+ * are made required (the model then sends amount 0 where it means nothing).
+ */
+if (!function_exists('tesWorldStrictSchema')) {
+    function tesWorldStrictSchema(): void
+    {
+        $props = $GLOBALS['structuredOutputTemplate']['json_schema']['schema']['properties'] ?? null;
+        if (is_array($props) && $props) {
+            $GLOBALS['structuredOutputTemplate']['json_schema']['schema']['required'] = array_keys($props);
+        }
+    }
+}
+if (!isset($GLOBALS['HOOKS']['JSON_TEMPLATE']) || !in_array('tesWorldStrictSchema', (array)$GLOBALS['HOOKS']['JSON_TEMPLATE'], true)) {
+    $GLOBALS['HOOKS']['JSON_TEMPLATE'][] = 'tesWorldStrictSchema';
+}
+tesWorldStrictSchema();
+
 require_once __DIR__ . '/lib.php';
 
 if (empty($GLOBALS['TES_WORLD_HOOK'])) {
@@ -56,7 +76,14 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                         $key .= " [{$tags}]";
                         // the same kind for the same two is not restarted for 20 s; another kind switches the scene
                         $again = $db0->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '20 seconds' AND status = 'fast' AND goal = '" . $db0->escape($key) . "' LIMIT 1");
-                        if (empty($again)) {
+                        // The player has just set this NPC a scene with someone else by his own words
+                        // ("Сигрид, трахни Айрилет"): her model then picks "sex with the player" out of
+                        // habit and would pull her out of it (live 15:10:51) - the player's words win.
+                        $other = $partner === 20 ? $db0->fetchOne("SELECT goal FROM public.tes_agent_tasks WHERE created_at > now() - interval '90 seconds' AND status = 'fast' AND result = 'со слов игрока'"
+                            . " AND goal LIKE '" . $db0->escape("love: {$extActor} + ") . "%' AND goal NOT LIKE '%+ игрок [%' ORDER BY id DESC LIMIT 1") : null;
+                        if (!empty($other['goal'])) {
+                            error_log("[tes_world] {$extCode} with the player dropped: {$other['goal']} is set by the player's words");
+                        } elseif (empty($again)) {
                             $db0->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $db0->escape($key) . "', 'fast', '" . $db0->escape($extCode) . "')");
                             tesWorldQueue(['prid ' . $extRef, trim('teslove ' . $partner . ' ' . tesWorldLoveArg($tags))]);
                             error_log("[tes_world] {$extCode}: scene {$key}");

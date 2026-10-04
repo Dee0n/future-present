@@ -176,13 +176,31 @@ bool Function TESRunAndReport(String command) Global
             AIAgentFunctions.logMessage("teskill@@error: no actor selected", "tes_god_console")
             return true
         endif
-        ActorBase victimBase = victim.GetActorBase()
-        if victimBase
-            victimBase.SetEssential(false)
-            victimBase.SetProtected(false)
-        endif
+        TESMortal(victim, false)
         victim.Kill()
+        Utility.Wait(1.0)
+        if !victim.IsDead()
+            ; live 2026-10-04 12:55: the Ebony Warrior stayed alive after Kill() - the flag sat on
+            ; the leveled base. Both bases are cleared above; still alive -> health to zero.
+            victim.DamageActorValue("Health", victim.GetActorValue("Health") + 100000.0)
+            Utility.Wait(1.0)
+        endif
+        if !victim.IsDead() && victim.IsChild()
+            AIAgentFunctions.logMessage("teskill@@" + victim.GetDisplayName() + " is a child: the game does not let children die", "tes_god_console")
+            return true
+        endif
         AIAgentFunctions.logMessage("teskill@@" + victim.GetDisplayName() + " is dead: " + victim.IsDead(), "tes_god_console")
+        return true
+    endif
+    if StringUtil.Find(command, "tesessential ") == 0
+        ; "setessential" for a person: the flag is on the base, often a leveled one
+        Actor mortal = ConsoleUtil.GetSelectedReference() as Actor
+        if !mortal || mortal == Game.GetPlayer()
+            AIAgentFunctions.logMessage(command + "@@error: no actor selected", "tes_god_console")
+            return true
+        endif
+        TESMortal(mortal, StringUtil.Substring(command, 13) as int > 0)
+        AIAgentFunctions.logMessage(command + "@@" + mortal.GetDisplayName() + " essential: " + mortal.IsEssential(), "tes_god_console")
         return true
     endif
     if StringUtil.Find(command, "tesfollow ") == 0
@@ -980,6 +998,23 @@ EndFunction
 ;        CHIM's own Follow package, faction and linked-ref keyword; 0 takes them off.
 ;   "tesescort <reference FormID, decimal>" - the selected NPC (the arrested) walks to that
 ;        reference (the prison marker) with CHIM's TravelTo package; teshold replaces it there.
+; essential/protected on both the base and the leveled base of the actor; off also takes ghost off
+Function TESMortal(Actor who, bool essential) Global
+    ActorBase base = who.GetActorBase()
+    ActorBase leveled = who.GetLeveledActorBase()
+    if base
+        base.SetEssential(essential)
+        base.SetProtected(false)
+    endif
+    if leveled && leveled != base
+        leveled.SetEssential(essential)
+        leveled.SetProtected(false)
+    endif
+    if !essential
+        who.SetGhost(false)
+    endif
+EndFunction
+
 Function TESFollowRef(String arg) Global
     Actor npc = ConsoleUtil.GetSelectedReference() as Actor
     Package followPackage = Game.GetFormFromFile(0x01BC25, "AIAgent.esp") as Package
