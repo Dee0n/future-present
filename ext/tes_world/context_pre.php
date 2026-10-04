@@ -53,6 +53,24 @@ try {
                 $tesWorldHint = 'Помни: ' . mb_substr($first, 0, mb_strpos($first . '.', '.')) . '.' . $who . $deed;
             }
         }
+        // The Narrator answered DIFFERENT requests with the same three lines word for word (live 19:10:21 and
+        // 19:10:44: "пониже" / "чуть ниже того, что было"): the model copies its own last replies from the history,
+        // and starts nearly every one with «Что ж, ярл…» (owner: "наратор заебал повторятся"). It is shown what it
+        // said lately and told not to say it again.
+        if ($tesWorldMe0 === 'The Narrator') {
+            $tesWorldLast = $GLOBALS['db']->fetchAll("SELECT DISTINCT ON (data) data, rowid FROM eventlog WHERE type = 'chat' AND data LIKE 'The Narrator:%' AND localts > " . (time() - 2400) . " ORDER BY data, rowid DESC");
+            usort($tesWorldLast, fn($a, $b) => intval($b['rowid']) <=> intval($a['rowid']));
+            $tesWorldSaid = [];
+            foreach (array_slice(is_array($tesWorldLast) ? $tesWorldLast : [], 0, 8) as $tl) {
+                $line = trim(preg_replace('/^The Narrator:\s*|\s*\(talking to [^)]*\)\s*$/u', '', strval($tl['data'])) ?? '');
+                if ($line !== '') {
+                    $tesWorldSaid[] = '«' . mb_substr($line, 0, 90) . '»';
+                }
+            }
+            chimRegisterPromptInjection('prompt_bottom', 'tes_narrator_fresh',
+                ($tesWorldSaid ? 'Ты уже говорил: ' . implode(' ', $tesWorldSaid) . ' — не повторяй эти фразы, их образы и зачины. ' : '')
+                . 'Скажи новое и по делу, коротко. Не начинай с «Что ж», «Ох», «Ах», «Ну что»; не зови игрока «ярл» в каждой реплике; не пересказывай его просьбу и не комментируй, как он «переменчив».', 102);
+        }
         $tesWorldType = strval($GLOBALS['gameRequest'][0] ?? '');
         if (in_array($tesWorldType, ['inputtext', 'inputtext_s', 'narrator_inputtext', 'ginputtext'], true)) {
             $tesWorldNear = tesWorldNearbyNames();

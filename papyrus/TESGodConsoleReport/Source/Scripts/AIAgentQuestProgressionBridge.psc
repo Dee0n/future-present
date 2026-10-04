@@ -1600,7 +1600,7 @@ Function TESTalk(String mode) Global
         AIAgentFunctions.logMessage("testalk off@@" + target.GetDisplayName() + " is free to go", "tes_god_console")
         return
     endif
-    if target.IsDead() || target.IsInCombat() || target.IsPlayerTeammate() || target.GetCurrentScene() || target.GetSitState() != 0 || target.IsOnMount() || target.IsUnconscious() || StorageUtil.GetIntValue(target, "TESHeld") == 1 || StorageUtil.GetIntValue(target, "TESAIOff") == 1 || StorageUtil.GetFormValue(target, "TESRoutineMarker") || target.GetDistance(player) > 1500
+    if target.IsDead() || target.IsInCombat() || target.IsPlayerTeammate() || target.GetCurrentScene() || target.GetSitState() != 0 || target.IsOnMount() || target.IsUnconscious() || StorageUtil.GetIntValue(target, "TESHeld") == 1 || StorageUtil.GetIntValue(target, "TESAIOff") == 1 || target.GetDistance(player) > 1500
         AIAgentFunctions.logMessage("testalk on@@" + target.GetDisplayName() + " left as is", "tes_god_console")
         return
     endif
@@ -1610,7 +1610,8 @@ Function TESTalk(String mode) Global
     endif
     StorageUtil.SetIntValue(target, "TESTalk", 1)
     target.SetFactionRank(waitFaction, 1)
-    ActorUtil.AddPackageOverride(target, waitSoft, 60)
+    ; 99: above the sandbox of "tesroutine" (90) - people who live around a place stop for the talk too (live 22:1x: Балгруф "left as is")
+    ActorUtil.AddPackageOverride(target, waitSoft, 99)
     target.EvaluatePackage()
     target.SetLookAt(player)
     AIAgentFunctions.logMessage("testalk on@@" + target.GetDisplayName() + " stands and listens", "tes_god_console")

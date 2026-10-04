@@ -25,6 +25,7 @@ if (!function_exists('tesErrandSpoken')) {
             trader text NOT NULL DEFAULT '', trader_ref text NOT NULL DEFAULT '', items text NOT NULL, outfit text NOT NULL DEFAULT '',
             what text NOT NULL DEFAULT '', price int NOT NULL DEFAULT 0, stage text NOT NULL DEFAULT 'walk', last_id bigint NOT NULL DEFAULT 0,
             asked_at timestamptz, created_at timestamptz NOT NULL DEFAULT now())");
+        $GLOBALS['db']->execQuery("ALTER TABLE public.tes_errands ADD COLUMN IF NOT EXISTS benef text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS benef_ref text NOT NULL DEFAULT ''");
     }
 
     /** The clothes seller of the hold the player is in (by name, only if the game knows him). */
@@ -117,15 +118,30 @@ if (!function_exists('tesErrandSpoken')) {
         if (!preg_match('/(одеж\p{L}*|наряд\p{L}*|сапог\p{L}*|ботин\p{L}*|туфл\p{L}*|рубах\p{L}*|плать\p{L}*|шуб\p{L}*|плащ\p{L}*|шап\p{L}*|капюшон\p{L}*|перчат\p{L}*|брон\p{L}*|доспех\p{L}*|кирас\p{L}*|шлем\p{L}*|одеяни\p{L}*|мант\p{L}*|робу|роба)/u', $t)) {
             return '';
         }
+        // who goes: the one spoken to; to the Narrator - the first person named ("пусть Бренуин купит себе…").
+        // For whom: another person named after him ("Балгруф, купи Бренуину одежду" - Балгруф pays and goes, the
+        // things are put on Бренуин); "себе" in the line means himself.
         $who = (stripos($to, 'Narrator') === false) ? trim($to) : '';
-        // a named person in the line wins ("пусть Бренуин купит", "Балгруф, купи Бренуину")
+        $benef = '';
         $near = tesWorldNearbyNames(30);
+        $playerNorm = tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''));
         foreach (preg_split('/[^\p{L}\-]+/u', $line, -1, PREG_SPLIT_NO_EMPTY) as $i => $word) {
-            $hit = tesWorldHeardName($word, $near) ?: ($i > 0 ? tesWorldKnownName($word) : '');
-            if ($hit !== '' && $hit !== $who && tesWorldNorm($hit) !== tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''))) {
-                $who = $hit;
-                break;
+            $hit = tesWorldHeardName($word, $near) ?: tesWorldKnownName($word);
+            if ($hit === '' || tesWorldNorm($hit) === $playerNorm || $hit === $who || $hit === $benef) {
+                continue;
             }
+            if ($who === '') {
+                $who = $hit;
+            } elseif ($benef === '') {
+                $benef = $hit;
+            }
+        }
+        if (preg_match('/(?<![\p{L}])себе(?![\p{L}])/u', $t)) {
+            $benef = '';
+        }
+        $benefRef = ($benef !== '' && !tesWorldIsChild($benef)) ? tesWorldRefOf($benef) : '';
+        if ($benefRef === '') {
+            $benef = '';
         }
         if ($who === '' || tesWorldIsChild($who)) {
             return '';
@@ -142,14 +158,14 @@ if (!function_exists('tesErrandSpoken')) {
         }
         [$items, $outfit, $what, $price] = tesErrandGoods($t);
         [$trader, $traderRef] = tesErrandTrader();
-        $db->execQuery("INSERT INTO public.tes_errands (npc, ref, trader, trader_ref, items, outfit, what, price, stage) VALUES ('"
+        $db->execQuery("INSERT INTO public.tes_errands (npc, ref, trader, trader_ref, items, outfit, what, price, stage, benef, benef_ref) VALUES ('"
             . $db->escape($who) . "', '{$ref}', '" . $db->escape($trader) . "', '{$traderRef}', '" . implode(',', $items) . "', '{$outfit}', '"
-            . $db->escape($what) . "', {$price}, '" . ($traderRef !== '' ? 'walk' : 'buy') . "')");
+            . $db->escape($what) . "', {$price}, '" . ($traderRef !== '' ? 'walk' : 'buy') . "', '" . $db->escape($benef) . "', '{$benefRef}')");
         if ($traderRef !== '') {
             tesWorldQueue(['prid ' . $ref, 'teshold 0', 'tesescort ' . hexdec($traderRef)]);
         }
         error_log("[tes_world] errand: {$who} goes to buy {$what} from " . ($trader ?: 'nobody') . " ({$price})");
-        return " *{$who} " . ($trader !== '' ? "идёт к торговцу ({$trader})" : 'идёт') . " покупать себе {$what} на свои деньги — это уже происходит*";
+        return " *{$who} " . ($trader !== '' ? "идёт к торговцу ({$trader})" : 'идёт') . " покупать " . ($benef !== '' ? "для {$benef}" : 'себе') . " {$what} на свои деньги — это уже происходит*";
     }
 
     /** On every request: walking errands - near the trader (or 3 minutes gone) -> the purchase. */
@@ -189,12 +205,18 @@ if (!function_exists('tesErrandSpoken')) {
             }
             // the purchase: his gold to the trader, the things to him, put on; a set becomes his default outfit
             $cmds = ['prid ' . $e['ref'], 'removeitem 0000000F ' . intval($e['price'])];
+            if (strval($e['benef_ref'] ?? '') !== '') {
+                $cmds[] = 'prid ' . $e['benef_ref'];  // bought for another: the things go to him
+            }
             foreach (array_filter(explode(',', strval($e['items']))) as $item) {
                 $cmds[] = 'additem ' . $item . ' 1';
                 $cmds[] = 'equipitem ' . $item;
             }
             if ($e['outfit'] !== '') {
                 $cmds[] = 'tesoutfit ' . hexdec($e['outfit']);
+            }
+            if (strval($e['benef_ref'] ?? '') !== '') {
+                $cmds[] = 'prid ' . $e['ref'];
             }
             if ($e['trader_ref'] !== '') {
                 $cmds[] = 'tesescort 0';
