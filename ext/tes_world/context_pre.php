@@ -67,6 +67,10 @@ try {
                     $tesWorldSaid[] = '«' . mb_substr($line, 0, 90) . '»';
                 }
             }
+            // the system block alone was ignored (live 19:19: the same three lines again) - the same words ride in
+            // the last message, right before the answer
+            $tesWorldHint .= ($tesWorldHint !== '' ? ' ' : '') . ($tesWorldSaid ? 'ЗАПРЕЩЕНО повторять твои прошлые фразы: ' . implode(' ', array_slice($tesWorldSaid, 0, 6)) . '. ' : '')
+                . 'Ответ — новыми словами, одной-двумя короткими фразами, не с «Что ж»; если просьба — действие, сделай его и опиши результат одной фразой.';
             chimRegisterPromptInjection('prompt_bottom', 'tes_narrator_fresh',
                 ($tesWorldSaid ? 'Ты уже говорил: ' . implode(' ', $tesWorldSaid) . ' — не повторяй эти фразы, их образы и зачины. ' : '')
                 . 'Скажи новое и по делу, коротко. Не начинай с «Что ж», «Ох», «Ах», «Ну что»; не зови игрока «ярл» в каждой реплике; не пересказывай его просьбу и не комментируй, как он «переменчив».', 102);
