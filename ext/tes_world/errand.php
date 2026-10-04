@@ -54,29 +54,53 @@ if (!function_exists('tesErrandSpoken')) {
         return ['', ''];
     }
 
+    /** "купи / закупись / приобрети / возьми себе / сходи в лавку за …" - and not "не покупай", "не бери". */
+    function tesErrandIsBuy(string $t): bool
+    {
+        $buy = '(?:куп(?:и|ите|ит|ил|им|ить)|\p{L}*куп(?:ай|айте|ись|итесь|ить)|прикуп\p{L}*|закуп\p{L}*|приобрет\p{L}*|приобре[тс]\p{L}*|раздобуд\p{L}*|разжив\p{L}*|обзаведи\p{L}*|заведи\s+себе)';
+        $take = '(?:возьми|бери|достань|добудь|найди|заведи)\s+(?:себе\s+)?(?:\p{L}+\s+){0,3}?(?:одежд\p{L}*|наряд\p{L}*|сапог\p{L}*|ботин\p{L}*|брон\p{L}*)';
+        $shop = '(?:сходи|пойди|иди|ступай|сбегай|загляни|отправляйся)\s+(?:\p{L}+\s+){0,2}?(?:в\s+лавк\p{L}*|к\s+торговц\p{L}*|на\s+рынок|в\s+магазин|к\s+портн\p{L}*|к\s+Белетор\p{L}*|за\s+покупк\p{L}*)';
+        if (preg_match('/(?<![\p{L}])не\s+(?:\p{L}+\s+){0,2}?(?:\p{L}*куп\p{L}*|бери|возьми|приобретай|заведи)(?![\p{L}])/u', $t)) {
+            return false;
+        }
+        return (bool)preg_match('/(?<![\p{L}])(?:' . $buy . ')(?![\p{L}])/u', $t)
+            || (bool)preg_match('/(?<![\p{L}])' . $take . '(?![\p{L}])/u', $t)
+            || (bool)preg_match('/(?<![\p{L}])' . $shop . '/u', $t);
+    }
+
     /** What to buy from the words: [items (hex FormIDs), outfit (hex or ''), what, price]. */
     function tesErrandGoods(string $t): array
     {
-        if (preg_match('/(богат\p{L}*|роскошн\p{L}*|дорог\p{L}*|знатн\p{L}*|как\s+(?:ярл|дворян)\p{L}*)/u', $t)) {
+        if (preg_match('/(богат\p{L}*|роскошн\p{L}*|дорог\p{L}*|знатн\p{L}*|шикарн\p{L}*|лучш\p{L}*|как\s+(?:ярл|дворян)\p{L}*|по-ярловски)/u', $t)) {
             return [['000CEE76', '000CEE78'], '000DAB7A', 'богатое одеяние и сапоги с оковкой', 600];
         }
-        // a named thing: the words after "купи (себе)", longest phrase first, clothing or armour from the index
-        if (preg_match('/куп\p{L}*\s+(?:себе\s+)?((?:\p{L}+\s*){1,4})/u', $t, $m)) {
-            $words = array_values(array_filter(preg_split('/\s+/u', trim($m[1])), fn($w) => mb_strlen($w) > 2 && !in_array($w, ['одежду', 'одежда', 'что-нибудь', 'нибудь', 'новую', 'новые', 'новый', 'себе'], true)));
-            for ($n = count($words); $n >= 1; $n--) {
-                $stem = implode(' ', array_map(fn($w) => mb_substr($w, 0, max(4, mb_strlen($w) - 2)), array_slice($words, 0, $n)));
-                if ($stem === '') {
-                    continue;
-                }
-                $like = '%' . str_replace(' ', '%', $stem) . '%';
-                $row = $GLOBALS['db']->fetchOne("SELECT formid, name, (extra->>'value')::int AS v FROM public.tes_game_index WHERE kind = 'item' AND extra->>'rec' = 'ARMO'"
-                    . " AND name_lc LIKE '" . $GLOBALS['db']->escape($like) . "' AND coalesce((extra->>'value')::int, 0) > 0 ORDER BY (extra->>'value')::int LIMIT 1");
-                if (!empty($row['formid'])) {
-                    return [[strtoupper(strval($row['formid']))], '', strval($row['name']), max(10, intval($row['v']) * 2)];
-                }
+        // a named piece: the part of the body from the noun, the material from the adjective; the plain base
+        // item of the game (REQ_<Heavy|Light>_<material>_<Feet|Hands|Head|Body>), never an enchanted or unique one
+        $part = '';
+        foreach (['Feet' => '/(сапог|ботин|туфл|обув)/u', 'Hands' => '/(перчат|рукавиц|наручи)/u', 'Head' => '/(шлем|шапк|капюшон|колпак)/u', 'Body' => '/(кирас|доспех|брон[юеяи]|куртк|кольчуг)/u'] as $pt => $re) {
+            if (preg_match($re, $t)) {
+                $part = $pt;
+                break;
             }
         }
-        return [['00086991', '00086993'], '0009D5E0', 'красивая одежда и сапоги', 250];
+        if ($part !== '') {
+            $material = '';
+            foreach (['Iron' => '/желез/u', 'Steel' => '/сталь|стальн/u', 'Leather' => '/кожан|кожа/u', 'Hide' => '/шкур/u'] as $mt => $re) {
+                if (preg_match($re, $t)) {
+                    $material = $mt;
+                    break;
+                }
+            }
+            $db = $GLOBALS['db'];
+            $cands = $material !== '' ? ["REQ_Heavy_{$material}_{$part}", "REQ_Light_{$material}_{$part}"]
+                : ['Feet' => ['REQ_Cloth_Farm_Feet_1'], 'Hands' => ['REQ_Light_Leather_Hands'], 'Head' => ['REQ_Light_Leather_Head'], 'Body' => ['REQ_Light_Leather_Body']][$part];
+            foreach ($cands as $edid) {
+                $row = $db->fetchOne("SELECT formid, name, (extra->>'value')::int AS v FROM public.tes_game_index WHERE kind = 'item' AND editor_id = '" . $db->escape($edid) . "' LIMIT 1");
+                if (!empty($row['formid'])) {
+                    return [[strtoupper(strval($row['formid']))], '', strval($row['name']), max(10, intval($row['v']) * 3)];
+                }
+            }
+        }        return [['00086991', '00086993'], '0009D5E0', 'красивая одежда и сапоги', 250];
     }
 
     /**
@@ -86,7 +110,7 @@ if (!function_exists('tesErrandSpoken')) {
     function tesErrandSpoken(string $line, string $to): string
     {
         $t = mb_strtolower(str_replace('ё', 'е', $line));
-        if (!preg_match('/(?<![\p{L}])(куп(?:и|ите|ит|ил)|покупай|прикупи|закупи)(?![\p{L}])/u', $t) || preg_match('/(?<![\p{L}])не\s+(?:\p{L}+\s+)?куп/u', $t)) {
+        if (!tesErrandIsBuy($t)) {
             return '';
         }
         // only clothes and armour: "купи мне меч" is not this errand
