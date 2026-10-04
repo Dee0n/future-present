@@ -125,7 +125,7 @@ if (!function_exists('tesRealmAfterOrder')) {
                 if (preg_match('/^prid ([0-9a-f]{8})$/', $cmd, $m)) {
                     $who = strtoupper($m[1]);
                 } elseif ($who !== '' && strpos($cmd, 'getdistance') === 0 && preg_match('/GetDistance >> ([0-9.]+)/', strval($l['output']), $dm)) {
-                    if (floatval($dm[1]) > 900.0 && in_array($who, $refs, true)) {
+                    if (floatval($dm[1]) > 700.0 && in_array($who, $refs, true)) {
                         $far[] = $who;
                     }
                     $who = '';
@@ -140,13 +140,13 @@ if (!function_exists('tesRealmAfterOrder')) {
             }
         } elseif ($probe['value'] === '' || $probe['age'] >= 120) {
             $pd = tesWatchGet('party_dist');
-            if ($pd['value'] === '' || $pd['age'] >= 75) {
+            if ($pd['value'] === '' || $pd['age'] >= 30) {
                 tesWatchSet('party_dist', '1');
                 $max = $db->fetchOne("SELECT coalesce(max(id), 0) AS m FROM public.tes_god_console_log");
                 tesWatchSet('party_probe', strval(intval($max['m'] ?? 0)));
                 $target = $anchor === 'player' ? '20' : $anchor;
                 foreach (array_slice($refs, 0, 24) as $ref) {
-                    tesWorldQueue(['prid ' . $ref, 'getdistance ' . ($anchor === 'player' ? '20' : hexdec($anchor))]);
+                    tesWorldQueue(['prid ' . $ref, 'getdistance ' . ($anchor === 'player' ? '14' : $anchor)]);
                 }
             }
         }

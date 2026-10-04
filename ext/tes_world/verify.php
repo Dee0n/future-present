@@ -57,7 +57,7 @@ if (!function_exists('tesWorldVerifyAdd')) {
                 if (strtotime(strval($r['due_at'])) > time()) {
                     continue;
                 }
-                $probe = $kind === 'strip' ? 'tesstate' : ($kind === 'kill' ? 'getdead' : 'getdistance 20');
+                $probe = $kind === 'strip' ? 'tesstate' : ($kind === 'kill' ? 'getdead' : 'getdistance 14');
                 $max = $db->fetchOne("SELECT coalesce(max(id), 0) AS m FROM public.tes_god_console_log");
                 tesWorldQueue(['prid ' . $ref, $probe]);
                 $db->execQuery("UPDATE public.tes_order_checks SET stage = 'ask', asked_at = now(), last_id = " . intval($max['m'] ?? 0) . " WHERE id = {$id}");
