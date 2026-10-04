@@ -82,7 +82,8 @@ try {
         // "Как будто бы и лизать должен, нет?" went to the Narrator and changed nothing).
         $tesWorldWith = $tesWorldType !== 'narrator_inputtext' ? $tesWorldTo : tesWorldCompanion();
         if ($tesWorldWith !== ''
-            && preg_match('/^[\s\p{P}]*(стоп|стой|остановись|остановитесь|прекрати\p{L}*|хватит|довольно|достаточно|закончи\p{L}*|все,? хватит)[\s\p{P}]*$/iu', $tesWorldLine)) {
+            && preg_match('/^[\s\p{P}]*(стоп|стой|остановись|остановитесь|прекрати\p{L}*|хватит|довольно|достаточно|закончи\p{L}*|все,? хватит)([\s\p{P}]+(секс\p{L}*|трах\p{L}*|еб\p{L}*|это|уже|сцен\p{L}*|все))*[\s\p{P}]*$/iu', $tesWorldLine)) {
+            $tesWorldStopped = true;  // "Стоп секс!" (live 15:01) is a stop, not a new scene for the word "секс"
             $tesWorldStopRef = tesWorldRefOf($tesWorldWith);
             if ($tesWorldStopRef !== '') {
                 tesWorldQueue(['prid ' . $tesWorldStopRef, 'teslove stop']);
@@ -93,7 +94,7 @@ try {
         // "пора бы мне начинать" - Сигрид answered "я готова" three times and never chose the
         // action that starts it. What kind: from this line; "начинаем" alone - from what the
         // player said to the same person in the last 10 minutes.
-        if ($tesWorldWith !== '' && !tesWorldIsChild($tesWorldWith)) {
+        if ($tesWorldWith !== '' && empty($tesWorldStopped) && !tesWorldIsChild($tesWorldWith)) {
             $tesWorldLove = tesWorldLoveTags($tesWorldLine);
             $tesWorldGo = (bool)preg_match('/(?<![\p{L}])(начина\p{L}*|начн\p{L}*|начать|приступ\p{L}*|давай уже|поехали)(?![\p{L}])/iu', $tesWorldLine);
             if ($tesWorldLove === '' && $tesWorldGo) {
