@@ -265,8 +265,8 @@ bool Function TESRunAndReport(String command) Global
     if command == "tesversion"
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
         ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
-        ; 6 = also "tesplace here"; 7 = also "tespeace"
-        AIAgentFunctions.logMessage("tesversion@@7", "tes_god_console")
+        ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place)
+        AIAgentFunctions.logMessage("tesversion@@8", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -1298,6 +1298,10 @@ Function TESHold(String arg) Global
     endif
     int id = arg as int
     if id <= 0
+        if StorageUtil.GetIntValue(target, "TESAIOff") == 1
+            target.EnableAI(true)
+            StorageUtil.UnsetIntValue(target, "TESAIOff")
+        endif
         if StorageUtil.GetIntValue(target, "TESHeld") == 1
             ActorUtil.RemovePackageOverride(target, sandboxWork)
             target.RemoveFromFaction(sandboxFaction)
@@ -1329,6 +1333,10 @@ Function TESHold(String arg) Global
     target.EvaluatePackage()
     ; the Whiterun cell has a way out and a sandboxing prisoner finds it: he does not move at all
     target.SetDontMove(true)
+    ; and no walking animation either (owner, 17:20: "пусть анимации вырубит" - held people kept walking in
+    ; place): the actor's AI is switched off, he just stands; "teshold 0" switches it on again
+    target.EnableAI(false)
+    StorageUtil.SetIntValue(target, "TESAIOff", 1)
     AIAgentFunctions.logMessage("teshold " + arg + "@@" + target.GetDisplayName() + " is held there", "tes_god_console")
 EndFunction
 
