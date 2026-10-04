@@ -217,6 +217,20 @@ if (!function_exists('tesCrimeFine')) {
         return ['setav speedmult 100', 'modav carryweight 1', 'modav carryweight -1'];
     }
 
+    /**
+     * How a prisoner is held, by what the game's bridge can do. v11+: "teshold" (CHIM's do-nothing package,
+     * SetDontMove, the AI stays on). Older bridges switched the AI OFF for it, and an actor without AI freezes
+     * in the T-pose (owner, 22:08: "люди в тюрьме в T позе"): there the AI is given back and he lives around
+     * the cell ("tesroutine at"); the warden brings back whoever walks out.
+     */
+    function tesCrimeHoldCmd(string $insideRef): array
+    {
+        $ver = function_exists('tesWatchGet') ? intval(tesWatchGet('bridge_ver')['value']) : 0;
+        if ($ver >= 11) {
+            return ['teshold ' . hexdec($insideRef)];
+        }
+        return ['teshold 0', 'tesroutine at ' . hexdec($insideRef)];
+    }
     /** Console sequence that puts the actor into the cell: prisoner clothes, cannot leave. */
     function tesCrimeJailCommands(string $ref, string $insideRef): array
     {
@@ -231,7 +245,7 @@ if (!function_exists('tesCrimeFine')) {
         $strip = $child ? [] : ['tesjailbox in', 'unequipall',
             'additem ' . TES_CRIME_RAGS . ' 1', 'equipitem ' . TES_CRIME_RAGS . ' 1',
             'additem ' . TES_CRIME_WRAPS . ' 1', 'equipitem ' . TES_CRIME_WRAPS . ' 1'];
-        return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $strip, ['setrestrained 1', 'teshold ' . hexdec($insideRef)], tesCrimeLegIrons());
+        return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $strip, array_merge(['setrestrained 1'], tesCrimeHoldCmd($insideRef)), tesCrimeLegIrons());
     }
 
     /** Put an escaped prisoner back: he already wears the rags, so only move and hold. */
@@ -239,7 +253,7 @@ if (!function_exists('tesCrimeFine')) {
     {
         $child = function_exists('tesGodGuardIsChild') && tesGodGuardIsChild($ref);
         return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $child ? [] : ['equipitem ' . TES_CRIME_RAGS . ' 1'],
-            ['setrestrained 1', 'teshold ' . hexdec($insideRef)], tesCrimeLegIrons());
+            array_merge(['setrestrained 1'], tesCrimeHoldCmd($insideRef)), tesCrimeLegIrons());
     }
 
     /**
