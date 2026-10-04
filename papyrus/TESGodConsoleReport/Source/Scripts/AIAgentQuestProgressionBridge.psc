@@ -185,6 +185,23 @@ bool Function TESRunAndReport(String command) Global
             victim.DamageActorValue("Health", victim.GetActorValue("Health") + 100000.0)
             Utility.Wait(1.0)
         endif
+        if !victim.IsDead() && !victim.IsChild()
+            ; live 2026-10-04 16:04: the Ebony Warrior sat at health -30 and "dead: False" through every
+            ; step above (a script of the mod keeps him up). Everything that can hold an actor
+            ; up is taken off, a silent kill; and if he still stands, he is taken out of the world.
+            victim.SetGhost(false)
+            victim.SetUnconscious(false)
+            victim.SetNoBleedoutRecovery(false)
+            victim.StopCombat()
+            victim.KillSilent()
+            Utility.Wait(1.0)
+            if !victim.IsDead()
+                victim.Disable()
+                victim.Delete()
+                AIAgentFunctions.logMessage("teskill@@" + victim.GetDisplayName() + " would not die - removed from the world", "tes_god_console")
+                return true
+            endif
+        endif
         if !victim.IsDead() && victim.IsChild()
             AIAgentFunctions.logMessage("teskill@@" + victim.GetDisplayName() + " is a child: the game does not let children die", "tes_god_console")
             return true
