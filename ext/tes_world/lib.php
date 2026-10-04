@@ -580,6 +580,15 @@ if (!function_exists('tesWorldEnsureTable')) {
             }
         }
         $self = (bool)preg_match('/(?<![\p{L}])(раздевайся|раздевайтесь|разденься|снимай\s+с\s+себя|сними\s+с\s+себя|снять\s+с\s+себя|скидывай\s+одежду)(?![\p{L}])/iu', $t);
+        // "Отдавай мясо мне", "Отдай всё": the one spoken to hands over everything he carries (live
+        // 03:14-03:17, 13:23, 18:41: "Но это же все мои запасы!" - and nothing moved). The agent
+        // burned 18 steps on the same order and failed.
+        if ($kind === '' && !$self && $addressee !== ''
+            && preg_match('/(?<![\p{L}])(отдай\p{L}*|отдавай\p{L}*)(?![\p{L}])/iu', $t)
+            && preg_match('/(?<![\p{L}])(все|всё|мясо|деньги|денег|золото|вещи|товар\p{L}*|запасы|мне)(?![\p{L}])/iu', $t)
+            && !preg_match('/(?<![\p{L}])не\s+(\p{L}+\s+)?(отдавай|отдай)/iu', $t)) {
+            return ['kind' => 'take', 'targets' => [$addressee]];
+        }
         if ($kind === '' && !$self) {
             return null;
         }

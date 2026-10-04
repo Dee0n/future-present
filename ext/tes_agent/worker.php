@@ -48,8 +48,9 @@ $GLOBALS['TES_AGENT_LOCAL_ONLY'] = trim(strval($tesLocalOnly['value'] ?? ''), '"
 $GLOBALS['TES_AGENT_LOCAL_FIRST'] = isset($args['local']) || trim(strval($tesLocalFirst['value'] ?? ''), '"') === '1';
 // --quick: an order passed on by an NPC. Live 2026-10-04 02:49-03:00: such tasks ran 20-45 steps
 // each (one spent 45 steps on an unkillable man) while five plain orders waited behind them.
-$maxSteps = isset($args['quick']) ? 18 : TES_AGENT_MAX_STEPS;
-$maxSeconds = isset($args['quick']) ? 120 : TES_AGENT_MAX_SECONDS;
+// (cost, same day: four of six quick tasks ran all 18 steps at ~8K tokens each and failed - now 10)
+$maxSteps = isset($args['quick']) ? 10 : TES_AGENT_MAX_STEPS;
+$maxSeconds = isset($args['quick']) ? 90 : TES_AGENT_MAX_SECONDS;
 $dry = isset($args['dry']);
 // --readonly: a QUESTION, not a deed ("ask: ..." from the Narrator). Dry run 2026-10-03: asked
 // "what is on my quest list", the agent teleported the player and tried to move a quest
