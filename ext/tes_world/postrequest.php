@@ -18,7 +18,9 @@ try {
         tesWorldDuelTick();
         $tesWorldType = strval($GLOBALS['gameRequest'][0] ?? '');
         $tesWorldLaws = tesWorldLaws();
-        if ($tesWorldLaws && in_array($tesWorldType, ['inputtext', 'inputtext_s', 'rechat', 'request', 'infonpc_close', 'infonpc', 'bored'], true)) {
+        // laws are the ruler's: only while the player holds a title (owner: "только в случае если
+        // игрок ярл и он издаёт законы")
+        if ($tesWorldLaws && !empty(tesWorldFacts()['player_title']) && in_array($tesWorldType, ['inputtext', 'inputtext_s', 'rechat', 'request', 'infonpc_close', 'infonpc', 'bored'], true)) {
             $db = $GLOBALS['db'];
             $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_world_patrols (id bigserial PRIMARY KEY, created_at timestamptz NOT NULL DEFAULT now(), guard text NOT NULL DEFAULT '')");
             $db->execQuery("ALTER TABLE public.tes_world_patrols ADD COLUMN IF NOT EXISTS target text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS stage text NOT NULL DEFAULT 'agent', ADD COLUMN IF NOT EXISTS law text NOT NULL DEFAULT ''");

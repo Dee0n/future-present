@@ -120,6 +120,35 @@ if (!function_exists('tesCrimeFine')) {
     define('TES_CRIME_RAGS', '0003C9FE');   // REQ_Cloth_Prisoner_Body "Домотканая одежда"
     define('TES_CRIME_WRAPS', '0003CA00');  // REQ_Cloth_Prisoner_Feet "Ножные обмотки"
     define('TES_CRIME_DAY', 10000000);      // gamets per game day (game seconds = gamets * 0.00864)
+    define('TES_CRIME_MAX_DAYS', 3650);     // "пожизненно" = ten game years
+
+    /**
+     * The term in game days from words: "на 5 дней", "на неделю", "на месяц", "на три года",
+     * "пожизненно". 0 = no term said. Owner, 2026-10-04: "в тюрьме день сидят, а не сколько
+     * сказано" - every path read only "N сут/дн" digits and fell back to one day.
+     */
+    function tesCrimeTerm(string $text): int
+    {
+        $t = mb_strtolower(str_replace('ё', 'е', $text));
+        if (preg_match('/(пожизненн|навсегда|навечно|до конца (жизни|дней)|до смерти)/u', $t)) {
+            return TES_CRIME_MAX_DAYS;
+        }
+        $words = ['один' => 1, 'одну' => 1, 'одна' => 1, 'два' => 2, 'две' => 2, 'три' => 3, 'четыре' => 4, 'пять' => 5, 'шесть' => 6,
+            'семь' => 7, 'восемь' => 8, 'девять' => 9, 'десять' => 10, 'пятнадцать' => 15, 'двадцать' => 20, 'тридцать' => 30,
+            'сорок' => 40, 'пятьдесят' => 50, 'сто' => 100, 'двести' => 200, 'пол' => 0.5];
+        $units = ['(?:сут\p{L}*|дн\p{L}*|день|дня)' => 1, 'недел\p{L}*' => 7, 'месяц\p{L}*' => 30, '(?:год\p{L}*|лет)' => 365];
+        $num = '(\d+|' . implode('|', array_keys($words)) . ')';
+        foreach ($units as $u => $mult) {
+            if (preg_match('/(?<![\p{L}\d])' . $num . '\s*' . $u . '/u', $t, $m)) {
+                $n = is_numeric($m[1]) ? intval($m[1]) : $words[$m[1]];
+                return max(1, min(TES_CRIME_MAX_DAYS, intval(round($n * $mult))));
+            }
+            if (preg_match('/(?<![\p{L}])на\s+(?:одн[иу]\s+)?' . $u . '/u', $t)) {
+                return max(1, min(TES_CRIME_MAX_DAYS, $mult));
+            }
+        }
+        return 0;
+    }
 
     function tesCrimeEnsureJailTable(): void
     {

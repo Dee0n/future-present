@@ -786,7 +786,13 @@ if (!function_exists('tesGodGuardValidate')) {
             if ($cmd['verb'] === 'unjail') {
                 return tesCrimeUnjail($name, strval($npc['refid'] ?? ''));
             }
-            $days = preg_match('/(\d+)/', strval($cmd['args']), $dm) ? max(1, min(365, intval($dm[1]))) : 1;
+            // the term as said: "на неделю", "на три года", "пожизненно" (in the command or in the
+            // player's own words), digits alone are days
+            $days = function_exists('tesCrimeTerm') ? (tesCrimeTerm(strval($cmd['args'])) ?: tesCrimeTerm(strval($GLOBALS['gameRequest'][3] ?? ''))) : 0;
+            if ($days <= 0) {
+                $days = preg_match('/(\d+)/', strval($cmd['args']), $dm) ? intval($dm[1]) : 1;
+            }
+            $days = max(1, min(3650, $days));
             return tesCrimeJail($name, strval($npc['refid'] ?? ''), 'по воле свыше', $days);
         }
         if ($cmd['verb'] === 'fine') {

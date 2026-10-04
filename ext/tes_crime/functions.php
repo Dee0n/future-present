@@ -144,9 +144,9 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
             if (!empty($again)) {
                 // already inside: a new sentence only changes the term ("сади на сто дней" to a
                 // man jailed for one day, live 2026-10-04 02:25)
-                $days = $fine ? 0 : (intval(preg_replace('/\D+/', '', $item)) ?: tesCrimeNumberNear($said, '(?:сут|дн|день|дня|год|лет)'));
+                $days = $fine ? 0 : (tesCrimeTerm($item) ?: tesCrimeTerm($said) ?: intval(preg_replace('/\D+/', '', $item)));
                 if ($days > 0) {
-                    $GLOBALS['db']->execQuery("UPDATE public.tes_crime_jail SET release_gamets = jailed_gamets + " . (TES_CRIME_DAY * max(1, min(365, $days)))
+                    $GLOBALS['db']->execQuery("UPDATE public.tes_crime_jail SET release_gamets = jailed_gamets + " . (TES_CRIME_DAY * max(1, min(TES_CRIME_MAX_DAYS, $days)))
                         . " WHERE refid = '{$refEsc}' AND status = 'jailed'");
                 }
                 continue;
@@ -158,11 +158,12 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
                 }
                 [$ok, $msg] = tesCrimeFine($name, strval($npc['refid']), $amount);
             } else {
-                $days = intval(preg_replace('/\D+/', '', $item));
+                // "на неделю", "на год", "пожизненно" - in the action's item or in what was said
+                $days = tesCrimeTerm($item) ?: tesCrimeTerm($said) ?: intval(preg_replace('/\D+/', '', $item));
                 if ($days <= 0) {
-                    $days = tesCrimeNumberNear($said, '(?:сут|дн|день|дня)') ?: 1;
+                    $days = 1;
                 }
-                [$ok, $msg] = tesCrimeJail($name, strval($npc['refid']), "арестован: {$actor}", max(1, min(365, $days)), $actor);
+                [$ok, $msg] = tesCrimeJail($name, strval($npc['refid']), "арестован: {$actor}", max(1, min(TES_CRIME_MAX_DAYS, $days)), $actor);
             }
             error_log("[tes_crime] {$actor}: {$code} -> {$name}: " . ($ok ? 'ok' : 'failed') . " - {$msg}");
         } catch (Throwable $e) {

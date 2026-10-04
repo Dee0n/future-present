@@ -657,9 +657,8 @@ if (!function_exists('tesWorldEnsureTable')) {
                     tesWorldQueue(['prid ' . $ref, 'teskill', 'kill']);
                 }
             } elseif ($fast['kind'] === 'jail' && function_exists('tesCrimeJail')) {
-                $days = function_exists('tesCrimeNumberNear') ? tesCrimeNumberNear($said, '(?:сут|дн|день|дня)') : 0;
-                $years = function_exists('tesCrimeNumberNear') ? tesCrimeNumberNear($said, '(?:год|лет)') : 0;
-                tesCrimeJail($who, $ref, "арестован по приказу правителя через {$by}", max(1, min(365, $years > 0 ? 365 : ($days ?: 1))), $guard);
+                $days = function_exists('tesCrimeTerm') ? tesCrimeTerm($said) : 0;
+                tesCrimeJail($who, $ref, "арестован по приказу правителя через {$by}", max(1, min(3650, $days ?: 1)), $guard);
             } else {
                 continue;
             }
