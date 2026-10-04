@@ -263,6 +263,13 @@ if (!function_exists('tesCrimeFine')) {
             $g = tesGodGuardResolveNpcLoose($guard);
             $guardRef = strtoupper(trim(strval($g['refid'] ?? '')));
         }
+        // From a spoken order (preprocessing) tes_god_guard's resolver is not loaded yet: the guard was never
+        // found, nobody walked the prisoner and he was teleported into the cell (owner, 17:07: "тп в
+        // темницу, а не проводит"). The exact name straight from the table then.
+        if ($guard !== '' && !preg_match('/^[0-9A-F]{8}$/', $guardRef)) {
+            $gr = $db->fetchOne("SELECT refid FROM public.core_npc_master WHERE npc_name = '" . $db->escape($guard) . "' LIMIT 1");
+            $guardRef = strtoupper(trim(strval($gr['refid'] ?? '')));
+        }
         $escort = preg_match('/^[0-9A-F]{8}$/', $guardRef) && $guardRef !== $refId;
         $first = $escort ? ['prid ' . $refId, 'stopcombat', 'prid ' . $guardRef, 'tesfollow ' . hexdec($refId)] : tesCrimeJailCommands($refId, $inside);
         if (!tesCrimeQueue($first)) {
@@ -352,16 +359,54 @@ if (!function_exists('tesCrimeFine')) {
         return [true, "{$npc}: выпущен из темницы и возвращён к игроку"];
     }
 
-    /** A guard standing near the player right now (not the accused), or ''. */
+    /**
+     * Guards that are busy with something and must not be given another job (owner, 17:08: "если он делает
+     * одно — то не отвлекается на другое": Джон was to take Арнбьорна to jail and the law round sent him
+     * after Данника). Busy: leading a prisoner (escort stages), on a round, in a scene, holding a trial.
+     */
+    function tesCrimeBusyGuards(): array
+    {
+        $db = $GLOBALS['db'];
+        $busy = [];
+        $rows = $db->fetchAll("SELECT guard_ref FROM public.tes_crime_jail WHERE status = 'jailed' AND stage IN ('catch', 'walk') AND guard_ref <> '' AND stage_at > now() - interval '6 minutes'");
+        foreach (is_array($rows) ? $rows : [] as $r) {
+            $n = $db->fetchOne("SELECT npc_name FROM public.core_npc_master WHERE upper(refid) = '" . $db->escape(strtoupper(strval($r['guard_ref']))) . "' LIMIT 1");
+            if (!empty($n['npc_name'])) {
+                $busy[strval($n['npc_name'])] = true;
+            }
+        }
+        $tbl = $db->fetchOne("SELECT 1 AS x FROM information_schema.tables WHERE table_name = 'tes_world_patrols'");
+        if (!empty($tbl)) {
+            foreach ($db->fetchAll("SELECT guard FROM public.tes_world_patrols WHERE created_at > now() - interval '2 minutes' AND guard <> '' AND stage IN ('walk', 'look')") ?: [] as $r) {
+                $busy[strval($r['guard'])] = true;
+            }
+        }
+        $tbl = $db->fetchOne("SELECT 1 AS x FROM information_schema.tables WHERE table_name = 'tes_agent_tasks'");
+        if (!empty($tbl)) {
+            foreach ($db->fetchAll("SELECT goal FROM public.tes_agent_tasks WHERE status = 'fast' AND goal LIKE 'love: %' AND created_at > now() - interval '4 minutes'") ?: [] as $r) {
+                if (preg_match('/^love: (.+?) \+ (.+?) \[/u', strval($r['goal']), $m)) {
+                    $busy[trim($m[1])] = true;
+                    $busy[trim($m[2])] = true;
+                }
+            }
+        }
+        return array_keys($busy);
+    }
+
+    /** A guard standing near the player right now (not the accused, not a busy one), or ''. */
     function tesCrimeNearestGuard(string $except): string
     {
         $row = $GLOBALS['db']->fetchOne("SELECT data FROM eventlog WHERE type = 'infonpc_close' ORDER BY rowid DESC LIMIT 1");
+        $busy = tesCrimeBusyGuards();
         foreach (explode('/', strval($row['data'] ?? '')) as $name) {
             $name = trim($name);
             if ($name === '' || $name === $except || mb_strpos($name, '(far away)') !== false) {
                 continue;
             }
             $clean = trim(preg_replace('/(\s*\([a-z ]+\))+\s*$/u', '', $name) ?? $name);
+            if (in_array($clean, $busy, true)) {
+                continue;
+            }
             if (mb_stripos($clean, 'Стражник') !== false || mb_stripos($clean, 'Guard') !== false) {
                 return $clean;
             }
