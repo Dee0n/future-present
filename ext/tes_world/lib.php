@@ -595,7 +595,7 @@ if (!function_exists('tesWorldEnsureTable')) {
             'handjob' => 'handjob|рукой|дроч|подроч',
             'footjob' => 'footjob|ногами|ступн',
             'boobjob' => 'boobjob|между груд|сиськами|грудью',
-            'cunnilingus,lickingvagina,oralfingering' => 'cunnilingus|кунилинг|куннилинг|лиз|вылиж',
+            'cunnilingus,lickingvagina' => 'cunnilingus|кунилинг|куннилинг|лиз|вылиж',
             'vaginalfingering' => 'fingering|пальц',
             'rimjob' => 'rimjob|римминг|анилингус',
             'facial' => 'facial|на лицо',
@@ -614,7 +614,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         ];
         // the more specific kinds are listed so that they win over plain "sex"
         $order = ['deepthroat', 'reversecowgirl', 'facesitting', 'sixtynine,69', 'analsex', 'blowjob', 'handjob', 'footjob', 'boobjob',
-            'cunnilingus,lickingvagina,oralfingering', 'vaginalfingering', 'rimjob', 'facial', 'cumonchest', 'rubbingclitoris', 'missionary',
+            'cunnilingus,lickingvagina', 'vaginalfingering', 'rimjob', 'facial', 'cumonchest', 'rubbingclitoris', 'missionary',
             'cowgirl', 'doggystyle', 'grindingpenis,buttjob', 'thighjob', 'cuddling', 'frenchkissing', 'vaginalsex'];
         foreach ($order as $tags) {
             if (preg_match('/(' . $map[$tags] . ')/u', $w)) {

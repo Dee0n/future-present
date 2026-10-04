@@ -75,6 +75,42 @@ try {
                 }
             }
         }
+        // "Стоп!", "Остановись!" said to someone ends the scene with him (live 14:36-14:37: said
+        // twice, nothing happened). With no scene running the bridge just answers "no scene to end".
+        if ($tesWorldType !== 'narrator_inputtext' && $tesWorldTo !== ''
+            && preg_match('/^[\s\p{P}]*(стоп|стой|остановись|остановитесь|прекрати\p{L}*|хватит|довольно|достаточно|закончи\p{L}*|все,? хватит)[\s\p{P}]*$/iu', $tesWorldLine)) {
+            $tesWorldStopRef = tesWorldRefOf($tesWorldTo);
+            if ($tesWorldStopRef !== '') {
+                tesWorldQueue(['prid ' . $tesWorldStopRef, 'teslove stop']);
+                error_log("[tes_world] scene stop asked: {$tesWorldTo}");
+            }
+        }
+        // The scene starts from the player's own words. Live 2026-10-04 14:34: "буду лизать тебе…",
+        // "пора бы мне начинать" - Сигрид answered "я готова" three times and never chose the
+        // action that starts it. What kind: from this line; "начинаем" alone - from what the
+        // player said to the same person in the last 10 minutes.
+        if ($tesWorldType !== 'narrator_inputtext' && $tesWorldTo !== '' && !tesWorldIsChild($tesWorldTo)) {
+            $tesWorldLove = tesWorldLoveTags($tesWorldLine);
+            $tesWorldGo = (bool)preg_match('/(?<![\p{L}])(начина\p{L}*|начн\p{L}*|начать|приступ\p{L}*|давай уже|поехали)(?![\p{L}])/iu', $tesWorldLine);
+            if ($tesWorldLove === '' && $tesWorldGo) {
+                $tesWorldPrev = $GLOBALS['db']->fetchAll("SELECT data FROM eventlog WHERE type IN ('inputtext', 'inputtext_s') AND localts > " . (time() - 600)
+                    . " AND data LIKE '%(Talking to " . $GLOBALS['db']->escape($tesWorldTo) . ")%' ORDER BY rowid DESC LIMIT 4");
+                foreach (is_array($tesWorldPrev) ? $tesWorldPrev : [] as $pr) {
+                    $tesWorldLove = $tesWorldLove ?: tesWorldLoveTags(strval($pr['data']));
+                }
+            }
+            $tesWorldLoveRef = $tesWorldLove !== '' ? tesWorldRefOf($tesWorldTo) : '';
+            if ($tesWorldLoveRef !== '' && !preg_match('/(?<![\p{L}])(не\s+(буду|хочу|надо|будем)|потом|позже|завтра)(?![\p{L}])/iu', $tesWorldLine)) {
+                $tesWorldKey = "love: {$tesWorldTo} + игрок [{$tesWorldLove}]";
+                $tesWorldOnce = $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '20 seconds' AND status = 'fast' AND goal = '" . $GLOBALS['db']->escape($tesWorldKey) . "' LIMIT 1");
+                if (empty($tesWorldOnce)) {
+                    $GLOBALS['db']->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $GLOBALS['db']->escape($tesWorldKey) . "', 'fast', 'со слов игрока')");
+                    tesWorldQueue(['prid ' . $tesWorldLoveRef, 'unequipall', 'teslove 20 ' . $tesWorldLove]);
+                    $GLOBALS['gameRequest'][3] = rtrim(strval($GLOBALS['gameRequest'][3])) . " *это уже происходит на самом деле — отвечай как участница, а не обещай*" . $tesWorldTail;
+                    error_log("[tes_world] scene from the player's words: {$tesWorldKey}");
+                }
+            }
+        }
         // "отменяю закон" clears the standing laws
         if (preg_match('/(отмен\p{L}+|снима\p{L}+|упраздн\p{L}+)\s+(все\s+|мой\s+|этот\s+)?(закон|указ)/iu', $tesWorldLine)) {
             error_log('[tes_world] laws cleared: ' . tesWorldClearLaws());
