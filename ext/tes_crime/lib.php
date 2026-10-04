@@ -270,7 +270,10 @@ if (!function_exists('tesCrimeFine')) {
     function tesCrimeHoldCommands(string $ref, string $insideRef): array
     {
         $child = tesCrimeIsChildRef($ref);
-        return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $child ? [] : ['equipitem ' . TES_CRIME_RAGS . ' 1'],
+        // no "equipitem rags" here: the console gives the thing to whoever is selected even when he has none, and
+        // the warden's rounds were dressing the people the ruler had ordered undressed (live 23:43-23:47: a dozen
+        // "equipitem 0003C9FE" in four minutes, Карлотта and Олава in prison tunics)
+        return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef],
             array_merge(['setrestrained 1'], tesCrimeHoldCmd($insideRef)), tesCrimeLegIrons());
     }
 

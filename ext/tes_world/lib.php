@@ -481,14 +481,14 @@ if (!function_exists('tesWorldEnsureTable')) {
         if (empty($has['t'])) {
             return;
         }
-        $rows = $db->fetchAll("SELECT * FROM public.tes_world_duels WHERE NOT done AND created_at < now() - interval '45 seconds' ORDER BY id LIMIT 5");
+        $rows = $db->fetchAll("SELECT * FROM public.tes_world_duels WHERE NOT done AND created_at < now() - interval '240 seconds' ORDER BY id LIMIT 5");  // 45 s was no fight at all (owner, 23:50: "почему мгновенное убийство, а не атака")
         foreach (is_array($rows) ? $rows : [] as $r) {
             $db->execQuery("UPDATE public.tes_world_duels SET done = true WHERE id = " . intval($r['id']));
             $dead = $db->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE upper(refid) = '" . $db->escape($r['victim_ref']) . "' LIMIT 1");
             tesWorldQueue(['prid ' . $r['executioner_ref'], 'stopcombat']);
             if (strval($dead['d'] ?? '') !== 'true') {
                 tesWorldQueue(['prid ' . $r['victim_ref'], 'teskill', 'kill']);
-                error_log("[tes_world] execution of {$r['victim']}: the fight did not end it in 45 s - finished");
+                error_log("[tes_world] execution of {$r['victim']}: the fight did not end it in 4 minutes - finished");
             }
         }
     }

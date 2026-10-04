@@ -37,6 +37,11 @@ if (!function_exists('tesFestTick')) {
 
     function tesFestCmd(array $commands, int $delay = 0): void
     {
+        // nobody is teleported to the ruler for a number (owner: "почему все без конца ко мне тп")
+        $commands = array_values(array_filter($commands, fn($c) => $c !== 'moveto player'));
+        if (count($commands) < 2 && strpos(strval($commands[0] ?? 'prid'), 'prid') === 0) {
+            return;
+        }
         tesFestPush('cmd', json_encode(array_values($commands)), $delay);
     }
 

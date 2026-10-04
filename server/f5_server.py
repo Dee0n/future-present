@@ -37,8 +37,10 @@ ap.add_argument("--speed", type=float, default=1.1)
 # Measured 2026-10-04 on 18 lines x 3 voices: at margin 1.0 / slack 0.25 twelve ended with no
 # silence after the last sound (the tail was chopped); with more room the model finishes the
 # word, and trim_tail() below removes the silence it leaves when the room was not needed.
-ap.add_argument("--margin", type=float, default=1.05, help="x estimated speech length")
-ap.add_argument("--slack", type=float, default=0.5, help="extra seconds for the tail")
+# 2026-10-04 23:55: two thirds of the live lines still ended with no spare room ("spare tail 0.12s"), the
+# owner hears sentences cut short - more room; the unused part is silence and trim_tail() removes it.
+ap.add_argument("--margin", type=float, default=1.15, help="x estimated speech length")
+ap.add_argument("--slack", type=float, default=0.9, help="extra seconds for the tail")
 # 2026-10-04 23:35: the wav itself ends whole (30 of 30 test lines: GigaAM hears the last word at any margin),
 # yet in the game the endings are swallowed - the game stops the line before the file is over. More silence
 # after the last sound, so that what is cut is silence.

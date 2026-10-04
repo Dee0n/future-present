@@ -231,6 +231,12 @@ if (!function_exists('tesRealmAfterOrder')) {
                 }
             }
         }
+        // A feast "around the ruler" has no fixed place to bring people back to: the keeper measured the distance to
+        // the PLAYER and teleported everyone to him wherever he went (owner, 23:51: "почему все без конца ко мне
+        // тп"). The guests live around the spot they were put at (tesroutine here) - nobody is moved after that.
+        if ($anchor === 'player') {
+            return;
+        }
         // who walked off: ask, and on the next round read the answers
         $probe = tesWatchGet('party_probe');
         if ($probe['value'] !== '' && $probe['age'] >= 10 && $probe['age'] < 120) {
@@ -312,13 +318,23 @@ if (!function_exists('tesRealmAfterOrder')) {
             // away"), not from what was sent: on the old bridge a command can land on another person.
             // Two people per call: a sequence longer than ~10 s is broken into by other rows (see tesWorldQueueBusy).
             $short = trim(preg_replace('/\s*\[[^\]]*\]/u', '', $name) ?? $name);
-            $was = $db->fetchOne("SELECT 1 AS x FROM public.tes_god_console_log WHERE command = 'tesjailbox in' AND created_at > now() - interval '3 hours' AND output LIKE '" . $db->escape($short) . ":%' LIMIT 1");
-            if (!empty($was) || count($cmds) >= 4) {
+            // And even with an empty pocket the game dresses her again: it hands every NPC his DEFAULT OUTFIT anew
+            // (live 23:52: Аркадия in her merchant clothes, Эйла in her armour, minutes after everything had been
+            // taken away). So the outfit itself is changed - to the only one in Skyrim.esm with nothing on the body,
+            // NecromancerOutfitHoodOnly 00103B08 (one hood, 000C5D10), and the hood is taken off too.
+            $was = $db->fetchOne("SELECT 1 AS x FROM public.tes_god_console_log WHERE command = 'tesoutfit 1063688' AND created_at > now() - interval '3 hours' AND output LIKE '" . $db->escape($short) . " now has%' LIMIT 1");
+            if (!empty($was) || count($cmds) >= 10) {
                 continue;
             }
+            $boxed = $db->fetchOne("SELECT 1 AS x FROM public.tes_god_console_log WHERE command = 'tesjailbox in' AND created_at > now() - interval '3 hours' AND output LIKE '" . $db->escape($short) . ":%' LIMIT 1");
             $done[$r['refid']] = $name;
             $cmds[] = 'prid ' . $r['refid'];
-            $cmds[] = 'tesjailbox in';
+            if (empty($boxed)) {
+                $cmds[] = 'tesjailbox in';
+            }
+            $cmds[] = 'tesoutfit 1063688';
+            $cmds[] = 'unequipall';
+            $cmds[] = 'removeitem 000C5D10 2';
         }
         if ($cmds) {
             $GLOBALS['TES_WORN_SKIP'] = true;
