@@ -221,10 +221,22 @@ bool Function TESRunAndReport(String command) Global
         AIAgentFunctions.logMessage("tesungive@@" + taker.GetDisplayName() + ": " + moved + " kinds of items returned", "tes_god_console")
         return true
     endif
+    if command == "tesplace here"
+        ; a persistent marker where the player stands (the court's place, "суд будет в зале ярла");
+        ; the server takes the reference's FormID from the report and moves people to it
+        ObjectReference placeMarker = Game.GetPlayer().PlaceAtMe(Game.GetForm(0x3B), 1, true, false)
+        if placeMarker
+            AIAgentFunctions.logMessage("tesplace here@@" + placeMarker.GetFormID(), "tes_god_console")
+        else
+            AIAgentFunctions.logMessage("tesplace here@@error: no marker", "tes_god_console")
+        endif
+        return true
+    endif
     if command == "tesversion"
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
-        ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive"
-        AIAgentFunctions.logMessage("tesversion@@5", "tes_god_console")
+        ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
+        ; 6 = also "tesplace here"
+        AIAgentFunctions.logMessage("tesversion@@6", "tes_god_console")
         return true
     endif
     if command == "teskill"

@@ -111,6 +111,32 @@ if (!function_exists('tesTreasuryAdd')) {
                 return " *{$n} септимов внесено в казну (теперь {$b}); подтверди*";
             }
         }
+        // --- the court's place: "суд будет в зале ярла", "суд здесь" - where the player stands now
+        // (owner, 2026-10-04: "суд будет там где я назначу")
+        if (preg_match('/суд\p{L}*\s+(?:будет|пройд[её]т|теперь|здесь|тут|проводи\p{L}*)\s*(?:в|на|у|во)?\s*(.{0,40})/u', $t, $vm) && !preg_match('/суд\p{L}*\s+над|судить/u', $t)) {
+            $place = trim(preg_replace('/[.!?,…].*$/u', '', $vm[1]) ?? '');
+            $place = $place !== '' ? $place : 'здесь';
+            tesWatchEnsure();
+            tesWatchSet('court_name', $place);
+            $placed = 'на месте, где ты стоишь';
+            if (function_exists('tesBridgeVersion') && tesBridgeVersion() >= 6) {
+                $max = $GLOBALS['db']->fetchOne("SELECT coalesce(max(id), 0) AS m FROM public.tes_god_console_log");
+                tesWorldQueue(['tesplace here']);
+                for ($i = 0; $i < 12; $i++) {
+                    usleep(400000);
+                    $r = $GLOBALS['db']->fetchOne("SELECT output FROM public.tes_god_console_log WHERE id > " . intval($max['m'] ?? 0) . " AND command = 'tesplace here' ORDER BY id DESC LIMIT 1");
+                    if (!empty($r) && preg_match('/^\s*(\d+)\s*$/', strval($r['output']), $pm)) {
+                        tesWatchSet('court_ref', strtoupper(str_pad(dechex(intval($pm[1])), 8, '0', STR_PAD_LEFT)));
+                        $placed = 'в отмеченной точке';
+                        break;
+                    }
+                }
+            } else {
+                tesWatchSet('court_ref', '');  // an old bridge cannot set a mark: the accused is brought to the player
+            }
+            tesWatchNotify("Место суда: {$place}");
+            return " *суд ярла будет проходить: {$place} ({$placed}); подтверди это*";
+        }
         // --- court: "суд над Хеймскром", "судить Фаренгара"
         if (preg_match('/(?<![\p{L}])(суд\s+над|суди\p{L}*|судить|начина\p{L}*\s+суд|открыва\p{L}*\s+суд|привед\p{L}*\s+(?:.*\s)?на\s+суд)(?![\p{L}])/u', $t) && !preg_match('/(?<![\p{L}])не\s+(суди|судить)/u', $t)) {
             $who = '';
@@ -133,11 +159,16 @@ if (!function_exists('tesTreasuryAdd')) {
                 $charge = ($charge !== '' && $charge !== mb_substr($line, 0, 200)) ? $charge : '';
                 $db->execQuery("INSERT INTO public.tes_court (defendant, charge) VALUES ('" . $db->escape($who) . "', '" . $db->escape(mb_substr($charge, 0, 160)) . "')");
                 $ref = tesWorldRefOf($who);
+                $venueRef = strval(tesWatchGet('court_ref')['value']);
+                $venueName = strval(tesWatchGet('court_name')['value']);
                 if ($ref !== '' && !(function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($who))) {
-                    tesWorldQueue(['prid ' . $ref, 'moveto player']);
-                    tesWorldVerifyAdd('bring', $who, $ref);
+                    tesWorldQueue(['prid ' . $ref, 'moveto ' . ($venueRef !== '' ? $venueRef : 'player')]);
+                    if ($venueRef === '') {
+                        tesWorldVerifyAdd('bring', $who, $ref);
+                    }
                 }
-                return " *суд над {$who} открыт — подсудимого ведут к ярлу; приговор скажет ярл*";
+                $where = $venueName !== '' ? " ({$venueName})" : '';
+                return " *суд над {$who} открыт{$where} — подсудимого ведут в место суда; приговор скажет ярл*";
             }
         }
         return '';
@@ -155,10 +186,11 @@ if (!function_exists('tesTreasuryAdd')) {
             return '';
         }
         $d = strval($c['defendant']);
+        $venue = trim(strval(tesWatchGet('court_name')['value']));
         $charge = trim(strval($c['charge'])) !== '' ? ', обвинение: ' . trim(strval($c['charge'])) : '';
         if ($me === $d) {
             return "Тебя судит правитель{$charge}. Оправдывайся, умоляй или дерзи — в характере; приговор — его слово.";
         }
-        return "Идёт суд правителя над {$d}{$charge}. Ты присутствуешь: свидетельствуй по своему знанию и ждёшь приговора правителя.";
+        return "Идёт суд правителя над {$d}" . ($venue !== '' ? " ({$venue})" : '') . "{$charge}. Ты присутствуешь: свидетельствуй по своему знанию и ждёшь приговора правителя.";
     }
 }
