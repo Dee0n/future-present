@@ -14,16 +14,36 @@ try {
         require_once __DIR__ . '/lib.php';
         $tesWorldFacts = tesWorldFacts();
         $tesWorldHint = '';
+        // The laws and the "obey the ruler" lines went into EVERY request of EVERY NPC and were echoed back
+        // ("воля ярла… закон… закон… " - owner, 22:0x: "заебали повторяться"; even Lilith and the weaver
+        // chatted about "the new law"). Now: the title is a fact for everyone; the laws and the duty to obey are
+        // told only to those who enforce or are ordered (guards, the court, a steward) and only when the ruler
+        // speaks to them - the rest hear of the law as rumour, not as a script.
+        $tesWorldType0 = strval($GLOBALS['gameRequest'][0] ?? '');
+        $tesWorldMe0 = strval($GLOBALS['HERIKA_NAME'] ?? '');
+        $tesWorldSpoken0 = in_array($tesWorldType0, ['inputtext', 'inputtext_s', 'ginputtext'], true);
+        $tesWorldEnforcer = (bool)preg_match('/Стражник|Хускарл|Командир|Капитан|Легат|Ярл\s|Стюард|Управляющ|Судья|Палач/u', $tesWorldMe0);
+        $tesWorldPlain = $tesWorldFacts;
+        if (!$tesWorldEnforcer) {
+            foreach (array_keys($tesWorldPlain) as $k0) {
+                if (strpos($k0, 'law_') === 0) {
+                    unset($tesWorldPlain[$k0]);
+                }
+            }
+        }
+        $tesWorldFacts = $tesWorldPlain ? $tesWorldPlain : [];
         if ($tesWorldFacts) {
             chimRegisterPromptInjection('prompt_bottom', 'tes_world',
-                "ФАКТЫ МИРА (это правда, ты это знаешь и ведёшь себя соответственно; не спорь с ними и не высмеивай):\n- "
-                . implode("\n- ", $tesWorldFacts), 99);
-            if (strval($GLOBALS['HERIKA_NAME'] ?? '') !== 'The Narrator') {
+                "ФАКТЫ МИРА (это правда):\n- " . implode("\n- ", $tesWorldFacts), 99);
+            if ($tesWorldMe0 !== 'The Narrator' && $tesWorldSpoken0) {
                 $first = reset($tesWorldFacts);
                 // Live 2026-10-04 02:25-02:32: the new guard commander answered five orders with
                 // "будет исполнено" and did nothing - a promise is not a deed.
-                $deed = !empty($tesWorldFacts['player_title'])
-                    ? ' Приказ правителя ты в итоге исполняешь, но по-своему, в характере: сомневаешься, пугаешься, стыдишься, возмущаешься, торгуешься, тянешь время, ворчишь, просишь пощады или подчиняешься с достоинством — как у тебя принято; не все покорны одинаково, смелые и гордые спорят дольше, робкие дрожат. Прямо «нет, не буду» и «не могу» — не говори и не игнорируй приказ. Исполняя — вызови действие (если обычных не хватает — Carry_Out_Order, приказ словами, с именами): обещание без действия ничего не меняет. Не переспрашивай, если из слов и из того, кто рядом, понятно, о ком речь.'
+                // short and only when the line is an order: the long list of reactions was repeated word for word
+                $tesWorldLineNow = strval($GLOBALS['gameRequest'][3] ?? '');
+                $tesWorldLineNow = trim(preg_replace('/^[^:]{1,40}:\s*/u', '', preg_replace('/\s*\(Talking to [^)]*\)\s*$/u', '', $tesWorldLineNow) ?? $tesWorldLineNow) ?? $tesWorldLineNow);
+                $deed = (!empty($tesWorldFacts['player_title']) && function_exists('tesWorldLooksLikeOrder') && tesWorldLooksLikeOrder($tesWorldLineNow))
+                    ? ' Это приказ: исполни его действием (Carry_Out_Order, если подходящего нет), реагируй в характере, своими словами, без громких слов про «волю» и «закон».'
                     : '';
                 // Live 2026-10-04 13:10-13:12: Айрилет called the player "ярл Балгруф", the agent wrote
                 // "по приказу ярла Балгруфа" - the old jarl's NAME still starts with the word "Ярл".

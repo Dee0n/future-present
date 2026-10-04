@@ -807,6 +807,21 @@ if (!function_exists('tesWorldEnsureTable')) {
             } elseif ($fast['kind'] === 'dress') {
                 // bridge 10 "tesdressbest": the best of his OWN things first; "богато" with nothing rich of his own -
                 // Богатое одеяние + Сапоги с оковкой (JarlClothesOutfit03) as his new default outfit
+                // "рваный балахон надень", "в лохмотья" - the beggar's rags of RfaD (балахон, сапоги, шапка), what
+                // the owner asked for by name (live 21:56-21:58: Балгруф stayed in his own clothes four times)
+                if (preg_match('/(рван\p{L}*|лохмот\p{L}*|тряпк\p{L}*|обмотк\p{L}*|нищенск\p{L}*|бомжацк\p{L}*)/iu', $said)) {
+                    $rags = ['00013105', '00013106'];
+                    if (preg_match('/(шапк\p{L}*|головн\p{L}*)/iu', $said)) {
+                        $rags[] = '00013104';
+                    }
+                    $cmds = ['prid ' . $ref, 'unequipall'];
+                    foreach ($rags as $r) {
+                        $cmds[] = 'additem ' . $r . ' 1';
+                        $cmds[] = 'equipitem ' . $r;
+                    }
+                    tesWorldQueue($cmds);
+                    continue;
+                }
                 $rich = (bool)preg_match('/(богат\p{L}*|роскошн\p{L}*|дорог\p{L}*|наряд\p{L}*|нарядн\p{L}*|знатн\p{L}*|как\s+(?:ярл|дворян))/iu', $said);
                 if (function_exists('tesBridgeVersion') && tesBridgeVersion() >= 10) {
                     tesWorldQueue(['prid ' . $ref, 'tesdressbest ' . ($rich ? 'rich' : 'any')]);
