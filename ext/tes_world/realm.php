@@ -12,6 +12,12 @@
  *  9. the tax rate: "налог 20%" - what the traders pay, and how they take it.
  */
 
+// A feast lasts two game days (owner, 23:20: "сабантуй должен быть два дня"; a game day = 72 real minutes);
+// a plain gathering - 20 minutes.
+if (!defined('TES_REALM_PARTY_MIN')) {
+    define('TES_REALM_PARTY_MIN', 144);
+}
+
 if (!function_exists('tesRealmAfterOrder')) {
     function tesRealmEnsure(): void
     {
@@ -56,7 +62,7 @@ if (!function_exists('tesRealmAfterOrder')) {
         tesRealmEnsure();
         $db = $GLOBALS['db'];
         $rows = $db->fetchAll("SELECT id, refs FROM public.tes_gatherings WHERE NOT released AND refs <> ''"
-            . ($all ? '' : " AND created_at < now() - interval '20 minutes'") . " ORDER BY id LIMIT 4");
+            . ($all ? '' : " AND created_at < now() - (CASE WHEN party THEN interval '" . TES_REALM_PARTY_MIN . " minutes' ELSE interval '20 minutes' END)") . " ORDER BY id LIMIT 4");
         $n = 0;
         foreach (is_array($rows) ? $rows : [] as $g) {
             foreach (array_filter(explode(',', strval($g['refs']))) as $ref) {
@@ -78,6 +84,29 @@ if (!function_exists('tesRealmAfterOrder')) {
         tesRealmPartyTick();
     }
 
+    /**
+     * "Всех гостей сюда", "почему они уходят?" (owner, 23:19: the feast had run out after 20 minutes and nothing he
+     * said started it again): the last feast is opened anew around the ruler - the same guests, the full term.
+     */
+    function tesRealmPartyRecall(): string
+    {
+        tesRealmEnsure();
+        $db = $GLOBALS['db'];
+        $g = $db->fetchOne("SELECT id, refs FROM public.tes_gatherings WHERE party AND refs <> '' AND created_at > now() - interval '12 hours' ORDER BY id DESC LIMIT 1");
+        $refs = array_values(array_filter(explode(',', strval($g['refs'] ?? ''))));
+        if (!$refs) {
+            return '';
+        }
+        foreach ($refs as $ref) {
+            tesWorldQueue(['prid ' . $ref, 'moveto player', 'tesroutine here']);
+        }
+        $db->execQuery("UPDATE public.tes_gatherings SET released = false, created_at = now(), anchor = 'player' WHERE id = " . intval($g['id']));
+        tesRealmChatter(true);
+        tesWatchSet('party_probe', '');
+        error_log('[tes_world] feast: reopened, ' . count($refs) . ' guests called back');
+        return ' *гости (' . count($refs) . ') возвращены к ярлу, гулянка продолжается; это уже сделано, подтверди*';
+    }
+
     /** Is $me at a feast that is going on (not just gathered)? Those are not told to be silent. */
     function tesRealmPartyActive(string $me): bool
     {
@@ -86,7 +115,7 @@ if (!function_exists('tesRealmAfterOrder')) {
         if ($ref === '') {
             return false;
         }
-        $g = $GLOBALS['db']->fetchOne("SELECT refs FROM public.tes_gatherings WHERE party AND NOT released AND created_at > now() - interval '20 minutes' ORDER BY id DESC LIMIT 1");
+        $g = $GLOBALS['db']->fetchOne("SELECT refs FROM public.tes_gatherings WHERE party AND NOT released AND created_at > now() - interval '" . TES_REALM_PARTY_MIN . " minutes' ORDER BY id DESC LIMIT 1");
         return !empty($g['refs']) && in_array($ref, explode(',', strval($g['refs'])), true);
     }
 
@@ -123,7 +152,7 @@ if (!function_exists('tesRealmAfterOrder')) {
     {
         tesRealmEnsure();
         $db = $GLOBALS['db'];
-        $g = $db->fetchOne("SELECT id, refs, anchor FROM public.tes_gatherings WHERE party AND NOT released AND refs <> '' AND created_at > now() - interval '20 minutes' ORDER BY id DESC LIMIT 1");
+        $g = $db->fetchOne("SELECT id, refs, anchor FROM public.tes_gatherings WHERE party AND NOT released AND refs <> '' AND created_at > now() - interval '" . TES_REALM_PARTY_MIN . " minutes' ORDER BY id DESC LIMIT 1");
         if (empty($g['refs'])) {
             return;
         }
@@ -179,7 +208,7 @@ if (!function_exists('tesRealmAfterOrder')) {
                 }
             }
             tesWatchSet('party_probe', '');
-            foreach (array_slice(array_unique($far), 0, 12) as $ref) {
+            foreach (array_slice(array_unique($far), 0, 30) as $ref) {
                 tesWorldQueue(['prid ' . $ref, 'moveto ' . $anchor, $anchor === 'player' ? 'tesroutine here' : 'tesroutine at ' . hexdec($anchor)]);
             }
             if ($far) {
@@ -192,7 +221,7 @@ if (!function_exists('tesRealmAfterOrder')) {
                 $max = $db->fetchOne("SELECT coalesce(max(id), 0) AS m FROM public.tes_god_console_log");
                 tesWatchSet('party_probe', strval(intval($max['m'] ?? 0)));
                 $target = $anchor === 'player' ? '20' : $anchor;
-                foreach (array_slice($refs, 0, 24) as $ref) {
+                foreach (array_slice($refs, 0, 30) as $ref) {
                     tesWorldQueue(['prid ' . $ref, 'getdistance ' . ($anchor === 'player' ? '14' : $anchor)]);
                 }
             }
@@ -421,6 +450,13 @@ if (!function_exists('tesRealmAfterOrder')) {
                 return " *по слову ярла собравшиеся ({$n}) расходятся по своим делам; это уже происходит*";
             }
         }
+        // the feast again: "всех гостей сюда", "давайте сюда всех", "все к столу", "почему они уходят?", "гостей нет"
+        if (preg_match('/(?<![\p{L}])(?:гост\p{L}*|все|всех)\s+(?:\p{L}+\s+){0,2}?сюда(?![\p{L}])|гост\p{L}*\s+(?:\p{L}+\s+){0,2}?(?:обратно|назад)(?![\p{L}])|сюда\s+всех|где\s+(?:все\s+|мои\s+)?гост|гост\p{L}*\s+(?:нет|ушли|уходят|разбежал\p{L}*|разошл\p{L}*)|почему\s+(?:\p{L}+\s+){0,2}?уход|верн\p{L}*\s+(?:всех|гост\p{L}*)|(?<![\p{L}])(?:все|всех)\s+(?:\p{L}+\s+){0,3}?(?:за\s+стол|к\s+столу)/u', $t)) {
+            $back = tesRealmPartyRecall();
+            if ($back !== '') {
+                return $back;
+            }
+        }
         // gatherings: "собери всех женщин", "Всех жителей Вайтрана собери, в Гарцующей кобыле будем бухать" (verb
         // and object in either order; a place may be named - live 17:13, the Narrator said "собираю" and nobody
         // came: the old code wanted the verb first and brought only 8 people from near, always to the player)
@@ -591,7 +627,7 @@ if (!function_exists('tesRealmAfterOrder')) {
     function tesRealmCrowdLine(string $me = ''): string
     {
         tesRealmEnsure();
-        $g = $GLOBALS['db']->fetchOne("SELECT what, refs FROM public.tes_gatherings WHERE created_at > now() - interval '20 minutes' AND NOT released ORDER BY id DESC LIMIT 1");
+        $g = $GLOBALS['db']->fetchOne("SELECT what, refs FROM public.tes_gatherings WHERE (created_at > now() - interval '20 minutes' OR (party AND created_at > now() - interval '" . TES_REALM_PARTY_MIN . " minutes')) AND NOT released ORDER BY id DESC LIMIT 1");
         // only for those who were gathered: the feast line reached Фротар in Dragonsreach (live 17:3x)
         $myRef = $me !== '' ? tesWorldRefOf($me) : '';
         if (empty($g['what']) || $myRef === '' || !in_array($myRef, explode(',', strval($g['refs'] ?? '')), true)) {
