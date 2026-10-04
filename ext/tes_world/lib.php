@@ -488,7 +488,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         if ($kind === '' && !$self) {
             return null;
         }
-        if (preg_match('/(?<![\p{L}])(всех|все|каждого|каждую|если|когда)(?![\p{L}])/iu', $t)) {
+        if (preg_match('/(?<![\p{L}])(всех|каждого|каждую|если|когда)(?![\p{L}])|(?<![\p{L}])все\s+(женщин|мужчин|страж|люд|жител)/iu', $t)) {
             return null;  // a law or a condition - the agent's business
         }
         $near = tesWorldNearbyNames(30);

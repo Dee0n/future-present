@@ -25,6 +25,11 @@ try {
             $tesWorldHead = $hm[1];
             $tesWorldLine = $hm[2];
         }
+        // whom the line is said to: the tail CHIM adds, or the NPC this request is for
+        $tesWorldTo = preg_match('/\(Talking to ([^)]+)\)/u', strval($GLOBALS['gameRequest'][3] ?? ''), $wm) ? trim($wm[1]) : '';
+        if ($tesWorldTo === '' && strval($GLOBALS['HERIKA_NAME'] ?? '') !== 'The Narrator') {
+            $tesWorldTo = trim(strval($GLOBALS['HERIKA_NAME'] ?? ''));
+        }
         $tesWorldNames = tesWorldNearbyNames(30);
         if ($tesWorldNames && $tesWorldLine !== '' && mb_substr(ltrim($tesWorldLine), 0, 1) !== '*') {
             [$tesWorldFixed, $tesWorldChanges] = tesWorldFixHeardNames($tesWorldLine, $tesWorldNames);
@@ -35,7 +40,11 @@ try {
             }
         }
         // "Бери полмиллиона": the gold really changes hands (the NPC only talked about it, 13:23)
-        if ($tesWorldType !== 'narrator_inputtext' && preg_match('/\(Talking to ([^)]+)\)/u', $tesWorldTail, $gm)
+        if (preg_match('/(?<![\p{L}])(бери|возьми|держи|забирай|получай)(?![\p{L}])/iu', $tesWorldLine)) {
+            // live 2026-10-04 13:50: this block did not fire in the game though the same line passes by hand
+            error_log('[tes_world] gold? type=' . $tesWorldType . ' to=' . $tesWorldTo . ' amount=' . tesWorldSpokenAmount($tesWorldLine) . ' raw=' . mb_substr(strval($GLOBALS['gameRequest'][3] ?? ''), 0, 140));
+        }
+        if ($tesWorldType !== 'narrator_inputtext' && $tesWorldTo !== '' && ($gm = [0, $tesWorldTo])
             && preg_match('/(?<![\p{L}])(бери|возьми|держи|забирай|получай|на тебе|вот тебе|дарю|даю|жалую|плачу|заплачу)(?![\p{L}])/iu', $tesWorldLine)
             && !preg_match('/(?<![\p{L}])(штраф|отдай|отдавай|верни|плати|заплати)(?![\p{L}])/iu', $tesWorldLine)) {
             $tesWorldGold = tesWorldSpokenAmount($tesWorldLine);
@@ -48,7 +57,7 @@ try {
         }
         // what the ruler plainly ordered is done at once, whether or not the NPC passes it on
         if ($tesWorldType !== 'narrator_inputtext' && !empty(tesWorldFacts()['player_title'])) {
-            $tesWorldWhom = preg_match('/\(Talking to ([^)]+)\)/u', $tesWorldTail, $om) ? trim($om[1]) : '';
+            $tesWorldWhom = $tesWorldTo;
             $tesWorldOrder = tesWorldSpokenOrder($tesWorldLine, $tesWorldWhom);
             if ($tesWorldOrder) {
                 $tesWorldDone = tesWorldRunFast($tesWorldOrder, $tesWorldWhom, $tesWorldLine);
@@ -65,8 +74,8 @@ try {
         if (preg_match('/(хватит|перестань\p{L}*|прекрати\p{L}*|не надо|не нужно|не)\s+(\p{L}+\s+){0,3}?(ходить|ходи\p{L}*|следовать|следуй\p{L}*|таскаться|плестись)|отстань\p{L}*|отвали\p{L}*|отвяжи\p{L}*/iu', $tesWorldLine)
         ) {
             $tesWorldStop = [];
-            if (preg_match('/\(Talking to ([^)]+)\)/u', $tesWorldTail, $am)) {
-                $tesWorldStop[trim($am[1])] = true;
+            if ($tesWorldTo !== '') {
+                $tesWorldStop[$tesWorldTo] = true;
             }
             foreach (preg_split('/[^\p{L}]+/u', $tesWorldLine) as $w) {
                 $hit = $w !== '' ? tesWorldHeardName($w, $tesWorldNames) : '';
