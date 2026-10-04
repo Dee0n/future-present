@@ -1013,7 +1013,7 @@ if (!function_exists('tesGodGuardValidate')) {
             'equipitem', 'unequipitem', 'addspell', 'removespell', 'addperk', 'fw', 'sw', 'set',
             'advlevel', 'incpcs', 'tgm', 'setrelationshiprank', 'stopcombat', 'setscale', 'moveto',
             'placeatme', 'addfac', 'removefac', 'setplayerteammate', 'recycleactor', 'evp', 'resetai',
-            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal',
+            'setessential', 'pushactoraway', 'setlevel', 'coc', 'sgtm', 'setownership', 'unequipall', 'tesroutine', 'tesheal', 'heal', 'tesgive', 'teskill', 'giveall', 'takeall', 'removeallitems',
             'tesownhouse', 'tesclaim', 'tesstate', 'tesinspect', 'tesunfollow',
         ];
         $refused = [
@@ -1350,6 +1350,29 @@ if (!function_exists('tesGodGuardValidate')) {
             // 2026-10-04 02:44: "prid X" was refused, the "unequipall" after it was let through).
             if ($target === '' && in_array($verb, ['unequipall', 'unequipitem', 'equipitem', 'removeitem', 'additem', 'kill', 'resurrect', 'disable', 'enable', 'moveto', 'setrestrained', 'setav', 'forceav', 'modav'], true)) {
                 $reasons[] = "«{$command}»: не указано, кому — пиши {npc:Имя}.{$verb} … или player.{$verb} …";
+                continue;
+            }
+            // giveall / takeall: everything the NPC carries and wears goes to the player (bridge
+            // "tesgive all"). Live 2026-10-04 03:14-03:20: "отдай всё мясо и деньги" - three agent
+            // tasks in a row ran out of steps probing getitemcount item by item.
+            if (in_array($verb, ['giveall', 'takeall', 'removeallitems'], true)) {
+                if ($target === '' || strtolower($target) === 'player') {
+                    $reasons[] = "«{$command}»: giveall только для NPC: {npc:Имя}.giveall";
+                    continue;
+                }
+                if (tesGodGuardIsChild($target)) {
+                    $reasons[] = "«{$command}»: это ребёнок — детей не раздевают";
+                    continue;
+                }
+                $body = 'tesgive all';
+                $command = $target . '.' . $body;
+                $verb = 'tesgive';
+            }
+            // placeatme makes a NEW object from a base FormID. A name in quotes or a decimal RefID
+            // is not one: "player.placeatme 108160" (Анориат's RefID in decimal) dropped a stray
+            // book at the player's feet, twice (live 2026-10-04 03:19).
+            if ($verb === 'placeatme' && !preg_match('/^placeatme\s+(\{[a-z]+:[^}]+\}|[0-9A-Fa-f]{8})(\s+\d+)?\s*$/iu', $body)) {
+                $reasons[] = "«{$command}»: placeatme создаёт НОВЫЙ объект по базовому FormID (8 знаков) — привести существующего: {npc:Имя}.moveto player; дать предмет: additem";
                 continue;
             }
             if (in_array($verb, ['unequipall', 'unequipitem'], true) && tesGodGuardIsChild($target)) {

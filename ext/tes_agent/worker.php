@@ -500,7 +500,9 @@ function tesAgentRun(string $name, array $a, bool $dry, array &$finishState)
         case 'find':
             return tesAgentFind($a);
         case 'get_state':
-            $res = tesAgentRead([$who === 'player' ? 'tesstate' : "{$who}.tesstate"], $dry);
+            // the player by RefID too: a bare "tesstate" reads whoever the console selected last (live
+            // 2026-10-04 03:14: get_state player returned Ньяда Каменная Рука)
+            $res = tesAgentRead([$who === 'player' ? '00000014.tesstate' : "{$who}.tesstate"], $dry);
             foreach ($res['reports'] ?? [] as $r) {
                 if ($r['command'] === 'tesstate') {
                     // the bridge prints FormIDs in decimal ("worn body=Кираса#80156"); every
@@ -675,7 +677,9 @@ $system = "Ты — исполнитель воли бога-Нарратора 
     . "О персонажах сначала спроси сервер (npc_info, relationships, quest_log) — это мгновенно и без игры; в игру ходи за тем, чего сервер не знает. "
     . "Приказ касается только тех, кто в нём назван или на кого прямо указали; «всех» не додумывай и никого сам не свози. Детей (раса «Ребенок») не раздевай и в такие приказы не втягивай никогда. "
     . "Раздеть взрослого — один вызов console «{npc:Имя}.unequipall», по одной вещи не снимай. Приказ простой — исполни за 2-4 шага и finish. "
-    . "Делай только то, о чём просили: вопрос («что», «кто», «где», «сколько») — это ответ, а не повод телепортировать, выдавать или двигать квесты. "
+    . "В console цель пиши только как {npc:Русское имя из npc_info} или player — английских имён (Skjor, Ysolda) и голых RefID игра не поймёт. Команд prid, inv, strip, removeallitems, getequippeditems, forcekill нет — не пробуй. "
+    . "Забрать у NPC всё, что он несёт и носит, и отдать игроку — один вызов console «{npc:Имя}.giveall». Только золото: get_state покажет gold, затем remove_item у него и give_items игроку (золото = 0000000F). Игрок дарит золото NPC — remove_item у player и give_items этому NPC. Не перебирай предметы по одному через check. "
+. "Делай только то, о чём просили: вопрос («что», «кто», «где», «сколько») — это ответ, а не повод телепортировать, выдавать или двигать квесты. "
     . "Ответ на вопрос отдай в finish.summary (expect пустой). Задания игрока за него не проходи, если он прямо не попросил. "
     . "Изменения отношений, характера, памяти, брака сервер подтверждает сам («было → стало» в ответе инструмента) — их в expect не включай. "
     . "Закончи finish с проверяемыми ожиданиями (предметы, перки, навыки, стадии) — сервер их сверит в игре. Если невозможно — give_up с причиной. "
