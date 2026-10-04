@@ -589,8 +589,11 @@ if (!function_exists('tesWorldEnsureTable')) {
         // burned 18 steps on the same order and failed.
         if ($kind === '' && !$self && $addressee !== ''
             && preg_match('/(?<![\p{L}])(отдай\p{L}*|отдавай\p{L}*)(?![\p{L}])/iu', $t)
-            && preg_match('/(?<![\p{L}])(все|всё|мясо|деньги|денег|золото|вещи|товар\p{L}*|запасы|мне)(?![\p{L}])/iu', $t)
+            && preg_match('/(?<![\p{L}])(отдай\p{L}*|отдавай\p{L}*)(?:\s+\p{L}+){0,2}?\s+(все|всё|мясо|деньги|денег|золото|вещи|товар\p{L}*|запасы)(?![\p{L}])/iu', $t)
+            && !preg_match('/(?<![\p{L}])(ску[йе]\p{L}*|сковать|сдела\p{L}*|принеси\p{L}*|найди\p{L}*|купи\p{L}*|создай\p{L}*|приготов\p{L}*|добуд\p{L}*|сварить|свари)(?![\p{L}])/iu', $t)
             && !preg_match('/(?<![\p{L}])не\s+(\p{L}+\s+)?(отдавай|отдай)/iu', $t)) {
+            // (live 19:09: "скуй мне оружие и отдай мне его" emptied Йорлунд: "отдай мне" alone is not
+            // "give everything" - only a named thing in bulk is, and never when something is to be made first)
             return ['kind' => 'take', 'targets' => [$addressee]];
         }
         if ($kind === '' && !$self) {
