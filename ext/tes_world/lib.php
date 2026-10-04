@@ -153,9 +153,18 @@ if (!function_exists('tesWorldEnsureTable')) {
                 }
                 $d = tesWorldLev($want, $form);
                 $piece = $len >= 5 && $fl > $len && $fl - $len <= 3 && mb_strpos($form, $want) !== false;
+                // by the consonants: speech recognition garbles the vowels most ("Ормбьерн", "Оранверн"
+                // for Арнбьорн - live 16:53, the court could not find the accused)
+                $skelWant = preg_replace('/[аеёиоуыэюяь]/u', '', $want) ?? $want;
+                $skelForm = preg_replace('/[аеёиоуыэюяь]/u', '', $form) ?? $form;
+                $skel = (mb_strlen($skelForm) >= 4 && mb_strlen($skelWant) >= 3) ? tesWorldLev($skelWant, $skelForm) : 9;
                 $ok = $piece
                     || ($capital && ($d <= 1 || ($d === 2 && $len >= 6 && mb_substr($want, 0, 1) === mb_substr($form, 0, 1))))
+                    || ($capital && $len >= 6 && $skel <= 1)
                     || (!$capital && $d <= 1 && $len >= 6);
+                if ($ok && !$piece && $d > 2) {
+                    $d = 2;  // a consonant match is a good one, not a poor one
+                }
                 if ($ok && ($piece ? 0 : $d) < $bestD) {
                     $bestD = $piece ? 0 : $d;
                     $best = $name;

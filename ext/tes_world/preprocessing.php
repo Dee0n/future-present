@@ -64,10 +64,12 @@ try {
             }
         }
         // the treasury and the court: the ruler's words about them are done at once
-        if ($tesWorldTo !== '' && function_exists('tesCourtSpoken')) {
-            $tesWorldCourt = tesCourtSpoken($tesWorldLine, $tesWorldTo);
+        if (($tesWorldTo !== '' || $tesWorldType === 'narrator_inputtext') && function_exists('tesCourtSpoken')) {
+            // said to the Narrator ("Суд над Оранверном идёт…" 16:53 - went nowhere): the same court
+            $tesWorldAddr = $tesWorldTo !== '' ? $tesWorldTo : 'The Narrator';
+            $tesWorldCourt = tesCourtSpoken($tesWorldLine, $tesWorldAddr);
             if ($tesWorldCourt === '' && function_exists('tesRealmSpoken')) {
-                $tesWorldCourt = tesRealmSpoken($tesWorldLine, $tesWorldTo);
+                $tesWorldCourt = tesRealmSpoken($tesWorldLine, $tesWorldAddr);
             }
             if ($tesWorldCourt !== '') {
                 $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . $tesWorldCourt . $tesWorldTail;

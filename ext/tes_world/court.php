@@ -25,6 +25,7 @@ if (!function_exists('tesTreasuryAdd')) {
         $db->execQuery("INSERT INTO public.tes_treasury (id, balance) VALUES (1, 0) ON CONFLICT (id) DO NOTHING");
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_treasury_log (id serial PRIMARY KEY, delta bigint NOT NULL, why text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT now())");
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_court (id serial PRIMARY KEY, defendant text NOT NULL, charge text NOT NULL DEFAULT '', opened_at timestamptz NOT NULL DEFAULT now())");
+        $db->execQuery("ALTER TABLE public.tes_court ADD COLUMN IF NOT EXISTS closed boolean NOT NULL DEFAULT false");
     }
 
     function tesTreasuryBalance(): int
@@ -137,23 +138,49 @@ if (!function_exists('tesTreasuryAdd')) {
             tesWatchNotify("Место суда: {$place}");
             return " *суд ярла будет проходить: {$place} ({$placed}); подтверди это*";
         }
-        // --- court: "суд над Хеймскром", "судить Фаренгара"
-        if (preg_match('/(?<![\p{L}])(суд\s+над|суди\p{L}*|судить|начина\p{L}*\s+суд|открыва\p{L}*\s+суд|привед\p{L}*\s+(?:.*\s)?на\s+суд)(?![\p{L}])/u', $t) && !preg_match('/(?<![\p{L}])не\s+(суди|судить)/u', $t)) {
+        // --- court: "суд над Хеймскром", "судить Фаренгара", "будет суд", "я буду судить тебя"
+        tesTreasuryEnsure();
+        $db = $GLOBALS['db'];
+        $isNarrator = (stripos($to, 'Narrator') !== false);
+        $trialRe = '/(?<![\p{L}])(суд\s+над|суди\p{L}*|судить|начина\p{L}*\s+суд|открыва\p{L}*\s+суд|привед\p{L}*\s+(?:.*\s)?на\s+суд|(?:будет|идет|идёт|начал\p{L}*|начина\p{L}*|открыт\p{L}*)\s+суд|суд\s+(?:идет|идёт|начал\p{L}*|начина\p{L}*))(?![\p{L}])/u';
+        $openCourt = $db->fetchOne("SELECT id, defendant FROM public.tes_court WHERE opened_at > now() - interval '10 minutes' AND NOT closed ORDER BY id DESC LIMIT 1");
+        // the accused wandered off: "куда он пошёл", "привяжи его" - back to the ruler and tied to him
+        if (!empty($openCourt['defendant']) && preg_match('/куда\s+\p{L}+\s+пош[её]л|привяж\p{L}*|сбеж\p{L}*|убеж\p{L}*|уходить|верни\p{L}*\s+его|приведи\p{L}*\s+его|ушел|ушёл/u', $t)) {
+            $rf = tesWorldRefOf(strval($openCourt['defendant']));
+            if ($rf !== '') {
+                $vr = strval(tesWatchGet('court_ref')['value']);
+                tesWorldQueue(['prid ' . $rf, 'moveto ' . ($vr !== '' ? $vr : 'player'), 'tesfollow 20']);
+                return ' *' . $openCourt['defendant'] . ' возвращён к ярлу и привязан к нему — следует за ним, пока идёт суд; подтверди*';
+            }
+        }
+        if (preg_match($trialRe, $t) && !preg_match('/(?<![\p{L}])не\s+(суди|судить)/u', $t)) {
             $who = '';
-            $near = tesWorldNearbyNames(30);
-            foreach (preg_split('/[^\p{L}\-]+/u', $line, -1, PREG_SPLIT_NO_EMPTY) as $i => $w) {
-                $hit = tesWorldHeardName($w, $near) ?: ($i > 0 ? tesWorldKnownName($w) : '');
-                if ($hit !== '' && $hit !== $to && tesWorldNorm($hit) !== tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''))) {
-                    $who = $hit;
-                    break;
+            // "я буду судить тебя", "над тобой будет суд": the one spoken to
+            if (!$isNarrator && $to !== '' && preg_match('/(над\s+тобой|судить\s+тебя|тебя\s+(?:буду\s+|будем\s+)?суди|тебя\s+суд|суд\s+над\s+тобой|тебя\s+судят)/u', $t)) {
+                $who = $to;
+            }
+            if ($who === '') {
+                $near = tesWorldNearbyNames(30);
+                foreach (preg_split('/[^\p{L}\-]+/u', $line, -1, PREG_SPLIT_NO_EMPTY) as $i => $w) {
+                    $hit = tesWorldHeardName($w, $near) ?: ($i > 0 ? tesWorldKnownName($w) : '');
+                    if ($hit !== '' && $hit !== $to && tesWorldNorm($hit) !== tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''))) {
+                        $who = $hit;
+                        break;
+                    }
+                }
+            }
+            // "того стражника, который меня не защитил", "его": the last one the ruler accused
+            if ($who === '') {
+                $last = trim(strval(tesWatchGet('court_last')['value']));
+                if ($last !== '' && tesWatchGet('court_last')['age'] < 1800) {
+                    $who = $last;
                 }
             }
             if ($who === '' || tesWorldIsChild($who)) {
                 return '';
             }
-            tesTreasuryEnsure();
-            $db = $GLOBALS['db'];
-            $open = $db->fetchOne("SELECT 1 AS x FROM public.tes_court WHERE defendant = '" . $db->escape($who) . "' AND opened_at > now() - interval '10 minutes' LIMIT 1");
+            tesWatchSet('court_last', $who);
+            $open = $db->fetchOne("SELECT 1 AS x FROM public.tes_court WHERE defendant = '" . $db->escape($who) . "' AND opened_at > now() - interval '10 minutes' AND NOT closed LIMIT 1");
             if (empty($open)) {
                 $charge = trim(preg_replace('/^.*?(?:за|обвиня\p{L}*\s+в)\s+/u', '', mb_substr($line, 0, 200), 1) ?? '');
                 $charge = ($charge !== '' && $charge !== mb_substr($line, 0, 200)) ? $charge : '';
@@ -162,7 +189,9 @@ if (!function_exists('tesTreasuryAdd')) {
                 $venueRef = strval(tesWatchGet('court_ref')['value']);
                 $venueName = strval(tesWatchGet('court_name')['value']);
                 if ($ref !== '' && !(function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($who))) {
-                    tesWorldQueue(['prid ' . $ref, 'moveto ' . ($venueRef !== '' ? $venueRef : 'player')]);
+                    // brought to the place of the court and tied to the ruler for the trial (live 16:53:
+                    // "он куда-то пиздует… привяжи его ко мне")
+                    tesWorldQueue(['prid ' . $ref, 'moveto ' . ($venueRef !== '' ? $venueRef : 'player'), 'tesfollow 20']);
                     if ($venueRef === '') {
                         tesWorldVerifyAdd('bring', $who, $ref);
                     }
@@ -174,6 +203,21 @@ if (!function_exists('tesTreasuryAdd')) {
         return '';
     }
 
+    /** A trial lasts 10 minutes: then the accused is let go (no longer tied to the ruler). */
+    function tesCourtTick(): void
+    {
+        tesTreasuryEnsure();
+        $db = $GLOBALS['db'];
+        $rows = $db->fetchAll("SELECT id, defendant FROM public.tes_court WHERE NOT closed AND opened_at < now() - interval '10 minutes' LIMIT 4");
+        foreach (is_array($rows) ? $rows : [] as $r) {
+            $db->execQuery("UPDATE public.tes_court SET closed = true WHERE id = " . intval($r['id']));
+            $rf = tesWorldRefOf(strval($r['defendant']));
+            if ($rf !== '' && !(function_exists('tesCrimeIsJailed') && tesCrimeIsJailed(strval($r['defendant'])))) {
+                tesWorldQueue(['prid ' . $rf, 'tesfollow 0', 'tesunfollow']);
+            }
+        }
+    }
+
     /** One line about a trial that is going on, for the prompt of anyone in the talk, or ''. */
     function tesCourtLine(string $me): string
     {
@@ -181,7 +225,7 @@ if (!function_exists('tesTreasuryAdd')) {
             return '';
         }
         tesTreasuryEnsure();
-        $c = $GLOBALS['db']->fetchOne("SELECT defendant, charge FROM public.tes_court WHERE opened_at > now() - interval '10 minutes' ORDER BY id DESC LIMIT 1");
+        $c = $GLOBALS['db']->fetchOne("SELECT defendant, charge FROM public.tes_court WHERE opened_at > now() - interval '10 minutes' AND NOT closed ORDER BY id DESC LIMIT 1");
         if (empty($c['defendant'])) {
             return '';
         }
