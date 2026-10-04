@@ -22,7 +22,12 @@ try {
                 $deed = !empty($tesWorldFacts['player_title'])
                     ? ' Приказ правителя не обсуждай и не отвечай «не могу». Если приказ нельзя исполнить твоими обычными действиями — вызови Carry_Out_Order (приказ словами, с именами): обещание без действия ничего не меняет. Не переспрашивай, если из слов и из того, кто рядом, понятно, о ком речь.'
                     : '';
-                $tesWorldHint = 'Помни: ' . mb_substr($first, 0, mb_strpos($first . '.', '.')) . '.' . $deed;
+                // Live 2026-10-04 13:10-13:12: Айрилет called the player "ярл Балгруф", the agent wrote
+                // "по приказу ярла Балгруфа" - the old jarl's NAME still starts with the word "Ярл".
+                $who = !empty($tesWorldFacts['player_title'])
+                    ? ' Правитель — именно ' . strval($GLOBALS['PLAYER_NAME'] ?? 'игрок') . '; слово «Ярл» в чьём-то имени — только имя прежнего правителя, не титул.'
+                    : '';
+                $tesWorldHint = 'Помни: ' . mb_substr($first, 0, mb_strpos($first . '.', '.')) . '.' . $who . $deed;
             }
         }
         $tesWorldType = strval($GLOBALS['gameRequest'][0] ?? '');
@@ -30,7 +35,7 @@ try {
             $tesWorldNear = tesWorldNearbyNames();
             if ($tesWorldNear) {
                 $tesWorldHint .= ($tesWorldHint !== '' ? ' ' : '') . 'Слова игрока распознаны с голоса: имена бывают исковерканы или разбиты на части. Рядом сейчас: '
-                    . implode(', ', $tesWorldNear) . '. Искажённое имя — это тот из них, чьё имя ближе по звучанию; в действиях пиши имя точно как в этом списке.';
+                    . implode(', ', $tesWorldNear) . '. Искажённое имя — это тот из них, чьё имя ближе по звучанию; в действиях пиши имя точно как в этом списке, а игрока за оговорку не поправляй.';
             }
         }
         if ($tesWorldHint !== '' && isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
