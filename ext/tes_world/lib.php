@@ -566,6 +566,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         $verbs = [
             // "иди на улице подбираться" (live 13:18): lives as a beggar around the market
             'beg' => '(побира\p{L}*|подбира\p{L}*|попрошайнича\p{L}*|милостын\p{L}*)',
+            'post' => '(?:охраняй\p{L}*(?!\s+(?:меня|мен[яе]))|дежурь\p{L}*|стереги\p{L}*|сторожи\p{L}*|патрулируй\p{L}*|патрулиров\p{L}*|обходи\p{L}*\s+город)',
             'kill' => '(казни\p{L}*|убей\p{L}*|убить|убейте|прикончи\p{L}*)',
             'jail' => '(посади\p{L}*|сади|садите|сажай\p{L}*|арестуй\p{L}*|арестовать|в\s+тюрьму|в\s+темницу|за\s+решетку)',
             'strip' => '(раздень\p{L}*|раздевай|раздевайте|раздеть|сорви\p{L}*|срывай\p{L}*|сорвать\s+одежд\p{L}*|снимай\s+с|сними\s+с|снять\s+одежду\s+с)',
@@ -616,8 +617,8 @@ if (!function_exists('tesWorldEnsureTable')) {
         if (!$targets && $self && $addressee !== '') {
             return ['kind' => 'strip', 'targets' => [$addressee]];
         }
-        if (!$targets && $kind === 'beg' && $addressee !== '') {
-            return ['kind' => 'beg', 'targets' => [$addressee]];
+        if (!$targets && in_array($kind, ['beg', 'post'], true) && $addressee !== '') {
+            return ['kind' => $kind, 'targets' => [$addressee]];
         }
         if (!$targets && $kind !== '') {
             // bare "Раздеть." said to a woman - her; "Казнить её!" - whoever the last such order was about
@@ -728,16 +729,22 @@ if (!function_exists('tesWorldEnsureTable')) {
                     continue;
                 }
                 tesWorldQueue(['prid ' . $ref, 'unequipall']);
+                tesWorldVerifyAdd('strip', $who, $ref);
             } elseif ($fast['kind'] === 'bring') {
                 if (function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($who)) {
                     $done[] = "{$who}: сидит в темнице — его не приводят, а выпускают";
                     continue;
                 }
                 tesWorldQueue(['prid ' . $ref, 'moveto player']);
+                tesWorldVerifyAdd('bring', $who, $ref);
             } elseif ($fast['kind'] === 'beg') {
                 // beggar's life around the market: linked to Бренуин (0002C90F), the town's beggar;
                 // undressed too if the ruler said so. Needs the bridge's "tesroutine at" (pex 42272+).
                 if (tesWorldIsChild($who)) {
+                    continue;
+                }
+                if (function_exists('tesBridgeVersion') && tesBridgeVersion() < 2) {
+                    $done[] = "{$who}: мост в игре старый — «жить у места» заработает после перезапуска игры";
                     continue;
                 }
                 $cmds = ['prid ' . $ref];
@@ -746,6 +753,20 @@ if (!function_exists('tesWorldEnsureTable')) {
                 }
                 $cmds[] = 'tesroutine at ' . hexdec('0002C90F');
                 tesWorldQueue($cmds);
+            } elseif ($fast['kind'] === 'post') {
+                // a post or a round: "охраняй здесь" - around where the player stands now (works with
+                // every bridge); "патрулируй город" - around the market (Карлотта Валентия's stall)
+                if (tesWorldIsChild($who)) {
+                    continue;
+                }
+                if (preg_match('/(здесь|тут|рядом|у\s+меня|у\s+трона|у\s+входа)/iu', $said)) {
+                    tesWorldQueue(['prid ' . $ref, 'tesroutine here']);
+                } elseif (function_exists('tesBridgeVersion') && tesBridgeVersion() < 2) {
+                    $done[] = "{$who}: мост в игре старый — патруль заработает после перезапуска игры";
+                    continue;
+                } else {
+                    tesWorldQueue(['prid ' . $ref, 'tesroutine at ' . hexdec('0001A675')]);
+                }
             } elseif ($fast['kind'] === 'take') {
                 if (tesWorldIsChild($who)) {
                     continue;
@@ -754,12 +775,23 @@ if (!function_exists('tesWorldEnsureTable')) {
             } elseif ($fast['kind'] === 'kill') {
                 if ($guard === '' || !tesWorldDuel($guard, $who)) {
                     tesWorldQueue(['prid ' . $ref, 'teskill', 'kill']);
+                    tesWorldVerifyAdd('kill', $who, $ref);
                 }
             } elseif ($fast['kind'] === 'jail' && function_exists('tesCrimeJail')) {
                 $days = function_exists('tesCrimeTerm') ? tesCrimeTerm($said) : 0;
                 tesCrimeJail($who, $ref, "арестован по приказу правителя через {$by}", max(1, min(3650, $days ?: 1)), $guard);
             } else {
                 continue;
+            }
+            // what is done to a person is remembered by him: fear and anger towards the ruler
+            if (function_exists('tesLoyaltyBump')) {
+                $bump = ['strip' => [2.0, 1.5], 'jail' => [3.0, 3.0], 'kill' => [4.0, 2.0], 'take' => [1.0, 2.5], 'bring' => [0.5, 0.3], 'beg' => [1.5, 3.0]][$fast['kind']] ?? [0.0, 0.0];
+                if ($bump[0] > 0) {
+                    tesLoyaltyBump($who, $bump[0], $bump[1]);
+                }
+                if ($by !== '' && $by !== $who && $fast['kind'] !== 'bring') {
+                    tesLoyaltyBump($by, 0.3, 0.5);  // the one who carried it out likes it little
+                }
             }
             $done[] = $key;
         }
@@ -932,3 +964,5 @@ if (!function_exists('tesWorldEnsureTable')) {
         return [true, "{$player} теперь {$title} — это знают все персонажи{$extra}"];
     }
 }
+require_once __DIR__ . '/verify.php';
+require_once __DIR__ . '/watch.php';

@@ -168,6 +168,11 @@ bool Function TESRunAndReport(String command) Global
         AIAgentFunctions.logMessage(command + "@@copies of " + original.GetDisplayName() + " made: " + made, "tes_god_console")
         return true
     endif
+    if command == "tesversion"
+        ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill
+        AIAgentFunctions.logMessage("tesversion@@2", "tes_god_console")
+        return true
+    endif
     if command == "teskill"
         ; "kill" on an essential NPC only drops him to his knees. Essential/protected are flags
         ; of the actor BASE; clear them, then kill (no killer: nobody gets a bounty for it).

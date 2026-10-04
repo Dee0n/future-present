@@ -74,6 +74,12 @@ try {
                 $st = ['done' => 'исполнено', 'fast' => 'исполнено', 'failed' => 'не вышло', 'running' => 'идёт', 'queued' => 'идёт', 'waiting' => 'ждёт'][strval($o['status'])] ?? strval($o['status']);
                 $tesWorldOrderLines[] = '«' . mb_substr(trim($txt), 0, 70) . '» — ' . $st;
             }
+            if (function_exists('tesLoyaltyLine')) {
+                $tesWorldLoyal = tesLoyaltyLine($tesWorldMe);
+                if ($tesWorldLoyal !== '') {
+                    chimRegisterPromptInjection('prompt_bottom', 'tes_world_loyalty', $tesWorldLoyal, 96);
+                }
+            }
             if ($tesWorldOrderLines) {
                 chimRegisterPromptInjection('prompt_bottom', 'tes_world_orders', 'Приказы правителя тебе недавно (ты их помнишь): ' . implode('; ', $tesWorldOrderLines) . '.', 97);
             }

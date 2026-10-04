@@ -92,6 +92,15 @@ try {
         $GLOBALS['TES_WORLD_POST'] = true;
         require_once __DIR__ . '/lib.php';
         tesWorldDuelTick();
+        foreach (['tesWorldVerifyTick', 'tesWatchTick'] as $tesWorldTick) {
+            try {
+                if (function_exists($tesWorldTick)) {
+                    $tesWorldTick();
+                }
+            } catch (Throwable $e) {
+                error_log("[tes_world {$tesWorldTick}] " . $e->getMessage());
+            }
+        }
         $tesWorldType = strval($GLOBALS['gameRequest'][0] ?? '');
         $tesWorldLaws = tesWorldLaws();
         // laws are the ruler's: only while the player holds a title (owner: "только в случае если
