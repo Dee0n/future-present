@@ -575,6 +575,10 @@ if (!function_exists('tesWorldEnsureTable')) {
         $verbs = [
             // "иди на улице подбираться" (live 13:18): lives as a beggar around the market
             'beg' => '(побира\p{L}*|подбира\p{L}*|попрошайнича\p{L}*|милостын\p{L}*|пош[её]л\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь)|уходи|уйди|свали\p{L}*|исчезни|пошла\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь))',
+            // "стой", "стоять на месте", "не уходи", "жди здесь": he stays where he is (live 16:57: the accused
+            // kept walking off); "свободен", "можешь идти": let go
+            'stay' => '(стой(?:те)?(?=[\s!.,?]|$)|стоять|не\s+уходи|не\s+двигайся|не\s+иди|оставайся|оставайтесь|жди\s+(?:здесь|тут|меня)|ждите\s+(?:здесь|тут))',
+            'free' => '(свобод(?:ен|на|ны)|можешь\s+идти|можете\s+идти|иди\s+куда\s+хочешь|отпускаю)',
             'post' => '(?:охраняй\p{L}*(?!\s+(?:меня|мен[яе]))|дежурь\p{L}*|стереги\p{L}*|сторожи\p{L}*|патрулируй\p{L}*|патрулиров\p{L}*|обходи\p{L}*\s+город)',
             'kill' => '(казни\p{L}*|убей\p{L}*|убить|убейте|прикончи\p{L}*)',
             'jail' => '(посади\p{L}*|сади|садите|сажай\p{L}*|арестуй\p{L}*|арестовать|в\s+тюрьму|в\s+темницу|за\s+решетку)',
@@ -626,7 +630,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         if (!$targets && $self && $addressee !== '') {
             return ['kind' => 'strip', 'targets' => [$addressee]];
         }
-        if (!$targets && in_array($kind, ['beg', 'post'], true) && $addressee !== '') {
+        if (!$targets && in_array($kind, ['beg', 'post', 'stay', 'free'], true) && $addressee !== '') {
             return ['kind' => $kind, 'targets' => [$addressee]];
         }
         if (!$targets && $kind !== '') {
@@ -766,6 +770,18 @@ if (!function_exists('tesWorldEnsureTable')) {
                 }
                 $cmds[] = 'tesroutine at ' . hexdec('0002C90F');
                 tesWorldQueue($cmds);
+            } elseif ($fast['kind'] === 'stay' || $fast['kind'] === 'free') {
+                // stands where he is (the bridge's hold: sandbox around himself, he does not move) / is let go
+                if (tesWorldIsChild($who)) {
+                    continue;
+                }
+                if (function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($who)) {
+                    $done[] = "{$who}: в темнице — там он и так на месте";
+                    continue;
+                }
+                tesWorldQueue($fast['kind'] === 'stay'
+                    ? ['prid ' . $ref, 'tesfollow 0', 'teshold ' . hexdec($ref)]
+                    : ['prid ' . $ref, 'teshold 0', 'tesfollow 0', 'setrestrained 0', 'resetai']);
             } elseif ($fast['kind'] === 'post') {
                 // a post or a round: "охраняй здесь" - around where the player stands now (works with
                 // every bridge); "патрулируй город" - around the market (Карлотта Валентия's stall)

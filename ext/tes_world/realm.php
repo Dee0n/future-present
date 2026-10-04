@@ -28,7 +28,7 @@ if (!function_exists('tesRealmAfterOrder')) {
 
     function tesRealmKindWord(string $kind): string
     {
-        return ['strip' => 'раздет', 'kill' => 'казнён', 'jail' => 'отправлен в темницу', 'take' => 'отдал вещи', 'bring' => 'приведён', 'beg' => 'пошёл побираться',
+        return ['stay' => 'стоит на месте', 'free' => 'отпущен', 'strip' => 'раздет', 'kill' => 'казнён', 'jail' => 'отправлен в темницу', 'take' => 'отдал вещи', 'bring' => 'приведён', 'beg' => 'пошёл побираться',
             'post' => 'встал на пост', 'gather' => 'собраны', 'duel' => 'дерутся'][$kind] ?? $kind;
     }
 
@@ -40,7 +40,7 @@ if (!function_exists('tesRealmAfterOrder')) {
         if (function_exists('tesWatchNotify') && $kind !== 'gather') {
             tesWatchNotify('Приказ: ' . $who . ' — ' . tesRealmKindWord($kind));
         }
-        if (in_array($kind, ['strip', 'kill', 'jail', 'take', 'beg', 'post'], true) && $ref !== '') {
+        if (in_array($kind, ['strip', 'kill', 'jail', 'take', 'beg', 'post', 'stay'], true) && $ref !== '') {
             $db->execQuery("INSERT INTO public.tes_undo (kind, who, ref) VALUES ('" . $db->escape($kind) . "', '" . $db->escape($who) . "', '" . $db->escape($ref) . "')");
         }
         // a rumour about it, not more often than every 3 minutes
@@ -98,6 +98,9 @@ if (!function_exists('tesRealmAfterOrder')) {
             case 'beg':
             case 'post':
                 tesWorldQueue(['prid ' . $ref, 'tesroutine reset']);
+                break;
+            case 'stay':
+                tesWorldQueue(['prid ' . $ref, 'teshold 0', 'setrestrained 0', 'resetai']);
                 break;
         }
         if (function_exists('tesWatchNotify')) {

@@ -149,8 +149,8 @@ if (!function_exists('tesTreasuryAdd')) {
             $rf = tesWorldRefOf(strval($openCourt['defendant']));
             if ($rf !== '') {
                 $vr = strval(tesWatchGet('court_ref')['value']);
-                tesWorldQueue(['prid ' . $rf, 'moveto ' . ($vr !== '' ? $vr : 'player'), 'tesfollow 20']);
-                return ' *' . $openCourt['defendant'] . ' возвращён к ярлу и привязан к нему — следует за ним, пока идёт суд; подтверди*';
+                tesWorldQueue(['prid ' . $rf, 'moveto ' . ($vr !== '' ? $vr : 'player'), 'tesfollow 0', 'teshold ' . hexdec($rf)]);
+                return ' *' . $openCourt['defendant'] . ' возвращён к ярлу и стоит на месте, пока идёт суд; подтверди*';
             }
         }
         if (preg_match($trialRe, $t) && !preg_match('/(?<![\p{L}])не\s+(суди|судить)/u', $t)) {
@@ -191,7 +191,7 @@ if (!function_exists('tesTreasuryAdd')) {
                 if ($ref !== '' && !(function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($who))) {
                     // brought to the place of the court and tied to the ruler for the trial (live 16:53:
                     // "он куда-то пиздует… привяжи его ко мне")
-                    tesWorldQueue(['prid ' . $ref, 'moveto ' . ($venueRef !== '' ? $venueRef : 'player'), 'tesfollow 20']);
+                    tesWorldQueue(['prid ' . $ref, 'moveto ' . ($venueRef !== '' ? $venueRef : 'player'), 'tesfollow 0', 'teshold ' . hexdec($ref)]);
                     if ($venueRef === '') {
                         tesWorldVerifyAdd('bring', $who, $ref);
                     }
@@ -213,7 +213,7 @@ if (!function_exists('tesTreasuryAdd')) {
             $db->execQuery("UPDATE public.tes_court SET closed = true WHERE id = " . intval($r['id']));
             $rf = tesWorldRefOf(strval($r['defendant']));
             if ($rf !== '' && !(function_exists('tesCrimeIsJailed') && tesCrimeIsJailed(strval($r['defendant'])))) {
-                tesWorldQueue(['prid ' . $rf, 'tesfollow 0', 'tesunfollow']);
+                tesWorldQueue(['prid ' . $rf, 'teshold 0', 'tesfollow 0', 'setrestrained 0', 'resetai']);
             }
         }
     }
