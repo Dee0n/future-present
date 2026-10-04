@@ -146,9 +146,31 @@ try {
                 // The one spoken to is the one who acts - first in the scene.
                 $tesWorldThird = tesWorldThirdPerson($tesWorldLine, $tesWorldWith);
                 $tesWorldThirdRef = ($tesWorldThird !== '' && !tesWorldIsChild($tesWorldThird)) ? tesWorldRefOf($tesWorldThird) : '';
+                // "Хуй ему в рот запихай, еби его в рот" said to Джон (live 17:04): "ему/его" is the one on trial, not
+                // the player - the scene started with the player. A pronoun without a named partner means the
+                // last accused/defendant; with no such person and no "мне/меня" nothing is started.
+                $tesWorldSkipLove = false;
+                if ($tesWorldThirdRef === '' && empty($tesWorldSolo)
+                    && preg_match('/(?<![\p{L}])(ему|его|ей|её|ее|им|их|этого|этому|того|тому)(?![\p{L}])/iu', $tesWorldLine)
+                    && !preg_match('/(?<![\p{L}])(мне|меня|мой|мою|моё|со\s+мной|ко\s+мне|для\s+меня|нам|нас)(?![\p{L}])/iu', $tesWorldLine)) {
+                    $tesWorldCand = '';
+                    $tesWorldCourtRow = $GLOBALS['db']->fetchOne("SELECT defendant FROM public.tes_court WHERE opened_at > now() - interval '30 minutes' ORDER BY id DESC LIMIT 1");
+                    if (!empty($tesWorldCourtRow['defendant'])) {
+                        $tesWorldCand = strval($tesWorldCourtRow['defendant']);
+                    } elseif (function_exists('tesWatchGet') && tesWatchGet('court_last')['age'] < 1800) {
+                        $tesWorldCand = strval(tesWatchGet('court_last')['value']);
+                    }
+                    if ($tesWorldCand !== '' && $tesWorldCand !== $tesWorldWith && !tesWorldIsChild($tesWorldCand)) {
+                        $tesWorldThird = $tesWorldCand;
+                        $tesWorldThirdRef = tesWorldRefOf($tesWorldCand);
+                    } else {
+                        $tesWorldSkipLove = true;
+                        error_log("[tes_world] scene not started: a pronoun and nobody named | {$tesWorldLine}");
+                    }
+                }
                 $tesWorldKey = "love: {$tesWorldWith} + " . ($tesWorldThirdRef !== '' ? $tesWorldThird : 'игрок') . " [{$tesWorldLove}]";
                 $tesWorldOnce = $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '20 seconds' AND status = 'fast' AND goal = '" . $GLOBALS['db']->escape($tesWorldKey) . "' LIMIT 1");
-                if (empty($tesWorldOnce)) {
+                if (empty($tesWorldOnce) && empty($tesWorldSkipLove)) {
                     $GLOBALS['db']->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $GLOBALS['db']->escape($tesWorldKey) . "', 'fast', 'со слов игрока')");
                     if ($tesWorldSolo) {
                         // one person alone: not "with the player" - the scene is only hers
