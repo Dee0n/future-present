@@ -46,6 +46,18 @@ try {
                 error_log("[tes_world] gold: {$tesWorldGold} to " . trim($gm[1]));
             }
         }
+        // what the ruler plainly ordered is done at once, whether or not the NPC passes it on
+        if ($tesWorldType !== 'narrator_inputtext' && !empty(tesWorldFacts()['player_title'])) {
+            $tesWorldWhom = preg_match('/\(Talking to ([^)]+)\)/u', $tesWorldTail, $om) ? trim($om[1]) : '';
+            $tesWorldOrder = tesWorldSpokenOrder($tesWorldLine, $tesWorldWhom);
+            if ($tesWorldOrder) {
+                $tesWorldDone = tesWorldRunFast($tesWorldOrder, $tesWorldWhom, $tesWorldLine);
+                if ($tesWorldDone !== '') {
+                    $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *приказ уже исполняется ({$tesWorldDone}) — не обещай, а подтверди, что делается*" . $tesWorldTail;
+                    error_log("[tes_world] spoken order to {$tesWorldWhom}: {$tesWorldDone} | {$tesWorldLine}");
+                }
+            }
+        }
         // "отменяю закон" clears the standing laws
         if (preg_match('/(отмен\p{L}+|снима\p{L}+|упраздн\p{L}+)\s+(все\s+|мой\s+|этот\s+)?(закон|указ)/iu', $tesWorldLine)) {
             error_log('[tes_world] laws cleared: ' . tesWorldClearLaws());

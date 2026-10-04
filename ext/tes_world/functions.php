@@ -51,45 +51,9 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                 }
                 // bring / undress / execute / take everything: done at once, no agent, no queue
                 $fast = tesWorldFastOrder($order, $actor);
-                if ($fast && function_exists('tesGodGuardFilterAction') && function_exists('herikaQueueGodCommands')) {
-                    $key = $fast['kind'] . ': ' . implode(', ', $fast['targets']);
-                    $once = $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '40 seconds' AND status = 'fast' AND goal = '" . $GLOBALS['db']->escape($key) . "' LIMIT 1");
-                    if (empty($once)) {
-                        $GLOBALS['db']->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $GLOBALS['db']->escape($key) . "', 'fast', '" . $GLOBALS['db']->escape("через {$actor}: {$order}") . "')");
-                        $text = [];
-                        foreach ($fast['targets'] as $who) {
-                            if ($fast['kind'] === 'kill') {
-                                // a real fight: the one ordered does it if he is a man-at-arms, else the nearest guard
-                                $by = (function_exists('tesCrimeIsAuthority') && tesCrimeIsAuthority($actor) && $actor !== $who) ? $actor
-                                    : (function_exists('tesCrimeNearestGuard') ? tesCrimeNearestGuard($who) : '');
-                                if ($by !== '' && tesWorldDuel($by, $who)) {
-                                    continue;
-                                }
-                            }
-                            if ($fast['kind'] === 'jail' && function_exists('tesCrimeJail')) {
-                                $saidAll = strval($GLOBALS['gameRequest'][3] ?? '') . ' ' . $order;
-                                $days = function_exists('tesCrimeNumberNear') ? tesCrimeNumberNear($saidAll, '(?:сут|дн|день|дня)') : 0;
-                                $years = function_exists('tesCrimeNumberNear') ? tesCrimeNumberNear($saidAll, '(?:год|лет)') : 0;
-                                tesCrimeJail($who, tesWorldRefOf($who), "арестован по приказу через {$actor}", max(1, min(365, $years > 0 ? 365 : ($days ?: 1))), $actor);
-                                continue;
-                            }
-                            if ($fast['kind'] === 'jail') {
-                                $text[] = '{npc:' . $who . '}.jail';
-                                continue;
-                            }
-                            $text[] = '{npc:' . $who . '}.' . ['bring' => 'moveto player', 'strip' => 'unequipall', 'kill' => 'kill', 'take' => 'giveall'][$fast['kind']];
-                        }
-                        $queued = 0;
-                        if ($text) {
-                            $filtered = tesGodGuardFilterAction('The Narrator|command|GodCommand@' . json_encode(['target' => implode('; ', $text)], JSON_UNESCAPED_UNICODE));
-                            if ($filtered !== null) {
-                                $callF = explode('@', explode('|', $filtered)[2] ?? '', 2);
-                                $keptF = trim(strval(json_decode($callF[1] ?? '', true)['target'] ?? ''));
-                                $queued = $keptF !== '' ? herikaQueueGodCommands($keptF) : 0;
-                            }
-                        }
-                        error_log("[tes_world] order via {$actor}: done at once ({$queued}) - {$key} | {$order}");
-                    }
+                if ($fast) {
+                    $doneNow = tesWorldRunFast($fast, $actor, $order);
+                    error_log("[tes_world] order via {$actor}: " . ($doneNow !== '' ? "done at once - {$doneNow}" : 'already done') . " | {$order}");
                     continue;
                 }
                 $db = $GLOBALS['db'];

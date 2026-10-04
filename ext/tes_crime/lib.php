@@ -53,6 +53,29 @@ if (!function_exists('tesCrimeFine')) {
         ]);
     }
 
+    /**
+     * A command to an NPC in CHIM's own wire format ("Имя|command|MoveTo@Цель") - the same thing the
+     * NPC's model sends when it decides to walk somewhere. Works with any bridge version.
+     */
+    function tesCrimeNpcCommand(string $npc, string $command): void
+    {
+        $GLOBALS['db']->insert('responselog', [
+            'localts' => time(), 'sent' => 0, 'actor' => str_replace(['|', '@'], ' ', $npc), 'text' => '',
+            'action' => 'command|' . str_replace(["\n", "\r", '|'], ' ', $command), 'tag' => '',
+        ]);
+    }
+
+    /** Where the arrested is told to walk: the building that holds the hold's jail. */
+    function tesCrimeJailPlace(): string
+    {
+        $row = $GLOBALS['db']->fetchOne("SELECT data FROM eventlog WHERE type IN ('infoloc', 'request') AND data LIKE '%Context location:%' ORDER BY rowid DESC LIMIT 1");
+        $loc = strval($row['data'] ?? '');
+        if (preg_match('/Hold:\s*Вайтран/u', $loc)) {
+            return preg_match('/Context location:\s*Драконий Предел/u', $loc) ? 'Драконий Предел - Подземелье' : 'Драконий Предел';
+        }
+        return '';
+    }
+
     function tesCrimeNotify(string $text): void
     {
         $text = trim(str_replace(['@', '|', "\n", "\r"], [' ', '/', ' ', ' '], $text));
@@ -183,6 +206,9 @@ if (!function_exists('tesCrimeFine')) {
         if (!tesCrimeQueue($first)) {
             return [false, "«{$npc}»: канал игры недоступен"];
         }
+        if ($escort) {
+            tesCrimeNpcCommand($guard, 'MoveTo@' . $npc);  // the guard walks up to him
+        }
         $now = tesCrimeGamets();
         $db->execQuery("UPDATE public.tes_crime_jail SET status = 'released' WHERE status = 'jailed' AND refid = '{$refId}'");
         $db->insert('tes_crime_jail', ['npc' => $npc, 'refid' => $refId, 'inside_ref' => $inside, 'outside_ref' => $outside,
@@ -206,17 +232,31 @@ if (!function_exists('tesCrimeFine')) {
         foreach (is_array($rows) ? $rows : [] as $row) {
             $id = intval($row['id']);
             $ref = strval($row['refid']);
-            // a bridge from before 2026-10-04 does not know the commands: no walk, lock him up now
-            $old = $db->fetchOne("SELECT 1 AS x FROM public.tes_god_console_log WHERE created_at >= '" . $db->escape(strval($row['stage_at'])) . "'::timestamptz - interval '2 seconds'
-                AND (command LIKE 'tesfollow%' OR command LIKE 'tesescort%') AND output ILIKE '%not found%' LIMIT 1");
-            if ($row['stage'] === 'catch' && intval($row['age']) >= 9 && empty($old)) {
+            $guardName = '';
+            if (preg_match('/^[0-9A-F]{8}$/', strval($row['guard_ref']))) {
+                $g = $db->fetchOne("SELECT npc_name FROM public.core_npc_master WHERE upper(refid) = '" . $db->escape(strval($row['guard_ref'])) . "' LIMIT 1");
+                $guardName = strval($g['npc_name'] ?? '');
+            }
+            if ($row['stage'] === 'catch' && intval($row['age']) >= 12) {
+                // he is led away: the bridge's package (straight to the cell) and, for a bridge
+                // without it, CHIM's own TravelTo to the building of the jail; the guard follows
                 tesCrimeQueue(['prid ' . $ref, 'stopcombat', 'tesescort ' . hexdec(strval($row['inside_ref']))]);
+                $place = tesCrimeJailPlace();
+                if ($place !== '') {
+                    tesCrimeNpcCommand(strval($row['npc']), 'TravelTo@' . $place);
+                }
+                if ($guardName !== '') {
+                    tesCrimeNpcCommand($guardName, 'Follow@' . strval($row['npc']));
+                }
                 $db->execQuery("UPDATE public.tes_crime_jail SET stage = 'walk', stage_at = now() WHERE id = {$id}");
                 tesCrimeNotify("{$row['npc']}: ведут в темницу");
-            } elseif (!empty($old) || ($row['stage'] === 'walk' && intval($row['age']) >= 75)) {
+            } elseif ($row['stage'] === 'walk' && intval($row['age']) >= 75) {
                 tesCrimeQueue(tesCrimeJailCommands($ref, strval($row['inside_ref'])));
                 if (preg_match('/^[0-9A-F]{8}$/', strval($row['guard_ref']))) {
-                    tesCrimeQueue(['prid ' . $row['guard_ref'], 'tesfollow 0']);
+                    tesCrimeQueue(['prid ' . $row['guard_ref'], 'tesfollow 0', 'tesunfollow']);
+                }
+                if ($guardName !== '') {
+                    tesCrimeNpcCommand($guardName, 'Relax@');  // CHIM's own way to end the Follow
                 }
                 $db->execQuery("UPDATE public.tes_crime_jail SET stage = 'in', stage_at = now(), last_hold = now() WHERE id = {$id}");
                 tesCrimeNotify("{$row['npc']} в темнице");

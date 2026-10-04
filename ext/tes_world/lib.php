@@ -424,6 +424,151 @@ if (!function_exists('tesWorldEnsureTable')) {
         return $n;
     }
 
+    function tesWorldIsChild(string $name): bool
+    {
+        $db = $GLOBALS['db'];
+        $row = $db->fetchOne("SELECT race FROM public.core_npc_master WHERE npc_name = '" . $db->escape(trim($name)) . "' LIMIT 1");
+        return (bool)preg_match('/реб[её]нок|child/iu', strval($row['race'] ?? ''));
+    }
+
+    /** Full name of a known person for a spoken word ("Фаренгара" -> "Фаренгар Тайный Огонь"), or ''. */
+    function tesWorldKnownName(string $word): string
+    {
+        static $all = null;
+        if ($all === null) {
+            $rows = $GLOBALS['db']->fetchAll("SELECT npc_name FROM public.core_npc_master WHERE refid ~ '^[0-9A-Fa-f]{8}$'");
+            $all = array_map(fn($r) => strval($r['npc_name']), is_array($rows) ? $rows : []);
+        }
+        if (!preg_match('/^\p{Lu}/u', $word) || mb_strlen($word) < 5) {
+            return '';
+        }
+        $want = tesWorldNorm($word);
+        foreach ($all as $name) {
+            $first = tesWorldNorm(tesWorldShortName($name));
+            if (mb_strlen($first) < 5 || mb_strpos($first, ' ') !== false) {
+                continue;
+            }
+            // the name itself or the name with a case ending
+            $stem = mb_substr($first, 0, mb_strlen($first) - (preg_match('/[аяйь]$/u', $first) ? 1 : 0));
+            if ($want === $first || (mb_strpos($want, $stem) === 0 && mb_strlen($want) - mb_strlen($stem) <= 2)) {
+                return $name;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * The order in the ruler's own words, when it is one of the plain kinds and people are named:
+     * ['kind' => bring|strip|kill|jail, 'targets' => [...]] or null. The NPC's model does not
+     * always pass an order on (live 2026-10-04 13:30-13:33: "Кадорд, исполнять приказ" four times,
+     * nothing happened) - what the ruler plainly said is done whether the NPC called the action or not.
+     */
+    function tesWorldSpokenOrder(string $line, string $addressee): ?array
+    {
+        $t = ' ' . str_replace('ё', 'е', $line) . ' ';
+        $verbs = [
+            'kill' => '(казни\p{L}*|убей\p{L}*|убить|убейте|прикончи\p{L}*)',
+            'jail' => '(посади\p{L}*|сади|садите|сажай\p{L}*|арестуй\p{L}*|арестовать|в\s+тюрьму|в\s+темницу|за\s+решетку)',
+            'strip' => '(раздень\p{L}*|раздевай|раздевайте|раздеть|сорви\p{L}*|срывай\p{L}*|сорвать\s+одежд\p{L}*|снимай\s+с|сними\s+с|снять\s+одежду\s+с)',
+            'bring' => '(приведи\p{L}*|привести|позови\p{L}*|подай\p{L}*|притащи\p{L}*|доставь\p{L}*)',
+        ];
+        $kind = '';
+        foreach ($verbs as $k => $re) {
+            if (preg_match('/(?<![\p{L}])' . $re . '(?![\p{L}])/iu', $t, $m, PREG_OFFSET_CAPTURE)) {
+                // "не убивай", "не надо сажать"
+                $before = mb_strtolower(substr($t, max(0, $m[0][1] - 24), min(24, $m[0][1])));
+                if (preg_match('/(?<![\p{L}])не(\s+\p{L}+)?\s*$/u', $before)) {
+                    continue;
+                }
+                $kind = $k;
+                break;
+            }
+        }
+        $self = (bool)preg_match('/(?<![\p{L}])(раздевайся|раздевайтесь|разденься|снимай\s+с\s+себя|сними\s+с\s+себя|снять\s+с\s+себя|скидывай\s+одежду)(?![\p{L}])/iu', $t);
+        if ($kind === '' && !$self) {
+            return null;
+        }
+        if (preg_match('/(?<![\p{L}])(всех|все|каждого|каждую|если|когда)(?![\p{L}])/iu', $t)) {
+            return null;  // a law or a condition - the agent's business
+        }
+        $near = tesWorldNearbyNames(30);
+        $targets = [];
+        foreach (preg_split('/[^\p{L}\-]+/u', $line, -1, PREG_SPLIT_NO_EMPTY) as $i => $word) {
+            $hit = tesWorldHeardName($word, $near);
+            if ($hit === '' && $i > 0) {
+                $hit = tesWorldKnownName($word);
+            }
+            if ($hit !== '' && $hit !== $addressee && tesWorldNorm($hit) !== tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''))) {
+                $targets[$hit] = true;
+            }
+        }
+        if (!$targets && $self && $addressee !== '') {
+            return ['kind' => 'strip', 'targets' => [$addressee]];
+        }
+        if ($kind === '' || !$targets || count($targets) > 4) {
+            return null;
+        }
+        return ['kind' => $kind, 'targets' => array_keys($targets)];
+    }
+
+    /**
+     * Carry out a plain order now. $by = who was told (he does it if he is a man-at-arms, otherwise
+     * the nearest guard). One and the same order is done once in 90 s, whichever way it came -
+     * from the ruler's words or from the NPC's Carry_Out_Order. Returns what was done, for the log.
+     */
+    function tesWorldRunFast(array $fast, string $by, string $order): string
+    {
+        $db = $GLOBALS['db'];
+        $done = [];
+        if (!class_exists('RelationshipManager') && is_readable('/var/www/html/HerikaServer/lib/relationship_manager.php')) {
+            require_once '/var/www/html/HerikaServer/lib/relationship_manager.php';
+        }
+        $crime = __DIR__ . '/../tes_crime/lib.php';
+        if (!function_exists('tesCrimeJail') && is_readable($crime)) {
+            require_once $crime;
+        }
+        $said = strval($GLOBALS['gameRequest'][3] ?? '') . ' ' . $order;
+        foreach ($fast['targets'] as $who) {
+            $key = $fast['kind'] . ': ' . $who;
+            $once = $db->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '90 seconds' AND status = 'fast' AND goal = '" . $db->escape($key) . "' LIMIT 1");
+            $ref = tesWorldRefOf($who);
+            if (!empty($once) || $ref === '') {
+                continue;
+            }
+            $db->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $db->escape($key) . "', 'fast', '" . $db->escape(mb_substr("через {$by}: {$order}", 0, 300)) . "')");
+            $guard = '';
+            if (function_exists('tesCrimeNearestGuard')) {
+                $guard = (preg_match('/стражник|командир|хускарл/iu', $by) && $by !== $who) ? $by : tesCrimeNearestGuard($who);
+            }
+            if ($fast['kind'] === 'strip') {
+                if (tesWorldIsChild($who)) {
+                    $done[] = "{$who}: ребёнок — не раздевают";
+                    continue;
+                }
+                tesWorldQueue(['prid ' . $ref, 'unequipall']);
+            } elseif ($fast['kind'] === 'bring') {
+                tesWorldQueue(['prid ' . $ref, 'moveto player']);
+            } elseif ($fast['kind'] === 'take') {
+                if (tesWorldIsChild($who)) {
+                    continue;
+                }
+                tesWorldQueue(['prid ' . $ref, 'tesgive all']);
+            } elseif ($fast['kind'] === 'kill') {
+                if ($guard === '' || !tesWorldDuel($guard, $who)) {
+                    tesWorldQueue(['prid ' . $ref, 'teskill', 'kill']);
+                }
+            } elseif ($fast['kind'] === 'jail' && function_exists('tesCrimeJail')) {
+                $days = function_exists('tesCrimeNumberNear') ? tesCrimeNumberNear($said, '(?:сут|дн|день|дня)') : 0;
+                $years = function_exists('tesCrimeNumberNear') ? tesCrimeNumberNear($said, '(?:год|лет)') : 0;
+                tesCrimeJail($who, $ref, "арестован по приказу правителя через {$by}", max(1, min(365, $years > 0 ? 365 : ($days ?: 1))), $guard);
+            } else {
+                continue;
+            }
+            $done[] = $key;
+        }
+        return implode('; ', $done);
+    }
+
     /** Set (or clear) the player's title. Returns [ok, message]. */
     function tesWorldSetTitle(string $title): array
     {
