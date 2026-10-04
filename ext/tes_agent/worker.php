@@ -111,7 +111,9 @@ function tesAgentLlm(array $messages, array $tools, float &$cost): ?array
 {
     // reasoning_effort none: left to think, Qwen3.5 spends the whole answer budget on it (measured)
     $local = ['model' => 'qwen/qwen3.5-4b', 'local' => true, 'extra' => ['reasoning_effort' => 'none']];
-    $models = !empty($GLOBALS['TES_AGENT_LOCAL_FIRST']) ? array_merge([$local], TES_AGENT_MODELS) : array_merge(TES_AGENT_MODELS, [$local]);
+    // Owner, 2026-10-04: the local model was tried and removed the same night. It is used only when
+    // asked for explicitly (--local / TES_AGENT_LOCAL_FIRST) - never as a silent fallback.
+    $models = !empty($GLOBALS['TES_AGENT_LOCAL_FIRST']) ? array_merge([$local], TES_AGENT_MODELS) : TES_AGENT_MODELS;
     if (!empty($GLOBALS['TES_AGENT_LOCAL_ONLY'])) {
         $models = [$local];  // owner 2026-10-04: no cloud anywhere
     }

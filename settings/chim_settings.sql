@@ -245,39 +245,14 @@ WHERE code_name = 'CarryOutOrder';
 -- guard given an order spent the next minute agreeing with another guard ("Да, Браксек, я знаю…")
 -- while the player waited. Was 50. Rollback: UPDATE conf_opts SET value = '50' WHERE id = 'RECHAT_P';
 UPDATE public.conf_opts SET value = '25' WHERE id = 'RECHAT_P';
--- TES (2026-10-04): local model as a CHIM connector - Qwen3.5 4B (Q4_K_M, text only) in LM Studio on
--- the Windows host, ~3.4 GB VRAM at 14k context. docs/local-llm.md. The URL holds the WSL gateway
--- address of the host; if it changes after a reboot: bash tools/local_llm.sh
--- Rollback: DELETE FROM core_llm_connector WHERE id = 20;
-INSERT INTO public.core_llm_connector (id, label, metadata, url, model, provider, driver, max_tokens, enforce_json, prefill_json, api_badge_id, json_schema, temperature, service)
-SELECT 20, 'Local Qwen3.5 4B (LM Studio)', '{"lmstudio_compat": true, "extra_parameters": {"reasoning_effort": "none"}, "extra_parameters_enabled": true}'::jsonb, 'http://172.22.208.1:1234/v1/chat/completions', 'qwen/qwen3.5-4b', 'lmstudio', 'openaijson', 600, 1, 0, 2, 1, 0.7, 'openai'
-WHERE NOT EXISTS (SELECT 1 FROM public.core_llm_connector WHERE id = 20);
--- reasoning_effort none: with thinking on, the model spends the whole max_tokens on it and the line is empty
-UPDATE public.core_llm_connector SET metadata = '{"lmstudio_compat": true, "extra_parameters": {"reasoning_effort": "none"}, "extra_parameters_enabled": true}'::jsonb WHERE id = 20;
--- TES (2026-10-04, owner: "везде ставь вместо облачной локальную"): every LLM slot of the profile
--- and the goal agent use the local model (connector 20, settings/local_llm.sql).
--- Was: primary/secondary/tertiary/quaternary/formatter/diary = 11 (Gemini 2.5 Flash), fallback = 2.
--- Back to the cloud:
---   UPDATE core_profiles SET llm_primary_id=11, llm_secondary_id=11, llm_tertiary_id=11, llm_quaternary_id=11,
---          llm_formatter_id=11, diary_connector_id=11, llm_fallback_id=2 WHERE id=1;
---   DELETE FROM conf_opts WHERE id='TES_AGENT_LOCAL_FIRST';
-UPDATE public.core_profiles SET llm_primary_id = 20, llm_secondary_id = 20, llm_tertiary_id = 20, llm_quaternary_id = 20,
-       llm_formatter_id = 20, diary_connector_id = 20, llm_fallback_id = 20 WHERE id = 1;
-INSERT INTO public.conf_opts (id, value) SELECT 'TES_AGENT_LOCAL_FIRST', '1' WHERE NOT EXISTS (SELECT 1 FROM public.conf_opts WHERE id = 'TES_AGENT_LOCAL_FIRST');
-UPDATE public.conf_opts SET value = '1' WHERE id = 'TES_AGENT_LOCAL_FIRST';
--- the profile carries its own RECHAT_P and it wins over conf_opts (settings/rechat.sql set only that)
-UPDATE public.core_profiles SET metadata = jsonb_set(metadata, '{RECHAT_P}', '25'::jsonb) WHERE id = 1 AND metadata ? 'RECHAT_P';
-
--- Second pass (same day, owner again: "везде ставь локалку"): the GLOBAL connectors live in
--- general_settings, not in the profile - summaries, memory, scene classifier, dynamic profiles,
--- director, player respeech, quests, background life were still on 11 (Gemini 2.5 Flash) and the
--- relationship system on 18. Back to the cloud:
---   UPDATE general_settings SET value='11' WHERE id IN ('CORE_CONNECTOR_MEDIUMTERM','CORE_CONNECTOR_SCENECLASSIFIER','CORE_CONNECTOR_PROFILES',
---     'CORE_CONNECTOR_DIRECTOR','CORE_CONNECTOR_PLAYER','CORE_CONNECTOR_SUMMARY','CORE_CONNECTOR_QUEST_ENGINE','CORE_CONNECTOR_BGL','CORE_CONNECTOR_QUEST_CREATION');
---   UPDATE general_settings SET value='18' WHERE id='RELLLM_CONNECTOR';
---   DELETE FROM conf_opts WHERE id='TES_AGENT_LOCAL_ONLY';
-UPDATE public.general_settings SET value = '20', updated_at = now() WHERE id IN ('CORE_CONNECTOR_MEDIUMTERM', 'CORE_CONNECTOR_SCENECLASSIFIER',
+-- TES (2026-10-04 05:00, owner: "ставь 2.5 обратно… а локальную удаляй"): everything back to what it
+-- was before the local-model hour - Gemini 2.5 Flash (11) in all profile slots and global connectors,
+-- fallback Gemini 2.5 Flash Lite (2), relationship system 18; the local connector is removed.
+UPDATE public.core_profiles SET llm_primary_id = 11, llm_secondary_id = 11, llm_tertiary_id = 11, llm_quaternary_id = 11,
+       llm_formatter_id = 11, diary_connector_id = 11, llm_fallback_id = 2 WHERE id = 1;
+UPDATE public.general_settings SET value = '11', updated_at = now() WHERE id IN ('CORE_CONNECTOR_MEDIUMTERM', 'CORE_CONNECTOR_SCENECLASSIFIER',
     'CORE_CONNECTOR_PROFILES', 'CORE_CONNECTOR_DIRECTOR', 'CORE_CONNECTOR_PLAYER', 'CORE_CONNECTOR_SUMMARY', 'CORE_CONNECTOR_QUEST_ENGINE',
-    'CORE_CONNECTOR_BGL', 'CORE_CONNECTOR_QUEST_CREATION', 'RELLLM_CONNECTOR');
--- the goal agent never falls back to the cloud
-INSERT INTO public.conf_opts (id, value) SELECT 'TES_AGENT_LOCAL_ONLY', '1' WHERE NOT EXISTS (SELECT 1 FROM public.conf_opts WHERE id = 'TES_AGENT_LOCAL_ONLY');
+    'CORE_CONNECTOR_BGL', 'CORE_CONNECTOR_QUEST_CREATION');
+UPDATE public.general_settings SET value = '18', updated_at = now() WHERE id = 'RELLLM_CONNECTOR';
+DELETE FROM public.conf_opts WHERE id IN ('TES_AGENT_LOCAL_FIRST', 'TES_AGENT_LOCAL_ONLY');
+DELETE FROM public.core_llm_connector WHERE id = 20;
