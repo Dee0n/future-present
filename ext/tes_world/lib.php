@@ -184,6 +184,12 @@ if (!function_exists('tesWorldEnsureTable')) {
             if ($hit === '') {
                 return $m[0];
             }
+            // a word that IS the name of someone known (just not standing here) is not a slip:
+            // "Сигрид" became "Сигурд" because only Сигурд was near (live 2026-10-04 14:19)
+            $known = tesWorldKnownName(mb_convert_case($m[0], MB_CASE_TITLE));
+            if ($known !== '' && $known !== $hit) {
+                return $m[0];
+            }
             // already that name, in any case form ("Садию", "Фаренгара") - leave the grammar alone
             foreach (preg_split('/\s+/u', trim(preg_replace('/\s*\[[^\]]*\]/u', '', $hit) ?? $hit)) as $part) {
                 $form = tesWorldNorm($part);

@@ -27,6 +27,14 @@ try {
         }
         // whom the line is said to: the tail CHIM adds, or the NPC this request is for
         $tesWorldTo = preg_match('/\(Talking to ([^)]+)\)/u', strval($GLOBALS['gameRequest'][3] ?? ''), $wm) ? trim($wm[1]) : '';
+        if ($tesWorldTo === '') {
+            // The plugin sends the addressee apart from the text, in the request's 5th field (base64
+            // JSON, "listener"). At this point the line has no "(Talking to …)" yet - CHIM adds it
+            // later - which is why "Бери полмиллиона" and "Раздевайся!" never fired in the game
+            // though they passed every test fed from the event log (found 2026-10-04 14:20).
+            $tesWorldMeta = json_decode(strval(base64_decode(strval($GLOBALS['gameRequest'][4] ?? ''), true)), true);
+            $tesWorldTo = is_array($tesWorldMeta) ? trim(strval($tesWorldMeta['listener'] ?? '')) : '';
+        }
         if ($tesWorldTo === '' && strval($GLOBALS['HERIKA_NAME'] ?? '') !== 'The Narrator') {
             $tesWorldTo = trim(strval($GLOBALS['HERIKA_NAME'] ?? ''));
         }
