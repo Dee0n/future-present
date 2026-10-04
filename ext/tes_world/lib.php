@@ -1123,3 +1123,4 @@ require_once __DIR__ . '/talk.php';
 require_once __DIR__ . '/errand.php';
 require_once __DIR__ . '/drinks.php';
 require_once __DIR__ . '/worn.php';
+require_once __DIR__ . '/festival.php';

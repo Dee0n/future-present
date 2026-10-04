@@ -124,14 +124,16 @@ if (!function_exists('tesRealmAfterOrder')) {
      * (SkyrimCommandBuilder PlayIdle, DrinkIdle 00103656; ChairDrinkingStart 00065D07 for the seated); the plain
      * console "playidle" I used first played nothing (owner, 23:00: "анимацию питья пусть делают").
      */
-    function tesRealmDrinkAnim(string $ref): void
+    function tesRealmDrinkAnim(string $ref, bool $eat = false): void
     {
         $db = $GLOBALS['db'];
         $row = $db->fetchOne("SELECT metadata FROM public.core_npc_master WHERE refid = '" . $db->escape($ref) . "' LIMIT 1");
         $meta = json_decode(strval($row['metadata'] ?? '{}'), true) ?: [];
         $act = is_array($meta['activity_status'] ?? null) ? $meta['activity_status'] : [];
         $seated = (($meta['furniture'] ?? '') === 'Chair') || (($act['use_type'] ?? '') === 'chair');
-        $idle = $seated ? '0x00065d07' : '0x00103656';
+        // eating (owner, 23:31: "еду не разбирают"): IdleEatingStandingStart 00064100, ChairEatingStart 00065D06 of
+        // Skyrim.esm - CHIM has no action for them, the guests only ever drank
+        $idle = $eat ? ($seated ? '0x00065d06' : '0x00064100') : ($seated ? '0x00065d07' : '0x00103656');
         if (!class_exists('SkyrimCommandBuilder') && is_readable('/var/www/html/HerikaServer/lib/scriptproxy_papyrus.php')) {
             require_once '/var/www/html/HerikaServer/lib/scriptproxy_papyrus.php';
         }
@@ -166,6 +168,17 @@ if (!function_exists('tesRealmAfterOrder')) {
             foreach (array_slice($refs, 0, 4) as $ref) {
                 tesRealmDrinkAnim($ref);
             }
+            // and three others eat; bread and cheese are put into the pocket now and then for the sandbox to eat too
+            foreach (array_slice($refs, 4, 3) as $ref) {
+                tesRealmDrinkAnim($ref, true);
+            }
+            $fd = tesWatchGet('party_food');
+            if ($fd['value'] === '' || $fd['age'] >= 600) {
+                tesWatchSet('party_food', '1');
+                foreach ($refs as $ref) {
+                    tesWorldQueue(['prid ' . $ref, 'additem 00065C97 2', 'additem 00064B3D 2', 'additem 00034C5E 2']);
+                }
+            }
         }
         // talk: every ~40 s one guest is told to turn to a neighbour and say something live (a toast, a joke, gossip,
         // a jab) - the others can answer on their own (RECHAT is raised for the feast). The Narrator's own
@@ -183,7 +196,7 @@ if (!function_exists('tesRealmAfterOrder')) {
                 }
                 if ($names[0] !== '' && $names[1] !== '') {
                     $themes = ['тост за ярла, но со своей шуткой', 'шутку про стражу', 'сплетню про соседа по столу', 'подначку, что тот не умеет пить', 'байку о том, как он однажды напился', 'вопрос, как ему вообще эта выпивка',
-                        'жалобу, что эль слабоват, или хвалу, что крепок', 'песенку или припев', 'спор о том, кто из них пьянее', 'воспоминание о лучшем пире в его жизни'];
+                        'жалобу, что эль слабоват, или хвалу, что крепок', 'песенку или припев', 'спор о том, кто из них пьянее', 'похвалу или ругань еде на столе', 'вопрос, что он будет делать, когда эль кончится', 'хвастовство, сколько он сегодня съел'];
                     $theme = $themes[array_rand($themes)];
                     $text = "Instruction@{$names[0]}@(Ты на гулянке. Повернись к {$names[1]} и скажи ему одну короткую живую фразу: {$theme}. По-русски, в своём характере, без пересказа этих слов.)@0";
                     $db->insert('responselog', ['localts' => time(), 'sent' => 0, 'text' => $text, 'actor' => 'rolemaster', 'action' => 'rolecommand', 'tag' => '']);
@@ -450,6 +463,13 @@ if (!function_exists('tesRealmAfterOrder')) {
                 return " *по слову ярла собравшиеся ({$n}) расходятся по своим делам; это уже происходит*";
             }
         }
+        // the Games of the feast: "устрой игры / движуху", "хватит игр" (festival.php)
+        if (function_exists('tesFestSpoken')) {
+            $fest = tesFestSpoken($t);
+            if ($fest !== '') {
+                return $fest;
+            }
+        }
         // the feast again: "всех гостей сюда", "давайте сюда всех", "все к столу", "почему они уходят?", "гостей нет"
         if (preg_match('/(?<![\p{L}])(?:гост\p{L}*|все|всех)\s+(?:\p{L}+\s+){0,2}?сюда(?![\p{L}])|гост\p{L}*\s+(?:\p{L}+\s+){0,2}?(?:обратно|назад)(?![\p{L}])|сюда\s+всех|где\s+(?:все\s+|мои\s+)?гост|гост\p{L}*\s+(?:нет|ушли|уходят|разбежал\p{L}*|разошл\p{L}*)|почему\s+(?:\p{L}+\s+){0,2}?уход|верн\p{L}*\s+(?:всех|гост\p{L}*)|(?<![\p{L}])(?:все|всех)\s+(?:\p{L}+\s+){0,3}?(?:за\s+стол|к\s+столу)/u', $t)) {
             $back = tesRealmPartyRecall();
@@ -633,6 +653,6 @@ if (!function_exists('tesRealmAfterOrder')) {
         if (empty($g['what']) || $myRef === '' || !in_array($myRef, explode(',', strval($g['refs'] ?? '')), true)) {
             return '';
         }
-        return !empty($g['what']) ? 'Правитель созвал людей («' . mb_substr(strval($g['what']), 0, 80) . '»): ты здесь среди собравшихся и ведёшь себя по поводу — на гулянке пьёшь и веселишься, на сборе слушаешь.' : '';
+        return !empty($g['what']) ? 'Правитель созвал людей («' . mb_substr(strval($g['what']), 0, 80) . '»): ты здесь среди собравшихся и ведёшь себя по поводу — на гулянке пьёшь и веселишься, на сборе слушаешь.' . (function_exists('tesFestLine') ? tesFestLine() : '') : '';
     }
 }

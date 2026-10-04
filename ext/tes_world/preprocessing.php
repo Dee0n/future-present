@@ -17,7 +17,7 @@ try {
     if (isset($GLOBALS['db']) && in_array($tesWorldTickType, ['request', 'infonpc', 'infonpc_close', 'infoloc'], true) && empty($GLOBALS['TES_WORLD_TICKED'])) {
         $GLOBALS['TES_WORLD_TICKED'] = true;
         require_once __DIR__ . '/lib.php';
-        foreach (['tesRealmGatherTick', 'tesErrandTick', 'tesTalkTick', 'tesWornIngest'] as $tesWorldTickFn) {
+        foreach (['tesRealmGatherTick', 'tesErrandTick', 'tesTalkTick', 'tesWornIngest', 'tesFestTick'] as $tesWorldTickFn) {
             try {
                 if (function_exists($tesWorldTickFn)) {
                     $tesWorldTickFn();
