@@ -1091,6 +1091,7 @@ if (!function_exists('tesGodGuardValidate')) {
         $text = preg_replace('/\.setessential\s+(false)?\s*(?=;|\n|$)/iu', '.setessential 0', $text) ?? $text;
         $text = preg_replace('/\.forcekill\b/iu', '.kill', $text) ?? $text;
         $text = preg_replace('/\.damage\s+(\d+)/iu', '.damageav health $1', $text) ?? $text;
+        $text = preg_replace('/(^|[;\n])\s*(markfordelete|delete|disable|resurrect)\s+(\{npc:[^}]+\}|[0-9A-Fa-f]{8})\s*(?=;|\n|$)/iu', '$1$3.$2', $text) ?? $text;
         // ... and so is {npc:<the player's own name>}: "{npc:Шаман}.addspell" was looked up as a
         // person and became the guard "Огман Магодин" (live 12:55, 12:51)
         $tesPlayerName = trim(strval($GLOBALS['PLAYER_NAME'] ?? ''));
@@ -1376,6 +1377,20 @@ if (!function_exists('tesGodGuardValidate')) {
             // 2026-10-04 02:44: "prid X" was refused, the "unequipall" after it was let through).
             if ($target === '' && in_array($verb, ['unequipall', 'unequipitem', 'equipitem', 'removeitem', 'additem', 'kill', 'resurrect', 'disable', 'enable', 'moveto', 'setrestrained', 'setav', 'forceav', 'modav'], true)) {
                 $reasons[] = "«{$command}»: не указано, кому — пиши {npc:Имя}.{$verb} … или player.{$verb} …";
+                continue;
+            }
+            // "Убери все трупы" (live 13:23): markfordelete was refused, so the Narrator RESURRECTED
+            // the corpse (resurrect + recycleactor). Asked to clear corpses -> the body is disabled
+            // (a dead body has no AI left to break), never brought back to life.
+            $corpseSaid = strval($GLOBALS['gameRequest'][3] ?? '');
+            if ($target !== '' && strtolower($target) !== 'player' && preg_match('/(труп|тел[оа]|мертвец|покойник)/iu', $corpseSaid)
+                && preg_match('/(убер|убра|очист|спрят|унес|удали|сожги)/iu', $corpseSaid)
+                && in_array($verb, ['resurrect', 'markfordelete', 'delete', 'disable', 'unsummon', 'recycleactor'], true)) {
+                if (tesGodGuardLifeState($target) === false) {
+                    $reasons[] = "«{$command}»: он жив — это не труп";
+                    continue;
+                }
+                $kept[] = $target . '.disable';
                 continue;
             }
             // giveall / takeall: everything the NPC carries and wears goes to the player (bridge
@@ -1828,7 +1843,7 @@ if (!function_exists('tesGodGuardValidate')) {
             // "setessential 0" on a person: the console wants the BASE ("setessential <base> 0") and
             // answered "Invalid actor base '0'" twice (live 12:57, 12:59). The bridge does it.
             if ($verb === 'setessential' && $target !== '' && strtolower($target) !== 'player') {
-                $essOn = preg_match('/(1|true|on|да)/iu', $body) ? 1 : 0;
+                $essOn = preg_match('/\b(1|true|on|да)\b/iu', $body) ? 1 : 0;
                 // the console form needs the BASE: known from the game index for placed actors,
                 // so it works even with a bridge that does not have tesessential yet
                 $essRef = preg_match('/^[0-9A-Fa-f]{8}$/', $target) ? strtoupper($target) : '';

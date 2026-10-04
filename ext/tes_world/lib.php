@@ -257,7 +257,16 @@ if (!function_exists('tesWorldEnsureTable')) {
                 break;
             }
         }
-        if ($kind === '' || preg_match('/(?<![\p{L}])(всех|все|всю|каждого|каждую|кого|если|или|пока|потом|затем)(?![\p{L}])/iu', $rest)) {
+        if ($kind === '') {
+            return null;
+        }
+        // "убить всех жителей", "арестовать всех молодых женщин", "раздеть всех баб" (live 15:41-15:49:
+        // five such orders went to the agent and all ran out of steps) - the people around
+        if (preg_match('/^(всех|все|всю|каждого|каждую)(?![\p{L}])/iu', trim($rest))) {
+            $group = tesWorldGroup($rest, $actor);
+            return $group ? ['kind' => $kind, 'targets' => $group] : null;
+        }
+        if (preg_match('/(?<![\p{L}])(всех|все|всю|каждого|каждую|кого|если|или|пока|потом|затем)(?![\p{L}])/iu', $rest)) {
             return null;
         }
         // "раздеть меня", "разделась сама": the one who was told is the one meant
@@ -303,6 +312,60 @@ if (!function_exists('tesWorldEnsureTable')) {
             return null;
         }
         return ['kind' => $kind, 'targets' => array_keys($targets)];
+    }
+
+    /**
+     * The people an order to "всех …" means: the living around the player (CHIM's last lists of
+     * who is near), never the player, the one ordered, guards, the jarl's court or children.
+     * "женщин/баб/девушек" - women only, "мужчин/мужиков" - men only. At most 8.
+     */
+    function tesWorldGroup(string $words, string $actor = ''): array
+    {
+        $db = $GLOBALS['db'];
+        $w = mb_strtolower($words);
+        $sex = preg_match('/(женщин|баб|девуш|девок|девиц|дам)/u', $w) ? 'female' : (preg_match('/(мужчин|мужик|парн)/u', $w) ? 'male' : '');
+        $player = mb_strtolower(strval($GLOBALS['PLAYER_NAME'] ?? ''));
+        $seen = [];
+        $dead = [];
+        foreach ($db->fetchAll("SELECT data FROM eventlog WHERE type IN ('infonpc', 'infonpc_close') AND localts > " . (time() - 120) . " ORDER BY rowid DESC LIMIT 6") ?: [] as $row) {
+            $list = preg_replace('/^.*beings in range:/u', '', strval($row['data'])) ?? '';
+            foreach (preg_split('/[,\/]/u', rtrim($list, ')')) as $name) {
+                $isDead = mb_strpos($name, '(dead)') !== false;
+                if (mb_strpos($name, '(far away)') !== false) {
+                    continue;
+                }
+                $name = trim(preg_replace('/\s*\((?:dead|busy|restrained|[a-z ]+)\)\s*/u', ' ', $name) ?? $name);
+                if ($name === '' || mb_strlen($name) > 60) {
+                    continue;
+                }
+                if ($isDead) {
+                    $dead[$name] = true;
+                } else {
+                    $seen[$name] = true;
+                }
+            }
+        }
+        $out = [];
+        foreach (array_keys($seen) as $name) {
+            if (isset($dead[$name]) || mb_strtolower($name) === $player || $name === $actor
+                || preg_match('/(Стражник|Стражница|Ярл |Управител|Хускарл|Командир|Придворн)/u', $name) || tesWorldIsChild($name)) {
+                continue;
+            }
+            $row = $db->fetchOne("SELECT gender, occupation FROM core_npc_master WHERE npc_name = '" . $db->escape($name) . "' LIMIT 1");
+            if ($sex !== '' && strval($row['gender'] ?? '') !== $sex) {
+                continue;
+            }
+            if (preg_match('/(страж|ярл|хускарл|управител)/iu', strval($row['occupation'] ?? ''))) {
+                continue;
+            }
+            if (tesWorldRefOf($name) !== '') {
+                $out[] = $name;
+            }
+            if (count($out) >= 8) {
+                break;
+            }
+        }
+        return $out;
     }
 
     /** One console sequence into the game (same channel as tes_crime). */

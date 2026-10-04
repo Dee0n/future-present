@@ -78,6 +78,7 @@ register_shutdown_function(function () use ($taskId) {
     }
 });
 echo "task #{$taskId}" . ($dry ? ' (dry)' : '') . ": {$task['goal']}\n";
+$GLOBALS['TES_AGENT_GOAL'] = strval($task['goal']);
 
 /* ------------------------------------------------------------------ LLM */
 
@@ -615,6 +616,11 @@ function tesAgentRun(string $name, array $a, bool $dry, array &$finishState)
             }
             return tesAgentWriteBatch($cmds, $dry);
         case 'teleport_player':
+            // Live 2026-10-04 13:26: the task "убери все трупы" threw the player from the catacombs
+            // to the stables and back to look around. The player is moved only when asked to be.
+            if (!preg_match('/(телепорт|перенеси меня|перемести меня|отправь меня|переправь меня|меня в |меня к |coc|teleport)/iu', strval($GLOBALS['TES_AGENT_GOAL'] ?? ''))) {
+                return ['error' => 'игрока нельзя перемещать: этого не просили. Осматривай места через find/get_state, не таская игрока'];
+            }
             if (trim(strval($a['to_npc'] ?? '')) !== '') {
                 return tesAgentWrite('player.moveto ' . $npc(strval($a['to_npc'])), $dry);
             }
