@@ -565,7 +565,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         $t = ' ' . str_replace('ё', 'е', $line) . ' ';
         $verbs = [
             // "иди на улице подбираться" (live 13:18): lives as a beggar around the market
-            'beg' => '(побира\p{L}*|подбира\p{L}*|попрошайнича\p{L}*|милостын\p{L}*)',
+            'beg' => '(побира\p{L}*|подбира\p{L}*|попрошайнича\p{L}*|милостын\p{L}*|пош[её]л\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь)|уходи|уйди|свали\p{L}*|исчезни|пошла\s+(?:\p{L}+\s+){0,2}(?:отсюда|вон|прочь))',
             'post' => '(?:охраняй\p{L}*(?!\s+(?:меня|мен[яе]))|дежурь\p{L}*|стереги\p{L}*|сторожи\p{L}*|патрулируй\p{L}*|патрулиров\p{L}*|обходи\p{L}*\s+город)',
             'kill' => '(казни\p{L}*|убей\p{L}*|убить|убейте|прикончи\p{L}*)',
             'jail' => '(посади\p{L}*|сади|садите|сажай\p{L}*|арестуй\p{L}*|арестовать|в\s+тюрьму|в\s+темницу|за\s+решетку)',
@@ -741,6 +741,10 @@ if (!function_exists('tesWorldEnsureTable')) {
                 // beggar's life around the market: linked to Бренуин (0002C90F), the town's beggar;
                 // undressed too if the ruler said so. Needs the bridge's "tesroutine at" (pex 42272+).
                 if (tesWorldIsChild($who)) {
+                    continue;
+                }
+                if (preg_match('/Стражник|Хускарл|Командир/u', $who) && !preg_match('/побира|подбира|милостын|попрошай/iu', $said)) {
+                    $done[] = "{$who}: страж — «уйди» не значит нищенствовать";
                     continue;
                 }
                 if (function_exists('tesBridgeVersion') && tesBridgeVersion() < 2) {

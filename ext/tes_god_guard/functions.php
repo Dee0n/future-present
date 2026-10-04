@@ -1435,9 +1435,12 @@ if (!function_exists('tesGodGuardValidate')) {
             // the ids are Skyrim.esm's (SkyrimClear 0000081A ...), checked against the ESM.
             if (in_array($verb, ['fw', 'weather', 'setweather', 'forceweather'], true)) {
                 $wxArg = trim(preg_replace('/^\S+\s*/u', '', $body) ?? '');
-                $wxMap = ['0000081A' => 'ясно|ясная|ясный|солнечн|солнце|clear|sun', '00012F89' => 'облачн|пасмурн|cloud', '000C821E' => 'туман|fog',
+                $wxMap = ['0010A240' => 'ясно|ясная|ясный|солнечн|солнце|clear|sun', '0010A243' => 'облачн|пасмурн|cloud', '000C821E' => 'туман|fog',
                     '000C821F' => 'дожд|ливень|rain', '000C8220' => 'гроз|шторм|storm|thunder', '000C8221' => 'метел|снежная буря|snowstorm|storm ?snow', '0004D7FB' => 'снег|snow'];
                 $wxId = '';
+                if (strtoupper($wxArg) === '0000081A') {
+                    $wxArg = 'ясно';  // SkyrimClear is ENB's «ClearBright» profile: the screen goes WHITE (owner, 19:45)
+                }
                 if (preg_match('/^[0-9A-Fa-f]{8}$/', $wxArg) && isset($wxMap[strtoupper($wxArg)])) {
                     $wxId = strtoupper($wxArg);
                 } elseif (preg_match('/^[0-9A-Fa-f]{8}$/', $wxArg)) {
@@ -1451,7 +1454,7 @@ if (!function_exists('tesGodGuardValidate')) {
                     }
                 }
                 if ($wxId === '') {
-                    $reasons[] = "«{$command}»: такой погоды нет. Погода — «fw <ID>»: 0000081A ясно, 00012F89 облачно, 000C821E туман, 000C821F дождь, 000C8220 гроза, 0004D7FB снег, 000C8221 метель; час — «set gamehour to N»";
+                    $reasons[] = "«{$command}»: такой погоды нет. Погода — «fw <ID>»: 0010A240 ясно, 0010A243 облачно, 000C821E туман, 000C821F дождь, 000C8220 гроза, 0004D7FB снег, 000C8221 метель; час — «set gamehour to N»";
                     continue;
                 }
                 $kept[] = 'fw ' . $wxId;
