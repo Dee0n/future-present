@@ -241,23 +241,47 @@ if (!function_exists('tesRealmAfterOrder')) {
             }
             return " *налог теперь {$new}% от обычного — торговцы " . ($new > $cur ? 'ропщут' : ($new < $cur ? 'довольны' : 'не заметили')) . '; подтверди*';
         }
-        // gatherings: "собери всех женщин", "созови народ"
-        if (preg_match('/(?<![\p{L}])(собер\p{L}*|собрать|созов\p{L}*|созвать|согнать|согони\p{L}*)\s+(?:.*?)(всех|народ|жител\p{L}*|людей|женщин|баб|мужчин|мужик\p{L}*|горожан\p{L}*)/u', $t, $gm)) {
-            $group = tesWorldGroup(mb_substr($t, mb_strpos($t, $gm[2])), $to);
+        // gatherings: "собери всех женщин", "Всех жителей Вайтрана собери, в Гарцующей кобыле будем бухать" (verb
+        // and object in either order; a place may be named - live 17:13, the Narrator said "собираю" and nobody
+        // came: the old code wanted the verb first and brought only 8 people from near, always to the player)
+        $gatherVerb = preg_match('/(?<![\p{L}])(собер\p{L}*|собрать|собира\p{L}*|созов\p{L}*|созвать|согнать|согони\p{L}*|созыва\p{L}*|позов\p{L}*|веди\p{L}*\s+всех|привед\p{L}*\s+всех)(?![\p{L}])/u', $t);
+        $gatherWho = preg_match('/(?<![\p{L}])(всех|народ|жител\p{L}*|людей|женщин|баб|мужчин|мужик\p{L}*|горожан\p{L}*|вайтранц\p{L}*)(?![\p{L}])/u', $t, $gw);
+        if ($gatherVerb && $gatherWho && !preg_match('/(?<![\p{L}])не\s+(?:\p{L}+\s+)?(?:собир|собер|созыв)/u', $t)) {
+            // where: a named place, else the player's own spot
+            $anchor = 'player';
+            $placeName = 'у тебя';
+            if (preg_match('/(?:гарцующ|горцующ|гарцующей|кобыл|таверн)/u', $t)) {
+                $mare = tesWorldRefOf('Хульда');
+                if ($mare !== '') {
+                    $anchor = $mare;
+                    $placeName = 'в «Гарцующей кобыле»';
+                }
+            } elseif (preg_match('/площад/u', $t)) {
+                $sq = tesWorldRefOf('Карлотта Валентия');
+                if ($sq !== '') {
+                    $anchor = $sq;
+                    $placeName = 'на площади';
+                }
+            }
+            $wide = (bool)preg_match('/(?<![\p{L}])(всех|жител\p{L}*|народ|горожан\p{L}*|вайтран\p{L}*)(?![\p{L}])/u', $t);
+            $group = $wide ? tesRealmResidents($to) : tesWorldGroup(mb_substr($t, mb_strpos($t, $gw[1])), $to);
             $done = [];
             foreach ($group as $name) {
                 $ref = tesWorldRefOf($name);
                 if ($ref === '' || tesWorldIsChild($name) || (function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($name))) {
                     continue;
                 }
-                tesWorldQueue(['prid ' . $ref, 'moveto player']);
+                tesWorldQueue(['prid ' . $ref, 'moveto ' . $anchor]);
                 $done[] = $name;
+                if (count($done) >= 24) {
+                    break;
+                }
             }
             if ($done) {
                 tesRealmEnsure();
                 $GLOBALS['db']->execQuery("INSERT INTO public.tes_gatherings (what) VALUES ('" . $GLOBALS['db']->escape(mb_substr($line, 0, 120)) . "')");
-                tesWatchNotify('Собраны: ' . implode(', ', array_slice($done, 0, 6)) . (count($done) > 6 ? ' и ещё ' . (count($done) - 6) : ''));
-                return ' *по приказу ярла к нему согнали: ' . implode(', ', array_slice($done, 0, 6)) . '; реагируй как один из собравшихся*';
+                tesWatchNotify('Собраны ' . $placeName . ': ' . implode(', ', array_slice($done, 0, 5)) . (count($done) > 5 ? ' и ещё ' . (count($done) - 5) : ''));
+                return ' *по приказу ярла согнали ' . count($done) . ' человек ' . $placeName . ': ' . implode(', ', array_slice($done, 0, 6)) . '; это уже сделано, подтверди*';
             }
             return ' *вокруг некого собирать*';
         }
@@ -304,6 +328,30 @@ if (!function_exists('tesRealmAfterOrder')) {
             }
         }
         return '';
+    }
+
+    /** Everyone the game has shown near the player in the last 40 minutes: the "residents" (no guards, children, the player). */
+    function tesRealmResidents(string $except = ''): array
+    {
+        $db = $GLOBALS['db'];
+        $rows = $db->fetchAll("SELECT data FROM eventlog WHERE type IN ('infonpc', 'infonpc_close') AND localts > " . (time() - 2400) . " ORDER BY rowid DESC LIMIT 120");
+        $player = tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''));
+        $out = [];
+        foreach (is_array($rows) ? $rows : [] as $r) {
+            $list = preg_replace('/^.*beings in range:/u', '', strval($r['data'])) ?? '';
+            foreach (preg_split('/[,\/]/u', rtrim($list, ')')) as $name) {
+                if (mb_strpos($name, '(dead)') !== false) {
+                    continue;
+                }
+                $name = trim(preg_replace('/\s*\((?:hostile|busy|restrained|far away|sleeping|sitting|in combat|[a-z ]+)\)\s*/u', ' ', $name) ?? $name);
+                if ($name === '' || mb_strlen($name) > 60 || $name === $except || tesWorldNorm($name) === $player
+                    || preg_match('/Стражник|Хускарл|Командир|Narrator/u', $name)) {
+                    continue;
+                }
+                $out[$name] = true;
+            }
+        }
+        return array_keys($out);
     }
 
     function tesRealmTraders(): array
