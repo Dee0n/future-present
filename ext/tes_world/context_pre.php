@@ -74,6 +74,17 @@ try {
                 $st = ['done' => 'исполнено', 'fast' => 'исполнено', 'failed' => 'не вышло', 'running' => 'идёт', 'queued' => 'идёт', 'waiting' => 'ждёт'][strval($o['status'])] ?? strval($o['status']);
                 $tesWorldOrderLines[] = '«' . mb_substr(trim($txt), 0, 70) . '» — ' . $st;
             }
+            foreach (['tesRealmPostLine' => $tesWorldMe, 'tesRealmPlotLine' => $tesWorldMe] as $tesWorldFn => $tesWorldArg) {
+                if (function_exists($tesWorldFn)) {
+                    $tesWorldRl = $tesWorldFn($tesWorldArg);
+                    if ($tesWorldRl !== '') {
+                        chimRegisterPromptInjection('prompt_bottom', 'tes_world_' . $tesWorldFn, $tesWorldRl, 95);
+                    }
+                }
+            }
+            if (function_exists('tesRealmCrowdLine') && ($tesWorldCrowd = tesRealmCrowdLine()) !== '') {
+                chimRegisterPromptInjection('prompt_bottom', 'tes_world_crowd', $tesWorldCrowd, 94);
+            }
             if (function_exists('tesCourtLine')) {
                 $tesWorldCourtLine = tesCourtLine($tesWorldMe);
                 if ($tesWorldCourtLine !== '') {

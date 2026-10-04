@@ -92,7 +92,7 @@ try {
         $GLOBALS['TES_WORLD_POST'] = true;
         require_once __DIR__ . '/lib.php';
         tesWorldDuelTick();
-        foreach (['tesWorldVerifyTick', 'tesWatchTick', 'tesTreasuryTax'] as $tesWorldTick) {
+        foreach (['tesWorldVerifyTick', 'tesWatchTick', 'tesTreasuryTax', 'tesRealmReport', 'tesRealmPlots'] as $tesWorldTick) {
             try {
                 if (function_exists($tesWorldTick)) {
                     $tesWorldTick();

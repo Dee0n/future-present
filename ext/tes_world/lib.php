@@ -773,6 +773,11 @@ if (!function_exists('tesWorldEnsureTable')) {
                 }
                 tesWorldQueue(['prid ' . $ref, 'tesgive all']);
             } elseif ($fast['kind'] === 'kill') {
+                // the executioner of the court, when there is one, does it himself
+                $exec = function_exists('tesRealmExecutioner') ? tesRealmExecutioner() : '';
+                if ($exec !== '' && $exec !== $who) {
+                    $guard = $exec;
+                }
                 if ($guard === '' || !tesWorldDuel($guard, $who)) {
                     tesWorldQueue(['prid ' . $ref, 'teskill', 'kill']);
                     tesWorldVerifyAdd('kill', $who, $ref);
@@ -792,6 +797,9 @@ if (!function_exists('tesWorldEnsureTable')) {
                 if ($by !== '' && $by !== $who && $fast['kind'] !== 'bring') {
                     tesLoyaltyBump($by, 0.3, 0.5);  // the one who carried it out likes it little
                 }
+            }
+            if (function_exists('tesRealmAfterOrder')) {
+                tesRealmAfterOrder(strval($fast['kind']), $who, $ref, $by, $said);
             }
             $done[] = $key;
         }
@@ -967,3 +975,4 @@ if (!function_exists('tesWorldEnsureTable')) {
 require_once __DIR__ . '/verify.php';
 require_once __DIR__ . '/watch.php';
 require_once __DIR__ . '/court.php';
+require_once __DIR__ . '/realm.php';

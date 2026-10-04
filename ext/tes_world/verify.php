@@ -99,10 +99,17 @@ if (!function_exists('tesWorldVerifyAdd')) {
                 tesWorldQueue(tesWorldVerifyCommands($kind, $ref));
                 $db->execQuery("UPDATE public.tes_order_checks SET stage = 'wait', tries = tries + 1, due_at = now() + interval '25 seconds' WHERE id = {$id}");
                 error_log("[tes_world] order check: {$kind} {$r['who']} did not take - sent again (" . (intval($r['tries']) + 1) . ")");
+                if (function_exists('tesWatchNotify')) {
+                    tesWatchNotify("{$r['who']}: не вышло, пробую ещё раз");
+                }
             } else {
                 $db->execQuery("UPDATE public.tes_order_checks SET stage = 'done' WHERE id = {$id}");
                 if ($bad) {
                     error_log("[tes_world] order check: {$kind} {$r['who']} still not done after retries");
+                }
+                if (function_exists('tesWatchNotify')) {
+                    $word = function_exists('tesRealmKindWord') ? tesRealmKindWord($kind) : $kind;
+                    tesWatchNotify($bad ? "{$r['who']}: так и не вышло ({$word})" : "{$r['who']}: {$word} — готово");
                 }
             }
         }

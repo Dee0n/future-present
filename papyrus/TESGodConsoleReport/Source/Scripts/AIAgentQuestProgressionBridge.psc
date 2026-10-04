@@ -176,10 +176,55 @@ bool Function TESRunAndReport(String command) Global
         AIAgentFunctions.logMessage(command + "@@crime reporting " + (!impunityOn), "tes_god_console")
         return true
     endif
+    if command == "tesredress"
+        ; the selected actor wears his own default outfit again (undo of "раздеть")
+        Actor dressed = ConsoleUtil.GetSelectedReference() as Actor
+        if !dressed || dressed == Game.GetPlayer()
+            AIAgentFunctions.logMessage("tesredress@@error: no actor selected", "tes_god_console")
+            return true
+        endif
+        Outfit own = dressed.GetActorBase().GetOutfit()
+        if own
+            dressed.SetOutfit(own, false)
+        endif
+        dressed.EvaluatePackage()
+        AIAgentFunctions.logMessage("tesredress@@" + dressed.GetDisplayName() + " is dressed again", "tes_god_console")
+        return true
+    endif
+    if command == "tesungive"
+        ; the things the selected actor gave the player with "tesgive all" go back to him
+        Actor taker = ConsoleUtil.GetSelectedReference() as Actor
+        if !taker
+            AIAgentFunctions.logMessage("tesungive@@error: no actor selected", "tes_god_console")
+            return true
+        endif
+        int back = StorageUtil.FormListCount(taker, "TESGaveForms")
+        int k = 0
+        int moved = 0
+        while k < back
+            Form what = StorageUtil.FormListGet(taker, "TESGaveForms", k)
+            int howMany = StorageUtil.IntListGet(taker, "TESGaveCounts", k)
+            if what && howMany > 0
+                int have = Game.GetPlayer().GetItemCount(what)
+                if have < howMany
+                    howMany = have
+                endif
+                if howMany > 0
+                    Game.GetPlayer().RemoveItem(what, howMany, true, taker)
+                    moved += 1
+                endif
+            endif
+            k += 1
+        endwhile
+        StorageUtil.FormListClear(taker, "TESGaveForms")
+        StorageUtil.IntListClear(taker, "TESGaveCounts")
+        AIAgentFunctions.logMessage("tesungive@@" + taker.GetDisplayName() + ": " + moved + " kinds of items returned", "tes_god_console")
+        return true
+    endif
     if command == "tesversion"
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
-        ; 3 = also "teslove solo"; 4 = also "tesimpunity"
-        AIAgentFunctions.logMessage("tesversion@@4", "tes_god_console")
+        ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive"
+        AIAgentFunctions.logMessage("tesversion@@5", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -556,6 +601,20 @@ Function TESGive(String mode) Global
         return
     endif
     if mode == "all"
+        ; what he carries is written down first - "tesungive" gives it back (live 2026-10-04: the
+        ; smith's things went to the player by a mistaken order and there was no way back)
+        StorageUtil.FormListClear(giver, "TESGaveForms")
+        StorageUtil.IntListClear(giver, "TESGaveCounts")
+        int kinds = giver.GetNumItems()
+        int n = 0
+        while n < kinds
+            Form carried = giver.GetNthForm(n)
+            if carried
+                StorageUtil.FormListAdd(giver, "TESGaveForms", carried, false)
+                StorageUtil.IntListAdd(giver, "TESGaveCounts", giver.GetItemCount(carried), false)
+            endif
+            n += 1
+        endwhile
         giver.RemoveAllItems(player, false, false)
         AIAgentFunctions.logMessage("tesgive all@@" + giver.GetDisplayName() + " gave everything carried to the player", "tes_god_console")
         return

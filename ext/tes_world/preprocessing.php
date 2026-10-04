@@ -66,6 +66,9 @@ try {
         // the treasury and the court: the ruler's words about them are done at once
         if ($tesWorldTo !== '' && function_exists('tesCourtSpoken')) {
             $tesWorldCourt = tesCourtSpoken($tesWorldLine, $tesWorldTo);
+            if ($tesWorldCourt === '' && function_exists('tesRealmSpoken')) {
+                $tesWorldCourt = tesRealmSpoken($tesWorldLine, $tesWorldTo);
+            }
             if ($tesWorldCourt !== '') {
                 $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . $tesWorldCourt . $tesWorldTail;
                 error_log("[tes_world] court/treasury: {$tesWorldCourt}");

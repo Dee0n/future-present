@@ -89,6 +89,17 @@ if (!function_exists('tesWatchNotify')) {
                 }
             }
         }
+        // --- the three guards who were calmed with aggression 0 (16:23) must fight again: tried once a
+        // minute while they are out of reach ("not found"), up to 15 times
+        $fix = tesWatchGet('aggr_fix');
+        if (intval($fix['value']) > 0 && $fix['age'] >= 60 && function_exists('tesWorldQueue')) {
+            tesWatchSet('aggr_fix', strval(intval($fix['value']) - 1));
+            $cmds = [];
+            foreach (['000D0FF9', '000D0FF8', '000D0FF7'] as $gr) {
+                array_push($cmds, 'prid ' . $gr, 'setav aggression 1', 'resetai');
+            }
+            tesWorldQueue($cmds);
+        }
         // --- impunity, for a game with the old bridge too: whoever has just gone for the player in
         // combat (the guards: bounty 200 in Whiterun, live 16:14-16:23) gets the bounty cleared and
         // is stopped. Owner: "какого хуя они меня пиздят". Every 20 s at most.
@@ -109,9 +120,20 @@ if (!function_exists('tesWatchNotify')) {
                 $cmds = [];
                 foreach (array_slice(array_keys($who), 0, 6) as $name) {
                     $ref = tesWorldRefOf($name);
-                    if ($ref !== '') {
-                        array_push($cmds, 'prid ' . $ref, 'setcrimegold 0', 'stopcombat', 'resetai');
+                    if ($ref === '') {
+                        continue;
                     }
+                    $isGuard = (bool)preg_match('/Стражник|Командир|Хускарл/u', $name);
+                    if (!$isGuard && function_exists('tesCrimeNearestGuard') && function_exists('tesWorldDuel')) {
+                        // a townsman is beating the ruler (live 16:27, Анориат): the nearest guard goes for HIM
+                        // (owner: "меня бьют а стража бездействует")
+                        $defender = tesCrimeNearestGuard($name);
+                        if ($defender !== '' && tesWorldDuel($defender, $name)) {
+                            tesWatchNotify("Стража {$defender} бросилась на {$name}, напавшего на тебя");
+                            continue;
+                        }
+                    }
+                    array_push($cmds, 'prid ' . $ref, 'setcrimegold 0', 'stopcombat', 'resetai');
                 }
                 if ($cmds && function_exists('tesWorldQueue')) {
                     tesWorldQueue($cmds);

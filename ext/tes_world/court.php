@@ -55,7 +55,11 @@ if (!function_exists('tesTreasuryAdd')) {
         }
         tesWatchSet('tax_at', '1');
         $traders = 8 + random_int(0, 4);
-        $sum = $traders * (35 + random_int(0, 40));
+        $rate = tesWatchGet('tax_rate')['value'];
+        $sum = intval($traders * (35 + random_int(0, 40)) * (($rate === '' ? 100 : intval($rate)) / 100));
+        if ($sum <= 0) {
+            return;  // the tax is lifted
+        }
         $balance = tesTreasuryAdd($sum, "налог с торговцев ({$traders})");
         tesWatchNotify("В казну поступил налог {$sum} септимов. Всего в казне: {$balance}");
     }
