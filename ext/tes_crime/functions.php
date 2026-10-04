@@ -153,7 +153,7 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
                 if ($days <= 0) {
                     $days = tesCrimeNumberNear($said, '(?:сут|дн|день|дня)') ?: 1;
                 }
-                [$ok, $msg] = tesCrimeJail($name, strval($npc['refid']), "арестован: {$actor}", max(1, min(365, $days)));
+                [$ok, $msg] = tesCrimeJail($name, strval($npc['refid']), "арестован: {$actor}", max(1, min(365, $days)), $actor);
             }
             error_log("[tes_crime] {$actor}: {$code} -> {$name}: " . ($ok ? 'ok' : 'failed') . " - {$msg}");
         } catch (Throwable $e) {

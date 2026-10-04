@@ -41,7 +41,7 @@ if (!class_exists('RelationshipManager') && is_readable($enginePath . 'lib/relat
 }
 
 $db = $GLOBALS['db'];
-$args = getopt('', ['task:', 'goal:', 'dry', 'readonly', 'quick', 'local']);
+$args = getopt('', ['task:', 'goal:', 'dry', 'readonly', 'quick', 'local', 'silent']);
 $tesLocalFirst = $db->fetchOne("SELECT value FROM conf_opts WHERE id = 'TES_AGENT_LOCAL_FIRST'");
 $tesLocalOnly = $db->fetchOne("SELECT value FROM conf_opts WHERE id = 'TES_AGENT_LOCAL_ONLY'");
 $GLOBALS['TES_AGENT_LOCAL_ONLY'] = trim(strval($tesLocalOnly['value'] ?? ''), '"') === '1';
@@ -700,7 +700,9 @@ $finish = ['done' => false, 'rejects' => 0, 'summary' => '', 'failed' => [], 'ga
 $transcript = [];
 $started = time();
 
-if (!$dry) {
+// --silent: the law patrol - no corner notice, no Narrator report
+$silent = isset($args['silent']);
+if (!$dry && !$silent) {
     tesAgentNotify('Нарратор: ' . mb_substr($task['goal'], 0, 120));
 }
 
@@ -757,7 +759,7 @@ $db->execQuery("UPDATE public.tes_agent_tasks SET status = '{$status}', steps = 
     . $db->escape($finish['summary']) . "' WHERE id = {$taskId}");
 echo "== {$status}: {$finish['summary']} | steps {$steps} | \$" . round($cost, 5) . "\n";
 
-if (!$dry) {
+if (!$dry && !$silent) {
     $notMet = $finish['failed'] ? ' Не сошлось при проверке: ' . mb_substr(json_encode($finish['failed'], JSON_UNESCAPED_UNICODE), 0, 300) : '';
     $what = $status === 'done' ? 'Ты выполнил волю игрока' : ($status === 'gave_up' ? 'Это оказалось невозможно' : 'Выполнено не полностью');
     if ($readonly) {

@@ -34,9 +34,12 @@ ap.add_argument("--nfe", type=int, default=16)
 ap.add_argument("--speed", type=float, default=1.1)
 # F5 sizes the output from the reference's chars-per-second; at exactly that
 # estimate it often runs out of room and chops the last word. Give it slack.
-ap.add_argument("--margin", type=float, default=1.0, help="x estimated speech length")
-ap.add_argument("--slack", type=float, default=0.25, help="extra seconds for the tail")
-ap.add_argument("--pad", type=float, default=0.15, help="silence appended to the wav")
+# Measured 2026-10-04 on 18 lines x 3 voices: at margin 1.0 / slack 0.25 twelve ended with no
+# silence after the last sound (the tail was chopped); with more room the model finishes the
+# word, and trim_tail() below removes the silence it leaves when the room was not needed.
+ap.add_argument("--margin", type=float, default=1.05, help="x estimated speech length")
+ap.add_argument("--slack", type=float, default=0.5, help="extra seconds for the tail")
+ap.add_argument("--pad", type=float, default=0.2, help="silence appended to the wav")
 args = ap.parse_args()
 
 from f5_tts.api import F5TTS  # noqa: E402  (heavy import after arg parsing)
@@ -122,6 +125,24 @@ def fix_duration(ref_wav, ref_txt, gen_txt, margin, slack, speed):
     return min(ref_sec + gen_sec * margin + slack, 29.0)  # F5 caps one pass at 30 s
 
 
+def trim_tail(wav, sr, keep=0.12):
+    """Cut the silence after the last sound, leaving `keep` seconds and a short fade-out."""
+    if len(wav) < sr // 4:
+        return wav
+    win = int(0.02 * sr)
+    peak = float(np.max(np.abs(wav))) or 1.0
+    last = len(wav)
+    for start in range(len(wav) - win, 0, -win):
+        if float(np.sqrt(np.mean(wav[start:start + win] ** 2))) > peak * 0.02:
+            last = start + win
+            break
+    end = min(len(wav), last + int(keep * sr))
+    out = wav[:end].copy()
+    fade = min(int(0.03 * sr), len(out))
+    out[-fade:] *= np.linspace(1.0, 0.0, fade, dtype=out.dtype)
+    return out
+
+
 def pick_voice(requested):
     v = str(requested or "").replace("\\", "/").split("/")[-1]
     v = v[:-4] if v.lower().endswith(".wav") else v
@@ -184,11 +205,14 @@ async def tts_to_audio(req: Request):
             remove_silence=False,
             show_info=lambda *a, **k: None,
         )
+    raw_len = len(wav)
+    wav = trim_tail(np.asarray(wav), sr)
+    spare = (raw_len - len(wav)) / sr + 0.12  # silence the model left after the last sound: 0 = no room, chopped
     if args.pad > 0:
         wav = np.concatenate([wav, np.zeros(int(args.pad * sr), dtype=wav.dtype)])
     buf = io.BytesIO()
     sf.write(buf, wav, sr, format="WAV", subtype="PCM_16")
-    print(f"[tts] {voice} {len(text)} chars -> {len(wav)/sr:.1f}s audio in {time.time()-t0:.2f}s", flush=True)
+    print(f"[tts] {voice} {len(text)} chars -> {len(wav)/sr:.1f}s audio in {time.time()-t0:.2f}s, spare tail {spare:.2f}s", flush=True)
     return Response(buf.getvalue(), media_type="audio/wav")
 
 

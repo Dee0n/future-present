@@ -160,6 +160,36 @@ bool Function TESRunAndReport(String command) Global
         AIAgentFunctions.logMessage("teskill@@" + victim.GetDisplayName() + " is dead: " + victim.IsDead(), "tes_god_console")
         return true
     endif
+    if StringUtil.Find(command, "tesfollow ") == 0
+        TESFollowRef(StringUtil.Substring(command, 10))
+        return true
+    endif
+    if StringUtil.Find(command, "tesescort ") == 0
+        TESEscort(StringUtil.Substring(command, 10))
+        return true
+    endif
+    if StringUtil.Find(command, "tesduel ") == 0
+        ; an execution is a fight: the selected actor attacks the condemned, whose
+        ; "essential"/"protected" flags are taken off first so that the fight can end
+        Actor executioner = ConsoleUtil.GetSelectedReference() as Actor
+        Actor condemned = Game.GetForm(StringUtil.Substring(command, 8) as int) as Actor
+        if !executioner || !condemned || condemned == Game.GetPlayer()
+            AIAgentFunctions.logMessage(command + "@@error: who or whom is missing", "tes_god_console")
+            return true
+        endif
+        ActorBase condemnedBase = condemned.GetActorBase()
+        if condemnedBase
+            condemnedBase.SetEssential(false)
+            condemnedBase.SetProtected(false)
+        endif
+        executioner.StartCombat(condemned)
+        AIAgentFunctions.logMessage(command + "@@" + executioner.GetDisplayName() + " attacks " + condemned.GetDisplayName(), "tes_god_console")
+        return true
+    endif
+    if StringUtil.Find(command, "tesjailbox ") == 0
+        TESJailBox(StringUtil.Substring(command, 11))
+        return true
+    endif
     if StringUtil.Find(command, "teshold ") == 0
         TESHold(StringUtil.Substring(command, 8))
         return true
@@ -873,6 +903,123 @@ Function TESDress(String formIdText) Global
     AIAgentFunctions.logMessage("tesdress " + formIdText + "@@" + target.GetDisplayName() + " now wears " + item.GetName(), "tes_god_console")
 EndFunction
 
+; TES-Speech-Adapter: an arrest on foot.
+;   "tesfollow <actor FormID, decimal>|0" - the selected NPC (the guard) follows that actor:
+;        CHIM's own Follow package, faction and linked-ref keyword; 0 takes them off.
+;   "tesescort <reference FormID, decimal>" - the selected NPC (the arrested) walks to that
+;        reference (the prison marker) with CHIM's TravelTo package; teshold replaces it there.
+Function TESFollowRef(String arg) Global
+    Actor npc = ConsoleUtil.GetSelectedReference() as Actor
+    Package followPackage = Game.GetFormFromFile(0x01BC25, "AIAgent.esp") as Package
+    Faction followFaction = Game.GetFormFromFile(0x01BC24, "AIAgent.esp") as Faction
+    Keyword moveTarget = Game.GetFormFromFile(0x021245, "AIAgent.esp") as Keyword
+    if !npc || !followPackage || !followFaction
+        AIAgentFunctions.logMessage("tesfollow " + arg + "@@error: no actor selected", "tes_god_console")
+        return
+    endif
+    int id = arg as int
+    if id <= 0
+        ActorUtil.RemovePackageOverride(npc, followPackage)
+        npc.RemoveFromFaction(followFaction)
+        PO3_SKSEFunctions.SetLinkedRef(npc, None, moveTarget)
+        npc.EvaluatePackage()
+        AIAgentFunctions.logMessage("tesfollow 0@@" + npc.GetDisplayName() + " is back to his duties", "tes_god_console")
+        return
+    endif
+    ObjectReference whom = Game.GetForm(id) as ObjectReference
+    if !whom
+        AIAgentFunctions.logMessage("tesfollow " + arg + "@@error: no such actor", "tes_god_console")
+        return
+    endif
+    npc.SetFactionRank(followFaction, 1)
+    PO3_SKSEFunctions.SetLinkedRef(npc, whom, moveTarget)
+    ActorUtil.AddPackageOverride(npc, followPackage, 100, 0)
+    npc.EvaluatePackage()
+    AIAgentFunctions.logMessage("tesfollow " + arg + "@@" + npc.GetDisplayName() + " goes after " + whom.GetDisplayName(), "tes_god_console")
+EndFunction
+
+Function TESEscort(String arg) Global
+    Actor npc = ConsoleUtil.GetSelectedReference() as Actor
+    Package travelPackage = Game.GetFormFromFile(0x01ABFE, "AIAgent.esp") as Package
+    Faction travelFaction = Game.GetFormFromFile(0x01A69C, "AIAgent.esp") as Faction
+    ObjectReference place = Game.GetForm(arg as int) as ObjectReference
+    if !npc || !travelPackage || !travelFaction || !place
+        AIAgentFunctions.logMessage("tesescort " + arg + "@@error: who or where is missing", "tes_god_console")
+        return
+    endif
+    npc.SetFactionRank(travelFaction, 1)
+    PO3_SKSEFunctions.SetLinkedRef(npc, place)
+    ActorUtil.AddPackageOverride(npc, travelPackage, 100, 0)
+    npc.EvaluatePackage()
+    AIAgentFunctions.logMessage("tesescort " + arg + "@@" + npc.GetDisplayName() + " is being led away", "tes_god_console")
+EndFunction
+
+; TES-Speech-Adapter: "tesjailbox in|out" - a prisoner's belongings.
+;   in  - what the selected NPC wears is remembered, then EVERYTHING he carries (armour, weapons,
+;         gold) goes into his own hidden chest (TreasChestSmallEMPTYNoRespawn 000F8478, placed
+;         disabled where he stands). unequipall alone left it all in the inventory and the
+;         prisoner dressed again within seconds.
+;   out - the chest gives everything back, he puts on what he wore, the chest is deleted.
+Function TESJailBox(String mode) Global
+    Actor target = ConsoleUtil.GetSelectedReference() as Actor
+    if !target || target == Game.GetPlayer()
+        AIAgentFunctions.logMessage("tesjailbox " + mode + "@@error: no actor selected", "tes_god_console")
+        return
+    endif
+    ObjectReference box = StorageUtil.GetFormValue(target, "TESJailBox") as ObjectReference
+    if mode == "in"
+        if !box
+            box = target.PlaceAtMe(Game.GetForm(0x000F8478), 1, true, true)
+            if !box
+                AIAgentFunctions.logMessage("tesjailbox in@@error: no chest", "tes_god_console")
+                return
+            endif
+            StorageUtil.SetFormValue(target, "TESJailBox", box)
+            StorageUtil.FormListClear(target, "TESJailWorn")
+            int bit = 0
+            while bit < 32
+                Form worn = target.GetWornForm(Math.LeftShift(1, bit))
+                if worn
+                    StorageUtil.FormListAdd(target, "TESJailWorn", worn, false)
+                endif
+                bit += 1
+            endwhile
+            Form inRight = target.GetEquippedObject(1)
+            if inRight
+                StorageUtil.FormListAdd(target, "TESJailWorn", inRight, false)
+            endif
+            Form inLeft = target.GetEquippedObject(0)
+            if inLeft
+                StorageUtil.FormListAdd(target, "TESJailWorn", inLeft, false)
+            endif
+        endif
+        target.UnequipAll()
+        target.RemoveAllItems(box, true, true)
+        AIAgentFunctions.logMessage("tesjailbox in@@" + target.GetDisplayName() + ": " + box.GetNumItems() + " kinds of items taken away", "tes_god_console")
+        return
+    endif
+    if !box
+        AIAgentFunctions.logMessage("tesjailbox out@@" + target.GetDisplayName() + ": nothing was taken", "tes_god_console")
+        return
+    endif
+    int kinds = box.GetNumItems()
+    box.RemoveAllItems(target, true, true)
+    box.Disable()
+    box.Delete()
+    StorageUtil.UnsetFormValue(target, "TESJailBox")
+    int n = StorageUtil.FormListCount(target, "TESJailWorn")
+    int i = 0
+    while i < n
+        Form piece = StorageUtil.FormListGet(target, "TESJailWorn", i)
+        if piece && target.GetItemCount(piece) > 0
+            target.EquipItem(piece, false, true)
+        endif
+        i += 1
+    endwhile
+    StorageUtil.FormListClear(target, "TESJailWorn")
+    AIAgentFunctions.logMessage("tesjailbox out@@" + target.GetDisplayName() + ": " + kinds + " kinds of items returned", "tes_god_console")
+EndFunction
+
 ; TES-Speech-Adapter: "teshold <reference FormID, decimal>|0" - keep the selected NPC at an
 ; existing reference (a jail's PrisonMarker). Live 2026-10-04: Хеймскр, jailed with moveto +
 ; setrestrained, was back at the Talos statue every few minutes - once the jail cell unloads,
@@ -908,6 +1055,14 @@ Function TESHold(String arg) Global
     if !place
         AIAgentFunctions.logMessage("teshold " + arg + "@@error: no such reference", "tes_god_console")
         return
+    endif
+    Package escortTravel = Game.GetFormFromFile(0x01ABFE, "AIAgent.esp") as Package
+    Faction escortFaction = Game.GetFormFromFile(0x01A69C, "AIAgent.esp") as Faction
+    if escortTravel
+        ActorUtil.RemovePackageOverride(target, escortTravel)
+    endif
+    if escortFaction
+        target.RemoveFromFaction(escortFaction)
     endif
     StorageUtil.SetIntValue(target, "TESHeld", 1)
     target.SetFactionRank(sandboxFaction, 1)

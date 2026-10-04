@@ -29,14 +29,14 @@ if (!function_exists('tesAgentEnsureTable')) {
         tesAgentEnsureTable();
         $row = $GLOBALS['db']->fetchOne("
             SELECT id, goal, steps, status FROM public.tes_agent_tasks
-            WHERE status IN ('queued', 'running') AND updated_at > now() - interval '15 minutes'
+            WHERE status IN ('queued', 'running') AND updated_at > now() - interval '5 minutes'
             ORDER BY id DESC LIMIT 1
         ");
         return is_array($row) && !empty($row['id']) ? $row : null;
     }
 
     /** Create a task row and start the detached worker. Returns [ok, message]. */
-    function tesAgentStart(string $goal, bool $dry = false, bool $readonly = false, bool $quick = false): array
+    function tesAgentStart(string $goal, bool $dry = false, bool $readonly = false, bool $quick = false, bool $silent = false): array
     {
         $goal = trim(preg_replace('/\s+/u', ' ', $goal) ?? $goal);
         if (mb_strlen($goal) < 3) {
@@ -55,7 +55,7 @@ if (!function_exists('tesAgentEnsureTable')) {
                 return [false, "очередь полна: идёт задача #{$running['id']} и ещё 6 ждут"];
             }
             $row = $db->fetchOne("INSERT INTO public.tes_agent_tasks (goal, status, opts) VALUES ('" . $db->escape(mb_substr($goal, 0, 1000))
-                . "', 'waiting', '" . ($dry ? 'dry ' : '') . ($readonly ? 'readonly ' : '') . ($quick ? 'quick' : '') . "') RETURNING id");
+                . "', 'waiting', '" . ($dry ? 'dry ' : '') . ($readonly ? 'readonly ' : '') . ($quick ? 'quick ' : '') . ($silent ? 'silent' : '') . "') RETURNING id");
             return [true, 'задача #' . intval($row['id'] ?? 0) . " в очереди за #{$running['id']}"];
         }
         $row = $db->fetchOne("INSERT INTO public.tes_agent_tasks (goal) VALUES ('" . $db->escape(mb_substr($goal, 0, 1000)) . "') RETURNING id");
@@ -63,7 +63,7 @@ if (!function_exists('tesAgentEnsureTable')) {
         if ($id <= 0) {
             return [false, 'не удалось создать задачу'];
         }
-        tesAgentSpawn($id, $dry, $readonly, $quick);
+        tesAgentSpawn($id, $dry, $readonly, $quick, $silent);
         return [true, "задача #{$id} запущена"];
     }
 
@@ -79,17 +79,17 @@ if (!function_exists('tesAgentEnsureTable')) {
             SELECT id FROM public.tes_agent_tasks WHERE status = 'waiting' AND created_at > now() - interval '15 minutes' ORDER BY id LIMIT 1
         ) RETURNING id, opts");
         if (!empty($next['id'])) {
-            tesAgentSpawn(intval($next['id']), strpos(strval($next['opts']), 'dry') !== false, strpos(strval($next['opts']), 'readonly') !== false, strpos(strval($next['opts']), 'quick') !== false);
+            tesAgentSpawn(intval($next['id']), strpos(strval($next['opts']), 'dry') !== false, strpos(strval($next['opts']), 'readonly') !== false, strpos(strval($next['opts']), 'quick') !== false, strpos(strval($next['opts']), 'silent') !== false);
         }
     }
 
-    function tesAgentSpawn(int $id, bool $dry, bool $readonly, bool $quick = false): void
+    function tesAgentSpawn(int $id, bool $dry, bool $readonly, bool $quick = false, bool $silent = false): void
     {
         $worker = __DIR__ . '/worker.php';
         $log = '/var/www/html/HerikaServer/log/tes_agent_' . $id . '.log';
         // setsid + nohup: the worker must outlive this HTTP request (SNQE pattern).
         // Absolute php: under Apache, PATH is minimal and PHP_BINARY is not the CLI.
-        exec('setsid nohup /usr/bin/php ' . escapeshellarg($worker) . ' --task ' . $id . ($dry ? ' --dry' : '') . ($readonly ? ' --readonly' : '') . ($quick ? ' --quick' : '')
+        exec('setsid nohup /usr/bin/php ' . escapeshellarg($worker) . ' --task ' . $id . ($dry ? ' --dry' : '') . ($readonly ? ' --readonly' : '') . ($quick ? ' --quick' : '') . ($silent ? ' --silent' : '')
             . ' > ' . escapeshellarg($log) . ' 2>&1 &');
     }
 

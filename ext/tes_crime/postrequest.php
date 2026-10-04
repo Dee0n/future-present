@@ -12,6 +12,8 @@ try {
         $db = $GLOBALS['db'];
         $tesCrimeHas = $db->fetchOne("SELECT to_regclass('public.tes_crime_jail') AS t");
         if (!empty($tesCrimeHas['t'])) {
+            tesCrimeEnsureJailTable();
+            tesCrimeEscortTick();
             $tesCrimeNow = tesCrimeGamets();
             $rows = $db->fetchAll("SELECT * FROM public.tes_crime_jail WHERE status = 'jailed' ORDER BY id LIMIT 20");
             $near = null;
@@ -33,7 +35,7 @@ try {
                     $inJail = (bool)preg_match('/подземель|тюрьм|темниц|казарм|холодн|сидна|кровав/iu', strval($l['data'] ?? ''));
                     $near = $inJail ? [] : array_map(fn($x) => trim(preg_replace('/(\s*\((?:busy|restrained|far away|sleeping|sitting|[a-z ]+)\))+\s*$/u', '', trim($x)) ?? ''), explode('/', strval($n['data'] ?? '')));
                 }
-                if (in_array(strval($row['npc']), $near, true)) {
+                if (strval($row['stage'] ?? 'in') === 'in' && in_array(strval($row['npc']), $near, true)) {
                     $held = $db->fetchOne("SELECT 1 AS x FROM public.tes_crime_jail WHERE id = " . intval($row['id']) . " AND (last_hold IS NULL OR last_hold < now() - interval '60 seconds')");
                     if (!empty($held)) {
                         tesCrimeQueue(tesCrimeHoldCommands(strval($row['refid']), strval($row['inside_ref'])));

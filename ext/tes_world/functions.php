@@ -37,6 +37,50 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                 if (empty($facts['player_title']) || mb_strlen($order) < 8 || !function_exists('tesAgentStart')) {
                     continue;  // no authority to act on, or nothing to do
                 }
+                // An order comes from the player's own line. Live 2026-10-04 13:13: the agent told the
+                // executor "ты подвёл Айрилет…", he answered that instruction with Carry_Out_Order
+                // again - and his own report became the next order in line.
+                if (!in_array(strval($GLOBALS['gameRequest'][0] ?? ''), ['inputtext', 'inputtext_s', 'ginputtext'], true)) {
+                    error_log("[tes_world] order via {$actor}: ignored (not the player's line) | {$order}");
+                    continue;
+                }
+                // a standing law ("отныне все …", "закон: …") is kept: every character knows it and
+                // the patrol (postrequest.php) keeps enforcing it
+                if (preg_match('/(?<![\p{L}])(закон\p{L}*|указ\p{L}*|отныне|впредь|всегда|кажд(ый|ая|ого|ую)|все\s+\p{L}+\s+(должны|обязаны)|запрещ\p{L}+)(?![\p{L}])/iu', $order)) {
+                    tesWorldAddLaw($order);
+                }
+                // bring / undress / execute / take everything: done at once, no agent, no queue
+                $fast = tesWorldFastOrder($order, $actor);
+                if ($fast && function_exists('tesGodGuardFilterAction') && function_exists('herikaQueueGodCommands')) {
+                    $key = $fast['kind'] . ': ' . implode(', ', $fast['targets']);
+                    $once = $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '40 seconds' AND status = 'fast' AND goal = '" . $GLOBALS['db']->escape($key) . "' LIMIT 1");
+                    if (empty($once)) {
+                        $GLOBALS['db']->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $GLOBALS['db']->escape($key) . "', 'fast', '" . $GLOBALS['db']->escape("через {$actor}: {$order}") . "')");
+                        $text = [];
+                        foreach ($fast['targets'] as $who) {
+                            if ($fast['kind'] === 'kill') {
+                                // a real fight: the one ordered does it if he is a man-at-arms, else the nearest guard
+                                $by = (function_exists('tesCrimeIsAuthority') && tesCrimeIsAuthority($actor) && $actor !== $who) ? $actor
+                                    : (function_exists('tesCrimeNearestGuard') ? tesCrimeNearestGuard($who) : '');
+                                if ($by !== '' && tesWorldDuel($by, $who)) {
+                                    continue;
+                                }
+                            }
+                            $text[] = '{npc:' . $who . '}.' . ['bring' => 'moveto player', 'strip' => 'unequipall', 'kill' => 'kill', 'take' => 'giveall'][$fast['kind']];
+                        }
+                        $queued = 0;
+                        if ($text) {
+                            $filtered = tesGodGuardFilterAction('The Narrator|command|GodCommand@' . json_encode(['target' => implode('; ', $text)], JSON_UNESCAPED_UNICODE));
+                            if ($filtered !== null) {
+                                $callF = explode('@', explode('|', $filtered)[2] ?? '', 2);
+                                $keptF = trim(strval(json_decode($callF[1] ?? '', true)['target'] ?? ''));
+                                $queued = $keptF !== '' ? herikaQueueGodCommands($keptF) : 0;
+                            }
+                        }
+                        error_log("[tes_world] order via {$actor}: done at once ({$queued}) - {$key} | {$order}");
+                    }
+                    continue;
+                }
                 $db = $GLOBALS['db'];
                 // the same order is not started twice (the model repeats actions in follow-up lines)
                 $dup = $db->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '3 minutes' AND goal LIKE '%" . $db->escape(mb_substr($order, 0, 60)) . "%' LIMIT 1");

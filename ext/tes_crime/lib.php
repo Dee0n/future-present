@@ -115,6 +115,9 @@ if (!function_exists('tesCrimeFine')) {
                 last_hold timestamptz
             )
         ");
+        // escort: stage catch (the guard goes to him) -> walk (he is led to the cell) -> in
+        $GLOBALS['db']->execQuery("ALTER TABLE public.tes_crime_jail ADD COLUMN IF NOT EXISTS stage text NOT NULL DEFAULT 'in',
+            ADD COLUMN IF NOT EXISTS stage_at timestamptz NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS guard_ref text NOT NULL DEFAULT ''");
     }
 
     function tesCrimeGamets(): int
@@ -130,24 +133,37 @@ if (!function_exists('tesCrimeFine')) {
     /** Console sequence that puts the actor into the cell: prisoner clothes, cannot leave. */
     function tesCrimeJailCommands(string $ref, string $insideRef): array
     {
-        // teshold (bridge, 2026-10-04): the cell becomes his schedule - without it the game walked
-        // Хеймскр back to his statue every few minutes. A bridge without the command prints an
-        // "unknown command" line and goes on.
-        return ['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef, 'unequipall',
+        // Owner, 2026-10-04: "в тюрьму полностью раздевать, всю броню снимать, оружие забирать и в
+        // домотканую одежду и ножные обмотки". unequipall alone left everything in the inventory and
+        // the prisoner put his armour back on. tesjailbox in (bridge): what he wears is remembered,
+        // EVERYTHING he carries goes into his own hidden chest; tesjailbox out gives it back and
+        // dresses him again. teshold: the cell becomes his schedule (without it the game walked
+        // Хеймскр back to his statue). A bridge without these prints "not found" and goes on.
+        // Children are held but never undressed.
+        $child = function_exists('tesGodGuardIsChild') && tesGodGuardIsChild($ref);
+        $strip = $child ? [] : ['tesjailbox in', 'unequipall',
             'additem ' . TES_CRIME_RAGS . ' 1', 'equipitem ' . TES_CRIME_RAGS . ' 1',
-            'additem ' . TES_CRIME_WRAPS . ' 1', 'equipitem ' . TES_CRIME_WRAPS . ' 1',
-            'setrestrained 1', 'teshold ' . hexdec($insideRef)];
+            'additem ' . TES_CRIME_WRAPS . ' 1', 'equipitem ' . TES_CRIME_WRAPS . ' 1'];
+        return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $strip, ['setrestrained 1', 'teshold ' . hexdec($insideRef)]);
     }
 
     /** Put an escaped prisoner back: he already wears the rags, so only move and hold. */
     function tesCrimeHoldCommands(string $ref, string $insideRef): array
     {
-        return ['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef, 'equipitem ' . TES_CRIME_RAGS . ' 1',
-            'setrestrained 1', 'teshold ' . hexdec($insideRef)];
+        $child = function_exists('tesGodGuardIsChild') && tesGodGuardIsChild($ref);
+        return array_merge(['prid ' . $ref, 'stopcombat', 'moveto ' . $insideRef], $child ? [] : ['equipitem ' . TES_CRIME_RAGS . ' 1'],
+            ['setrestrained 1', 'teshold ' . hexdec($insideRef)]);
     }
 
-    /** Jail an NPC for $days game days. Returns [ok, message]. */
-    function tesCrimeJail(string $npc, string $refId, string $reason = '', int $days = 1): array
+    /**
+     * Jail an NPC for $days game days. Returns [ok, message].
+     * Owner, 2026-10-04: "система тюрьмы должна быть с провожаниями, а не тп в тюрьму… идти до них,
+     * ловить". With a guard around it is an arrest on foot: the guard goes to him (bridge
+     * tesfollow), then he is led to the cell (tesescort - CHIM's travel package to the prison
+     * marker), and only there he is stripped and locked up (tesCrimeEscortTick). No guard near,
+     * or a bridge without these commands - straight into the cell, as before.
+     */
+    function tesCrimeJail(string $npc, string $refId, string $reason = '', int $days = 1, string $guard = ''): array
     {
         $refId = strtoupper(trim($refId));
         if (!preg_match('/^[0-9A-F]{8}$/', $refId)) {
@@ -156,15 +172,56 @@ if (!function_exists('tesCrimeFine')) {
         tesCrimeEnsureJailTable();
         $db = $GLOBALS['db'];
         [$inside, $outside] = tesCrimeJailOfHold();
-        if (!tesCrimeQueue(tesCrimeJailCommands($refId, $inside))) {
+        $guard = ($guard !== '' && $guard !== $npc && mb_stripos($guard, 'Стражник') !== false) ? $guard : tesCrimeNearestGuard($npc);
+        $guardRef = '';
+        if ($guard !== '' && function_exists('tesGodGuardResolveNpcLoose') && class_exists('RelationshipManager')) {
+            $g = tesGodGuardResolveNpcLoose($guard);
+            $guardRef = strtoupper(trim(strval($g['refid'] ?? '')));
+        }
+        $escort = preg_match('/^[0-9A-F]{8}$/', $guardRef) && $guardRef !== $refId;
+        $first = $escort ? ['prid ' . $refId, 'stopcombat', 'prid ' . $guardRef, 'tesfollow ' . hexdec($refId)] : tesCrimeJailCommands($refId, $inside);
+        if (!tesCrimeQueue($first)) {
             return [false, "«{$npc}»: канал игры недоступен"];
         }
         $now = tesCrimeGamets();
         $db->execQuery("UPDATE public.tes_crime_jail SET status = 'released' WHERE status = 'jailed' AND refid = '{$refId}'");
         $db->insert('tes_crime_jail', ['npc' => $npc, 'refid' => $refId, 'inside_ref' => $inside, 'outside_ref' => $outside,
-            'jailed_gamets' => $now, 'release_gamets' => $now + TES_CRIME_DAY * max(1, $days), 'reason' => mb_substr($reason, 0, 300)]);
-        tesCrimeNotify("{$npc} в темнице на " . max(1, $days) . ' сут.');
-        return [true, "{$npc}: посажен в камеру, переодет в тюремное, выйдет через " . max(1, $days) . ' игровые сутки (раньше — {npc:Имя}.unjail)'];
+            'jailed_gamets' => $now, 'release_gamets' => $now + TES_CRIME_DAY * max(1, $days), 'reason' => mb_substr($reason, 0, 300),
+            'stage' => $escort ? 'catch' : 'in', 'guard_ref' => $escort ? $guardRef : '']);
+        tesCrimeNotify($escort ? "{$guard} идёт арестовывать: {$npc}" : "{$npc} в темнице на " . max(1, $days) . ' сут.');
+        return [true, $escort
+            ? "{$npc}: {$guard} идёт за ним и ведёт в темницу пешком; там его разденут, переоденут в тюремное и запрут на " . max(1, $days) . ' сут.'
+            : "{$npc}: посажен в камеру, переодет в тюремное, выйдет через " . max(1, $days) . ' игровые сутки (раньше — {npc:Имя}.unjail)'];
+    }
+
+    /** Moves the arrests on foot along: catch -> walk -> in. Called after every request. */
+    function tesCrimeEscortTick(): void
+    {
+        $db = $GLOBALS['db'];
+        $col = $db->fetchOne("SELECT 1 AS x FROM information_schema.columns WHERE table_name = 'tes_crime_jail' AND column_name = 'stage'");
+        if (empty($col)) {
+            return;
+        }
+        $rows = $db->fetchAll("SELECT *, extract(epoch FROM now() - stage_at)::int AS age FROM public.tes_crime_jail WHERE status = 'jailed' AND stage IN ('catch', 'walk') ORDER BY id LIMIT 10");
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            $id = intval($row['id']);
+            $ref = strval($row['refid']);
+            // a bridge from before 2026-10-04 does not know the commands: no walk, lock him up now
+            $old = $db->fetchOne("SELECT 1 AS x FROM public.tes_god_console_log WHERE created_at >= '" . $db->escape(strval($row['stage_at'])) . "'::timestamptz - interval '2 seconds'
+                AND (command LIKE 'tesfollow%' OR command LIKE 'tesescort%') AND output ILIKE '%not found%' LIMIT 1");
+            if ($row['stage'] === 'catch' && intval($row['age']) >= 9 && empty($old)) {
+                tesCrimeQueue(['prid ' . $ref, 'stopcombat', 'tesescort ' . hexdec(strval($row['inside_ref']))]);
+                $db->execQuery("UPDATE public.tes_crime_jail SET stage = 'walk', stage_at = now() WHERE id = {$id}");
+                tesCrimeNotify("{$row['npc']}: ведут в темницу");
+            } elseif (!empty($old) || ($row['stage'] === 'walk' && intval($row['age']) >= 75)) {
+                tesCrimeQueue(tesCrimeJailCommands($ref, strval($row['inside_ref'])));
+                if (preg_match('/^[0-9A-F]{8}$/', strval($row['guard_ref']))) {
+                    tesCrimeQueue(['prid ' . $row['guard_ref'], 'tesfollow 0']);
+                }
+                $db->execQuery("UPDATE public.tes_crime_jail SET stage = 'in', stage_at = now(), last_hold = now() WHERE id = {$id}");
+                tesCrimeNotify("{$row['npc']} в темнице");
+            }
+        }
     }
 
     /** Let an NPC out: own clothes back (the prisoner rags are taken away), to the street or to the player. */
@@ -172,7 +229,7 @@ if (!function_exists('tesCrimeFine')) {
     {
         $ref = strval($row['refid']);
         tesCrimeQueue(['prid ' . $ref, 'teshold 0', 'setrestrained 0', 'unequipitem ' . TES_CRIME_RAGS, 'removeitem ' . TES_CRIME_RAGS . ' 1',
-            'unequipitem ' . TES_CRIME_WRAPS, 'removeitem ' . TES_CRIME_WRAPS . ' 1',
+            'unequipitem ' . TES_CRIME_WRAPS, 'removeitem ' . TES_CRIME_WRAPS . ' 1', 'tesjailbox out',
             'moveto ' . ($toPlayer ? 'player' : strval($row['outside_ref'])), 'resetai']);
         $GLOBALS['db']->execQuery("UPDATE public.tes_crime_jail SET status = 'released' WHERE id = " . intval($row['id']));
     }
