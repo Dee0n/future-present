@@ -256,6 +256,10 @@ try {
         $tesWorldLawNote = '';
         if (function_exists('tesLawsRepeal') && preg_match('/(отмен\p{L}+|снима\p{L}+|сними|упраздн\p{L}+|убер\p{L}+)/iu', $tesWorldLine) && preg_match('/закон|указ/iu', $tesWorldLine)) {
             $tesWorldLawNote = tesLawsRepeal(mb_strtolower($tesWorldLine));
+            // a number or a topic was named but no such law: never fall through to "clear them all"
+            if ($tesWorldLawNote === '' && preg_match('/(номер|№)\s*\d|закон\p{L}*\s+\d|(закон|указ)\p{L}*\s+(про|о|об|насчет|насчёт)\s/iu', $tesWorldLine)) {
+                $tesWorldLawNote = ' *такого закона нет, ничего не отменено;' . ltrim(tesLawsList(), ' *');
+            }
         }
         if ($tesWorldLawNote === '' && preg_match('/(отмен\p{L}+|снима\p{L}+|упраздн\p{L}+)\s+(все\s+|мой\s+|этот\s+)?(закон|указ)/iu', $tesWorldLine)) {
             error_log('[tes_world] laws cleared: ' . tesWorldClearLaws());

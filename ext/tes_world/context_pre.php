@@ -24,6 +24,12 @@ try {
         $tesWorldSpoken0 = in_array($tesWorldType0, ['inputtext', 'inputtext_s', 'ginputtext'], true);
         $tesWorldEnforcer = (bool)preg_match('/Стражник|Хускарл|Командир|Капитан|Легат|Ярл\s|Стюард|Управляющ|Судья|Палач/u', $tesWorldMe0);
         $tesWorldPlain = $tesWorldFacts;
+        $tesWorldRealLaws = tesWorldLaws();  // without the agent's "приказать исполнить закон…" junk (worn.php)
+        foreach (array_keys($tesWorldPlain) as $k0) {
+            if (strpos($k0, 'law_') === 0 && !isset($tesWorldRealLaws[$k0])) {
+                unset($tesWorldPlain[$k0]);
+            }
+        }
         if (!$tesWorldEnforcer) {
             foreach (array_keys($tesWorldPlain) as $k0) {
                 if (strpos($k0, 'law_') === 0) {
