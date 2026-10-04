@@ -131,6 +131,8 @@ try {
             && (preg_match('/^[\s\p{P}]*(стоп|стой|остановись|остановитесь|прекрати\p{L}*|хватит|довольно|достаточно|закончи\p{L}*|все,? хватит)([\s\p{P}]+(секс\p{L}*|трах\p{L}*|еб\p{L}*|это|уже|сцен\p{L}*|все))*[\s\p{P}]*$/iu', $tesWorldLine)
                 // "Стоп, какой похуя, стоп!" (live 17:35): a filler word broke the strict form above
                 || preg_match('/^[\s\p{P}]*(стоп|прекрати\p{L}*|хватит)(?![\p{L}])/iu', $tesWorldLine)
+                // "Секса не будет", "никакого секса", "отставить", "слезь", "отпусти её" (live 22:22: the scene went on)
+                || preg_match('/(секса\s+не\s+будет|не\s+будет\s+(?:никакого\s+)?секса|никакого\s+секса|(?<![\p{L}])(?:отставить|отбой|слезь|слезай|слезьте|отпусти|отпустите|отойди|отойдите|отстань|завязывай|харэ|харе|закончили|закончите|прекращай|довольно|хорош)(?![\p{L}])|не\s+трогай|убери\s+руки|руки\s+убери)/iu', $tesWorldLine)
                 || preg_match_all('/(?<![\p{L}])стоп(?![\p{L}])/iu', $tesWorldLine) >= 2)) {
             $tesWorldStopped = true;  // "Стоп секс!" (live 15:01) is a stop, not a new scene for the word "секс"
             $tesWorldStopRef = tesWorldRefOf($tesWorldWith);
@@ -160,7 +162,7 @@ try {
             }
             $tesWorldLoveRef = $tesWorldLove !== '' ? tesWorldRefOf($tesWorldWith) : '';
             // "Какой секс, не будет секса!" (live 16:55) started one: refusals are not requests
-            if ($tesWorldLoveRef !== '' && !preg_match('/(?<![\p{L}])(не\s+(буду|хочу|надо|будем|будет|нужно|сейчас)|никак\p{L}*\s+секс\p{L}*|какой\s+(?:ещ[её]\s+)?секс|без\s+секса|потом|позже|завтра)(?![\p{L}])/iu', $tesWorldLine)) {
+            if ($tesWorldLoveRef !== '' && !preg_match('/(?<![\p{L}])(не\s+(буду|хочу|надо|будем|будет|нужно|сейчас)|никак\p{L}*\s+секс\p{L}*|какой\s+(?:ещ[её]\s+)?секс|без\s+секса|потом|позже|завтра|если|иначе|а\s+то|станешь|станете|будешь\s+\p{L}+ся)(?![\p{L}])/iu', $tesWorldLine)) {
                 // "Сигрид, трахни Айрилет": the scene is of the two of them, the player only watches.
                 // The one spoken to is the one who acts - first in the scene.
                 $tesWorldThird = tesWorldThirdPerson($tesWorldLine, $tesWorldWith);
