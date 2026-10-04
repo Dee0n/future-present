@@ -266,8 +266,8 @@ bool Function TESRunAndReport(String command) Global
         ; the server asks which bridge the game runs: 2 = "tesroutine at", the strong teskill;
         ; 3 = also "teslove solo"; 4 = also "tesimpunity"; 5 = also "tesredress", "tesungive";
         ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place);
-        ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"; 11 = also "tesscale", "tesspeed", held people stand in the do-nothing package (no T-pose)
-        AIAgentFunctions.logMessage("tesversion@@11", "tes_god_console")
+        ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"; 12 = tesscale rebuilds the 3D before the camera flip, speed not divided; 11 = also "tesscale", "tesspeed", held people stand in the do-nothing package (no T-pose)
+        AIAgentFunctions.logMessage("tesversion@@12", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -1466,35 +1466,44 @@ Function TESScale(String arg) Global
         return
     endif
     Actor p = Game.GetPlayer()
+    float before = p.GetHeight()
     p.SetScale(s)
     StorageUtil.SetFloatValue(p, "TESScale", s)
-    TESSetSpeed(p, 100.0)
-    if Game.GetCameraState() == 0
+    ; the game does not change the walking speed with the size (live 22:25: speed/scale made the owner slow):
+    ; the speed stays what it was, 100 unless set otherwise
+    TESSetSpeed(p, StorageUtil.GetFloatValue(p, "TESSpeedPct", 100.0))
+    ; the first-person camera takes its height from the head node, which the engine rebuilds with the 3D:
+    ; rebuild it, wait, then flip the view (a long enough stay in the third person for the camera to move)
+    p.QueueNiNodeUpdate()
+    Utility.Wait(0.8)
+    int camBefore = Game.GetCameraState()
+    if camBefore == 0
         Game.ForceThirdPerson()
-        Utility.Wait(0.4)
+        Utility.Wait(1.5)
         Game.ForceFirstPerson()
+        Utility.Wait(0.5)
     endif
-    AIAgentFunctions.logMessage("tesscale " + arg + "@@player scale " + s + ", speed " + (100.0 / s) + ", camera refreshed", "tes_god_console")
+    string flipped = ""
+    if camBefore == 0
+        flipped = " (flipped)"
+    endif
+    AIAgentFunctions.logMessage("tesscale " + arg + "@@player scale " + s + ", height " + before + " -> " + p.GetHeight() + ", camera state was " + camBefore + flipped, "tes_god_console")
 EndFunction
 
-; "tesspeed <percent>" - how fast the player walks: 100 is normal AT ANY SIZE (divided by the scale).
+; "tesspeed <percent>" - how fast the player walks: 100 is normal.
 Function TESSpeed(String arg) Global
     float pct = arg as float
     if pct < 20.0 || pct > 400.0
         AIAgentFunctions.logMessage("tesspeed " + arg + "@@error: 20 .. 400", "tes_god_console")
         return
     endif
+    StorageUtil.SetFloatValue(Game.GetPlayer(), "TESSpeedPct", pct)
     TESSetSpeed(Game.GetPlayer(), pct)
-    AIAgentFunctions.logMessage("tesspeed " + arg + "@@player speed " + pct + "% of normal at the current size", "tes_god_console")
+    AIAgentFunctions.logMessage("tesspeed " + arg + "@@player speed " + pct + "% of normal", "tes_god_console")
 EndFunction
 
 Function TESSetSpeed(Actor p, float pct) Global
-    float sc = p.GetScale()
-    if sc < 0.3
-        sc = 1.0
-    endif
-    float mult = pct / sc
-    p.ForceActorValue("SpeedMult", mult)
+    p.ForceActorValue("SpeedMult", pct)
     ; the game recomputes the walk speed on a change of the value
     p.ModActorValue("SpeedMult", 0.01)
     p.ModActorValue("SpeedMult", -0.01)
