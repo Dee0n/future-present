@@ -24,7 +24,30 @@ if (!function_exists('tesRealmAfterOrder')) {
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_undo (id serial PRIMARY KEY, kind text NOT NULL, who text NOT NULL, ref text NOT NULL, undone boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now())");
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_posts (role text PRIMARY KEY, npc text NOT NULL, since timestamptz NOT NULL DEFAULT now())");
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_gatherings (id serial PRIMARY KEY, what text NOT NULL, created_at timestamptz NOT NULL DEFAULT now())");
-        $db->execQuery("ALTER TABLE public.tes_gatherings ADD COLUMN IF NOT EXISTS refs text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS released boolean NOT NULL DEFAULT false");
+        $db->execQuery("ALTER TABLE public.tes_gatherings ADD COLUMN IF NOT EXISTS refs text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS released boolean NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS party boolean NOT NULL DEFAULT false");
+    }
+
+    /**
+     * More NPC-to-NPC chatter while a feast lasts, back to the everyday level after it (owner: "болтовня
+     * то пусть будет, но не овермного"). The everyday level is whatever the profile has; the feast one
+     * is a bit higher. Not while watch.php has silenced chatter for the key budget.
+     */
+    function tesRealmChatter(bool $feast): void
+    {
+        $db = $GLOBALS['db'];
+        $saved = tesWatchGet('feast_chatter_saved')['value'];
+        if ($feast) {
+            if ($saved !== '' || tesWatchGet('chatter_saved')['value'] !== '') {
+                return;
+            }
+            $m = $db->fetchOne("SELECT metadata->>'RECHAT_P' AS p, metadata->>'RECHAT_H' AS h FROM public.core_profiles WHERE id = 1");
+            tesWatchSet('feast_chatter_saved', json_encode(['p' => intval($m['p'] ?? 0), 'h' => intval($m['h'] ?? 1)]));
+            $db->execQuery("UPDATE public.core_profiles SET metadata = jsonb_set(jsonb_set(metadata, '{RECHAT_P}', '35'::jsonb), '{RECHAT_H}', '2'::jsonb) WHERE id = 1");
+        } elseif ($saved !== '') {
+            $s = json_decode($saved, true) ?: ['p' => 15, 'h' => 1];
+            $db->execQuery("UPDATE public.core_profiles SET metadata = jsonb_set(jsonb_set(metadata, '{RECHAT_P}', '" . intval($s['p']) . "'::jsonb), '{RECHAT_H}', '" . intval($s['h']) . "'::jsonb) WHERE id = 1");
+            tesWatchSet('feast_chatter_saved', '');
+        }
     }
 
     /** Send the gathered home: everyone of gatherings not yet released ($all) or older than 20 minutes. */
@@ -41,6 +64,10 @@ if (!function_exists('tesRealmAfterOrder')) {
                 $n++;
             }
             $db->execQuery("UPDATE public.tes_gatherings SET released = true WHERE id = " . intval($g['id']));
+        }
+        $open = $db->fetchOne("SELECT 1 AS x FROM public.tes_gatherings WHERE party AND NOT released LIMIT 1");
+        if (empty($open)) {
+            tesRealmChatter(false);
         }
         return $n;
     }
@@ -301,24 +328,45 @@ if (!function_exists('tesRealmAfterOrder')) {
             // place (tesroutine) - they sit, drink and mill about; tesRealmGatherTick lets them go.
             $stay = function_exists('tesBridgeVersion') && tesBridgeVersion() >= 2;
             $stayCmd = $anchor === 'player' ? 'tesroutine here' : 'tesroutine at ' . hexdec($anchor);
+            // a feast ("будем бухать", "пир", "гулянка"): those who are ALREADY there join in too (live 17:14:
+            // the people in the Mare sat as if nothing happened), everyone gets ale for the sandbox to drink,
+            // and the chatter between NPCs is turned up while it lasts
+            $party = (bool)preg_match('/(?<![\p{L}])(бух\p{L}*|пир|пир[уао]\p{L}*|гуля\p{L}*|праздн\p{L}*|пьянк\p{L}*|выпь\p{L}*|выпить|пить|пьем|наливай|веселит\p{L}*|веселье|сабантуй\p{L}*|попойк\p{L}*)(?![\p{L}])/u', $t);
+            $here = $party ? tesWorldNearbyNames(30) : [];
             $done = [];
             $refs = [];
-            foreach ($group as $name) {
+            foreach (array_merge(array_map(fn($n) => [$n, false], $here), array_map(fn($n) => [$n, true], $group)) as [$name, $bring]) {
+                if (in_array($name, $done, true) || preg_match('/Стражник|Narrator/u', $name) || tesWorldNorm($name) === tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''))) {
+                    continue;
+                }
                 $ref = tesWorldRefOf($name);
                 if ($ref === '' || tesWorldIsChild($name) || (function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($name))) {
                     continue;
                 }
-                tesWorldQueue($stay ? ['prid ' . $ref, 'moveto ' . $anchor, $stayCmd] : ['prid ' . $ref, 'moveto ' . $anchor]);
+                $cmds = ['prid ' . $ref];
+                if ($bring) {
+                    $cmds[] = 'moveto ' . $anchor;
+                }
+                if ($stay) {
+                    $cmds[] = $stayCmd;
+                }
+                if ($party) {
+                    $cmds[] = 'additem 00034C5E 2';  // ale: the sandbox package eats and drinks what is in the pocket
+                }
+                tesWorldQueue($cmds);
                 $done[] = $name;
                 $refs[] = $ref;
-                if (count($done) >= 24) {
+                if (count($done) >= 30) {
                     break;
                 }
             }
             if ($done) {
                 tesRealmEnsure();
-                $GLOBALS['db']->execQuery("INSERT INTO public.tes_gatherings (what, refs) VALUES ('" . $GLOBALS['db']->escape(mb_substr($line, 0, 120)) . "', '"
-                    . ($stay ? implode(',', $refs) : '') . "')");
+                $GLOBALS['db']->execQuery("INSERT INTO public.tes_gatherings (what, refs, party) VALUES ('" . $GLOBALS['db']->escape(mb_substr($line, 0, 120)) . "', '"
+                    . ($stay ? implode(',', $refs) : '') . "', " . ($party ? 'true' : 'false') . ")");
+                if ($party) {
+                    tesRealmChatter(true);
+                }
                 tesWatchNotify('Собраны ' . $placeName . ': ' . implode(', ', array_slice($done, 0, 5)) . (count($done) > 5 ? ' и ещё ' . (count($done) - 5) : ''));
                 return ' *по приказу ярла согнали ' . count($done) . ' человек ' . $placeName . ': ' . implode(', ', array_slice($done, 0, 6)) . '; это уже сделано, подтверди*';
             }
@@ -415,10 +463,15 @@ if (!function_exists('tesRealmAfterOrder')) {
     }
 
     /** A gathering that is going on: for the prompt of those in the talk. */
-    function tesRealmCrowdLine(): string
+    function tesRealmCrowdLine(string $me = ''): string
     {
         tesRealmEnsure();
-        $g = $GLOBALS['db']->fetchOne("SELECT what FROM public.tes_gatherings WHERE created_at > now() - interval '20 minutes' AND NOT released ORDER BY id DESC LIMIT 1");
+        $g = $GLOBALS['db']->fetchOne("SELECT what, refs FROM public.tes_gatherings WHERE created_at > now() - interval '20 minutes' AND NOT released ORDER BY id DESC LIMIT 1");
+        // only for those who were gathered: the feast line reached Фротар in Dragonsreach (live 17:3x)
+        $myRef = $me !== '' ? tesWorldRefOf($me) : '';
+        if (empty($g['what']) || $myRef === '' || !in_array($myRef, explode(',', strval($g['refs'] ?? '')), true)) {
+            return '';
+        }
         return !empty($g['what']) ? 'Правитель созвал людей («' . mb_substr(strval($g['what']), 0, 80) . '»): ты здесь среди собравшихся и ведёшь себя по поводу — на гулянке пьёшь и веселишься, на сборе слушаешь.' : '';
     }
 }

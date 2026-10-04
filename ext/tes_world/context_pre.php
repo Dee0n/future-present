@@ -88,7 +88,7 @@ try {
                     }
                 }
             }
-            if (function_exists('tesRealmCrowdLine') && ($tesWorldCrowd = tesRealmCrowdLine()) !== '') {
+            if (function_exists('tesRealmCrowdLine') && ($tesWorldCrowd = tesRealmCrowdLine($tesWorldMe)) !== '') {
                 chimRegisterPromptInjection('prompt_bottom', 'tes_world_crowd', $tesWorldCrowd, 94);
             }
             if (function_exists('tesCourtLine')) {

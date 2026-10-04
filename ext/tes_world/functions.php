@@ -43,10 +43,53 @@ if (!function_exists('tesWorldStrictSchema')) {
         }
     }
 }
+/*
+ * Action names the models misspell: the list shows "RefuseSex", "PutOnClothes", "InspectSurroundings"
+ * among snake_case ones ("Carry_Out_Order"), so the models write "Refuse_Sex", "Put_On_Clothes" … and
+ * the core drops the action silently (live 2026-10-04: Элисиф "Refuse_Sex", Haiku "Put_On_Clothes").
+ * Every listed action is also known without underscores, with underscores between words, and by its
+ * code name; the core looks these up first (getFunctionCodeName -> HERIKA_ACTION_NAME_PREFERRED_CODE).
+ */
+if (!function_exists('tesWorldActionAliases')) {
+    function tesWorldActionAliases(): void
+    {
+        $map = $GLOBALS['HERIKA_ACTION_NAME_PREFERRED_CODE'] ?? null;
+        $names = $GLOBALS['F_NAMES'] ?? null;
+        if (!is_array($names) || !$names) {
+            return;
+        }
+        $map = is_array($map) ? $map : [];
+        $add = function (string $alias, string $code) use (&$map, $names) {
+            if ($alias !== '' && !isset($map[$alias]) && !isset($names[$alias])) {
+                $map[$alias] = $code;
+            }
+        };
+        foreach ($names as $code => $name) {
+            $name = strval($name);
+            $code = strval($code);
+            $plain = str_replace('_', '', $name);
+            $add($plain, $code);
+            $add(preg_replace('/(?<=[a-z])(?=[A-Z])/', '_', $plain), $code);
+            $short = preg_replace('/^ExtCmd/', '', $code);
+            $add($short, $code);
+            $add(preg_replace('/(?<=[a-z])(?=[A-Z])/', '_', $short), $code);
+        }
+        // names models invent for the scene actions
+        foreach (['StartVaginal' => 'ExtCmdStartSex', 'Start_Vaginal' => 'ExtCmdStartSex', 'StartHandjob' => 'ExtCmdStartHandJobSex',
+            'Start_Handjob' => 'ExtCmdStartHandJobSex', 'End_Sex_Scene' => 'ExtCmdStopScene', 'EndSex' => 'ExtCmdStopScene'] as $alias => $code) {
+            if (isset($names[$code])) {
+                $add($alias, $code);
+            }
+        }
+        $GLOBALS['HERIKA_ACTION_NAME_PREFERRED_CODE'] = $map;
+    }
+}
 if (!isset($GLOBALS['HOOKS']['JSON_TEMPLATE']) || !in_array('tesWorldStrictSchema', (array)$GLOBALS['HOOKS']['JSON_TEMPLATE'], true)) {
     $GLOBALS['HOOKS']['JSON_TEMPLATE'][] = 'tesWorldStrictSchema';
+    $GLOBALS['HOOKS']['JSON_TEMPLATE'][] = 'tesWorldActionAliases';
 }
 tesWorldStrictSchema();
+tesWorldActionAliases();
 
 require_once __DIR__ . '/lib.php';
 
@@ -140,6 +183,16 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                 if ($fast) {
                     $doneNow = tesWorldRunFast($fast, $actor, $order);
                     error_log("[tes_world] order via {$actor}: " . ($doneNow !== '' ? "done at once - {$doneNow}" : 'already done') . " | {$order}");
+                    continue;
+                }
+                // the agent only for what the player really ordered: live 17:25 "а мне чё делать, блядь?
+                // Вот пофантазируй … Мне скучно" became "keep the women naked" through the NPC's
+                // Carry_Out_Order (owner: "бред который нейронка … делала")
+                $saidNow = trim(preg_replace('/^[^:]{1,40}:\s*/u', '', trim(preg_replace('/\s*\(Talking to [^)]*\)\s*$/u', '', strval($GLOBALS['gameRequest'][3] ?? '')) ?? '')) ?? '');
+                $saidNow = trim(preg_replace('/\s*\*[^*]*\*\s*/u', ' ', $saidNow) ?? $saidNow);
+                if (!tesWorldLooksLikeOrder($saidNow)
+                    && (mb_strpos($saidNow, '?') !== false || preg_match('/(скучн\p{L}*|что\s+(?:мне\s+)?делать|чё\s+(?:мне\s+)?делать|че\s+(?:мне\s+)?делать|пофантазир\p{L}*|придумай|как\s+думаешь|расскажи)/iu', $saidNow))) {
+                    error_log("[tes_world] order via {$actor}: ignored (the player asked, not ordered) | {$order} | {$saidNow}");
                     continue;
                 }
                 $db = $GLOBALS['db'];
