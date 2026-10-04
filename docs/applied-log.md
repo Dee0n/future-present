@@ -2312,3 +2312,20 @@ stopcombat участникам, `coc WhiterunBreezehome` + Назим к игр
   фильтр сужен до «всех» и «все женщины/стражники/…». `{npc:player}` → player.
 - `tesperkpoints` — «not found»: мост с ним собран после перезапуска 13:43, нужен ещё один.
 - [игра, вручную] запущена задача агента #96 «прокачать игрока полностью» (Нарратор трижды не справился).
+
+## 2026-10-04 14:10 — OStim + MinAI: разложены в MO2, сервер не подключён
+
+- Владелец дал архивы `MinAI_mme-main.zip` (MinAI 1.0.5-hotfix3, форк mme) и `OStim Standalone 7.5.1b RUS`.
+  [MO2, не включено] созданы папки модов `OStim Standalone 7.5.1b RUS` (429 МБ, содержимое Data) и
+  `MinAI 1.0.5 (mme)` (MinAI.esp, MinAI_DISTR.ini, Scripts, Data/minai). Из MinAI НЕ положены скрипты,
+  перекрывающие чужие моды: RealNamesChange.pex (в сборке стоит Real Names Extended), MantellaConversation.pex,
+  Baka*.pex. В modlist.txt ничего не вписано — MO2 запущен.
+- Не хватает: **Papyrus Tweaks** (жёсткое требование MinAI); после включения OStim нужно перезапустить
+  **Nemesis** (в архиве патч Nemesis_Engine).
+- Серверный плагин `minai_plugin` дважды ставился в ext и дважды снят автотестом за секунды:
+  (1) нет его таблиц (custom_actions…) — создал вручную: custom_context, custom_actions,
+  equipment_description, minai_threads (остались в БД, пустые); (2) нет `minai_x_personalities` и
+  TypeError в context.php:457. Плагин жёстко привязан к пути ext/minai_plugin, вне живого сервера не
+  проверяется. Один живой запрос упал в 13:59:23 (config.php ещё не было). Доводить — при закрытой игре.
+- [ext, выложено] tes_god_guard: `.remember:` с двоеточием принимается (Нарратор в 13:54 так записывал
+  память Анориату — отклонило).

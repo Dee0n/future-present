@@ -1071,6 +1071,8 @@ if (!function_exists('tesGodGuardValidate')) {
             $row = tesGodGuardResolveNpcLoose(trim($m[3]));
             return $row ? $m[1] . $m[2] . '{npc:' . strval($row['npc_name']) . '}.moveto player' : $m[0];
         }, $text) ?? $text;
+        // "{npc:X}.remember: текст" - a colon after the verb (the Narrator, 13:54: the memory was refused)
+        $text = preg_replace('/\.(remember|order|rumor|hypnosis|jail|fine|title|relation)\s*:\s*/iu', '.$1 ', $text) ?? $text;
         // "{npc:player}" is the player (the agent wrote it, 13:50) - the plain word, not a lookup
         $text = preg_replace('/\{npc:\s*(player|игрок)\s*\}/iu', 'player', $text) ?? $text;
         // TES-BARE-NAME (live 2026-10-04 02:39): the agent wrote "npc:Изольда.unequipall" and
