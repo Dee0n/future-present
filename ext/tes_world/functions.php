@@ -34,6 +34,30 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                     if (tesWorldIsChild($extActor) || ($extTarget !== '' && tesWorldIsChild($extTarget))) {
                         unset($actions[$n]);
                         error_log("[tes_world] adult action dropped (a child): {$extActor} -> {$extTarget}");
+                        continue;
+                    }
+                    // MinAI's game scripts do not load in this build (missing SexLab/DD/SunHelm types,
+                    // Papyrus log 2026-10-04), so its commands reach the game and nobody runs them.
+                    // The two that matter are done by this mod's own bridge instead:
+                    // undress -> unequipall, any "start …" -> an OStim scene (teslove).
+                    $extCode = strval($code ?: $call[0]);
+                    $extRef = tesWorldRefOf($extActor);
+                    if ($extRef !== '' && $extCode === 'ExtCmdRemoveClothes') {
+                        tesWorldQueue(['prid ' . $extRef, 'unequipall']);
+                        unset($actions[$n]);
+                    } elseif ($extRef !== '' && preg_match('/^ExtCmdStart(?!Looting)/', $extCode)) {
+                        $player = strval($GLOBALS['PLAYER_NAME'] ?? '');
+                        $partnerRef = ($extTarget === '' || mb_strtolower($extTarget) === mb_strtolower($player) || $extTarget === $extActor) ? '' : tesWorldRefOf($extTarget);
+                        $partner = $partnerRef !== '' ? hexdec($partnerRef) : 20;  // 20 = the player
+                        $db0 = $GLOBALS['db'];
+                        $key = "love: {$extActor} + " . ($partnerRef !== '' ? $extTarget : $player);
+                        $again = $db0->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '120 seconds' AND status = 'fast' AND goal = '" . $db0->escape($key) . "' LIMIT 1");
+                        if (empty($again)) {
+                            $db0->execQuery("INSERT INTO public.tes_agent_tasks (goal, status, result) VALUES ('" . $db0->escape($key) . "', 'fast', '" . $db0->escape($extCode) . "')");
+                            tesWorldQueue(['prid ' . $extRef, 'teslove ' . $partner]);
+                            error_log("[tes_world] {$extCode}: scene {$key}");
+                        }
+                        unset($actions[$n]);
                     }
                     continue;
                 }
