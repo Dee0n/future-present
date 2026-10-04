@@ -389,6 +389,9 @@ if (!function_exists('tesRealmAfterOrder')) {
                     $anchor = $mare;
                     $placeName = 'в «Гарцующей кобыле»';
                 }
+            } elseif (preg_match('/(подземел|темниц|тюрьм|катакомб|застенк)/u', $t)) {
+                // "в подземелье": where the ruler stands now (he is in the dungeon of the palace / the jail) - the anchor stays the player
+                $placeName = 'в подземелье';
             } elseif (preg_match('/площад/u', $t)) {
                 $sq = tesWorldRefOf('Карлотта Валентия');
                 if ($sq !== '') {
