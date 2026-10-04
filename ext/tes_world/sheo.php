@@ -49,19 +49,19 @@ if (!function_exists('tesSheoWonder')) {
     }
 
     /** One wonder, now. Returns what happened (for the note in the ruler's line and the log), '' when none. */
-    function tesSheoWonder(string $only = ''): string
+    function tesSheoWonder(string $only = '', bool $force = false): string
     {
         tesFestEnsure();
         $last = tesWatchGet('sheo_at');
-        if ($last['value'] !== '' && $last['age'] < 6) {
+        if (!$force && $last['value'] !== '' && $last['age'] < 5) {
             return '';
         }
         tesWatchSet('sheo_at', '1');
         $p = tesSheoPeople();
         $n = count($p);
-        $kinds = ['cheese', 'sweetroll', 'mead', 'chickens', 'hares', 'cow', 'mammoth', 'deer', 'veg', 'army', 'vermin', 'boom'];
+        $kinds = ['cheese', 'sweetroll', 'mead', 'chickens', 'hares', 'cow', 'mammoth', 'deer', 'veg', 'army', 'vermin', 'boom', 'gems', 'zoo', 'megafeast', 'herd'];
         if ($n >= 2) {
-            $kinds = array_merge($kinds, ['giant', 'dance', 'laugh', 'ovation', 'band', 'knock', 'drunk', 'kneel', 'statue', 'fly', 'sizes', 'speed']);
+            $kinds = array_merge($kinds, ['giant', 'dance', 'laugh', 'ovation', 'band', 'knock', 'drunk', 'kneel', 'statue', 'fly', 'sizes', 'speed', 'tornado', 'freeze', 'tinyall', 'giantall', 'ball']);
         }
         // not the same wonder twice in a row
         $prev = tesWatchGet('sheo_kind')['value'];
@@ -88,6 +88,65 @@ if (!function_exists('tesSheoWonder')) {
         } elseif ($kind === 'cow') {
             tesWorldQueue(['player.placeatme 00023A90 1', 'player.placeatme 0004359C 2']);
             $what = 'посреди зала стоит корова, а с ней две козы';
+        } elseif ($kind === 'gems') {
+            // owner, 00:20: "ещё ещё ещё ещё больше"
+            tesWorldQueue(['player.placeatme 0000000F 90', 'player.placeatme 00063B47 6', 'player.placeatme 00063B42 6', 'player.placeatme 00063B43 6', 'player.placeatme 00063B44 6']);
+            $what = 'золотой дождь — монеты и самоцветы градом по полу, хватай кто успеет';
+        } elseif ($kind === 'zoo') {
+            tesWorldQueue(['player.placeatme 00101581 1', 'player.placeatme 00023A90 2', 'player.placeatme 000CF89D 3', 'player.placeatme 000A91A0 10', 'player.placeatme 0006DC9D 6', 'player.placeatme 0004359C 3']);
+            $what = 'зверинец разом — мамонт, коровы, олени, козы, куры и зайцы в одной куче';
+        } elseif ($kind === 'megafeast') {
+            tesWorldQueue(['player.placeatme 00064B33 6', 'player.placeatme 00064B3D 16', 'player.placeatme 00064B43 10', 'player.placeatme 000E8947 10', 'player.placeatme 00034C5D 14', 'player.placeatme 00064B41 12']);
+            $what = 'пир с небес — сыр, рулеты, пироги, жареные куры и мёд валятся кучей';
+        } elseif ($kind === 'herd') {
+            tesWorldQueue(['player.placeatme 00101581 3']);
+            $what = 'три мамонта разом — в зале стало тесно';
+        } elseif ($kind === 'tornado') {
+            foreach ([0, 5, 10] as $d) {
+                $cmds = [];
+                shuffle($p);
+                foreach (array_slice($p, 0, 7) as $x) {
+                    $cmds[] = 'player.pushactoraway ' . $x['ref'] . ' 16';
+                }
+                tesFestCmd($cmds, $d);
+            }
+            $what = 'смерч — гостей трижды подряд подбрасывает и швыряет о стены';
+        } elseif ($kind === 'freeze') {
+            foreach (array_chunk($some(12), 6) as $ci => $chunk) {
+                $on = [];
+                $off = [];
+                foreach ($chunk as $x) {
+                    array_push($on, 'prid ' . $x['ref'], 'setav paralysis 1');
+                    array_push($off, 'prid ' . $x['ref'], 'setav paralysis 0');
+                }
+                tesWorldQueue($on);
+                tesFestCmd($off, 14 + $ci * 5);
+            }
+            $what = 'все разом окаменели на полуслове (оживут через четверть минуты)';
+        } elseif ($kind === 'tinyall' || $kind === 'giantall') {
+            $scale = $kind === 'tinyall' ? '0.35' : '1.9';
+            foreach (array_chunk($some(12), 6) as $ci => $chunk) {
+                $cmds = [];
+                $back = [];
+                foreach ($chunk as $x) {
+                    array_push($cmds, 'prid ' . $x['ref'], 'setscale ' . $scale);
+                    array_push($back, 'prid ' . $x['ref'], 'setscale 1');
+                }
+                tesWorldQueue($cmds);
+                tesFestCmd($back, 75 + $ci * 8);
+            }
+            $what = $kind === 'tinyall' ? 'все гости стали ростом с кошку — толпа карликов под ногами' : 'все гости выросли в великанов — головами в потолок';
+        } elseif ($kind === 'ball') {
+            // everything at once: a band, the rest dance, then an ovation and a toast
+            foreach ($some(3) as $i => $x) {
+                tesSheoIdleLater($x['ref'], ['00096F8D', '00096F8C', '00096F8B'][$i], 1);
+            }
+            foreach (array_slice($p, 3, 10) as $i => $x) {
+                tesSheoIdleLater($x['ref'], ['000F7C8A', '000F7C8B', '00103653'][$i % 3], 3 + intdiv($i, 3));
+                tesSheoIdleLater($x['ref'], ['00066374', '00066375'][$i % 2], 22 + intdiv($i, 3));
+            }
+            tesWorldQueue(['player.placeatme 00034C5D 12']);
+            $what = 'бал безумцев — оркестр играет, все пляшут, потом орут и хлопают, мёд рекой';
         } elseif ($kind === 'mammoth') {
             // owner, 00:17: "ещё веселее!!!" - bigger things. EncMammothTamedNoAggro: it does not attack.
             tesWorldQueue(['player.placeatme 00101581 1']);
@@ -222,7 +281,7 @@ if (!function_exists('tesSheoWonder')) {
             return ' *по слову ярла началась буря чудес — пять минут одно за другим' . ($what !== '' ? "; первое: {$what}" : '') . '; это происходит на самом деле, отзовись на это*';
         }
         // "ещё веселее", "ещё", "давай ещё": the storm again, from the start
-        if (preg_match('/(?<![\p{L}])(еще|ещё)\s+(весел\p{L}*|больше|сильнее|жестче|жёстче)|давай\s+(еще|ещё)|мало(?![\p{L}])/u', $t)) {
+        if (preg_match('/(?<![\p{L}])(еще|ещё)\s+(весел\p{L}*|больше|сильнее|жестче|жёстче|еще|ещё)|давай\s+(еще|ещё)|мало(?![\p{L}])/u', $t)) {
             tesWatchSet('sheo_storm', '1');
         }
         if (!preg_match('/(?<![\p{L}])(еще\s+весел\p{L}*|ещё\s+весел\p{L}*|ваб+адж\p{L}*|вабаджек\p{L}*|весели\p{L}*|развесел\p{L}*|повесели\p{L}*|чуди\p{L}*|чудо|чудес\p{L}*|начуди\p{L}*|твори\p{L}*|сотвори\p{L}*|натвори\p{L}*|хаос\p{L}*|безуми\p{L}*|безумств\p{L}*|удиви\p{L}*|скучно|скука|невесело|не\s+весело)(?![\p{L}])/u', $t)) {
