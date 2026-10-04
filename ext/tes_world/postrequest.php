@@ -11,6 +11,64 @@
  *    Laws this round does not understand still go to the agent, at most once in 10 minutes.
  */
 
+// SHARMAT (ext/aiagent_nsfw) knows children only by English names and "child" in the race; here
+// the race is «Ребенок». Its "Update" button replaces common.php - the Russian child check is put
+// back whenever the file changes (tools/sharmat_child_patch.py does the same by hand).
+try {
+    $tesSharmat = __DIR__ . '/../aiagent_nsfw/common.php';
+    if (is_file($tesSharmat)) {
+        $tesMark = sys_get_temp_dir() . '/tes_sharmat_common.mtime';
+        clearstatcache(true, $tesSharmat);
+        $tesMtime = strval(filemtime($tesSharmat));
+        if (@file_get_contents($tesMark) !== $tesMtime) {
+            $src = strval(file_get_contents($tesSharmat));
+            $a = "    if (in_array(strtolower(\$actorName), aiagentNsfwChildNameBlocklist(), true)) { return true; }";
+            if (strpos($src, 'tesWorldIsChild') === false && strpos($src, $a) !== false) {
+                $add = "\n    // TES-Speech-Adapter: Russian race «Ребенок» and Cyrillic names (see ext/tes_world/postrequest.php)\n"
+                    . "    if (function_exists('tesWorldIsChild') && tesWorldIsChild(\$actorName)) { return true; }\n"
+                    . "    if (function_exists('tesGodGuardIsChild') && tesGodGuardIsChild('{npc:' . \$actorName . '}')) { return true; }\n"
+                    . "    if (isset(\$GLOBALS['db'])) {\n"
+                    . "        \$tesRow = \$GLOBALS['db']->fetchOne(\"SELECT race FROM core_npc_master WHERE npc_name = '\" . \$GLOBALS['db']->escape(\$actorName) . \"' LIMIT 1\");\n"
+                    . "        \$tesRace = (string)(\$tesRow['race'] ?? '');\n"
+                    . "        if (\$tesRace !== '' && (mb_stripos(\$tesRace, 'ребен') !== false || mb_stripos(\$tesRace, 'ребён') !== false || stripos(\$tesRace, 'child') !== false)) { return true; }\n"
+                    . "    }";
+                $patched = str_replace($a, $a . $add, $src);
+                if (file_put_contents($tesSharmat . '.tmp', $patched) !== false && rename($tesSharmat . '.tmp', $tesSharmat)) {
+                    error_log('[tes_world] SHARMAT child check put back into common.php');
+                }
+                clearstatcache(true, $tesSharmat);
+                $tesMtime = strval(filemtime($tesSharmat));
+            } elseif (strpos($src, 'tesWorldIsChild') === false) {
+                error_log('[tes_world] SHARMAT common.php changed shape - Russian child check NOT applied, see tools/sharmat_child_patch.py');
+            }
+            @file_put_contents($tesMark, $tesMtime);
+        }
+    }
+    // the settings page in Russian (ui_ru.js + ui_tr.php), put back after SHARMAT updates
+    $tesSharmatUi = __DIR__ . '/../aiagent_nsfw/config_manager.php';
+    if (is_file($tesSharmatUi)) {
+        $tesUiMark = sys_get_temp_dir() . '/tes_sharmat_ui.mtime';
+        clearstatcache(true, $tesSharmatUi);
+        $tesUiMtime = strval(filemtime($tesSharmatUi));
+        if (@file_get_contents($tesUiMark) !== $tesUiMtime) {
+            $ui = strval(file_get_contents($tesSharmatUi));
+            $tag = '<script src="/HerikaServer/ext/tes_world/ui_ru.js"></script>';
+            if (strpos($ui, 'ui_ru.js') === false) {
+                $pos = strripos($ui, '</body>');
+                $ui = $pos !== false ? substr($ui, 0, $pos) . $tag . "\n" . substr($ui, $pos) : $ui . "\n" . $tag . "\n";
+                if (file_put_contents($tesSharmatUi . '.tmp', $ui) !== false && rename($tesSharmatUi . '.tmp', $tesSharmatUi)) {
+                    error_log('[tes_world] SHARMAT settings page: Russian put back');
+                }
+                clearstatcache(true, $tesSharmatUi);
+                $tesUiMtime = strval(filemtime($tesSharmatUi));
+            }
+            @file_put_contents($tesUiMark, $tesUiMtime);
+        }
+    }
+} catch (Throwable $e) {
+    error_log('[tes_world sharmat] ' . $e->getMessage());
+}
+
 try {
     if (isset($GLOBALS['db']) && empty($GLOBALS['TES_WORLD_POST'])) {
         $GLOBALS['TES_WORLD_POST'] = true;
