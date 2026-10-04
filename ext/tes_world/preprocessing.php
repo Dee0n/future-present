@@ -76,7 +76,17 @@ try {
             } elseif ($tesWorldWhom !== '' && !preg_match('/(?<![\p{L}])(трахн\p{L}*|трахай\p{L}*|выеби\p{L}*|отсоси\p{L}*|минет\p{L}*|секс\p{L}*|развлек\p{L}*|займись|займитесь|ублажа\p{L}*)(?![\p{L}])/iu', $tesWorldLine)) {
                 // a plain order that is none of the quick kinds: the agent takes it from the words
                 // (sex lines are the scene code's business below)
-                $tesWorldAgent = tesWorldAgentOrder($tesWorldLine, $tesWorldWhom);
+                // group orders ("Срывай одежду со всех молодых женщин") are the quick kind too:
+                // the line without its vocative ("Стража!", "Торгар,") goes through the fast parser
+                $tesWorldBody = trim(preg_replace('/^[^:]{1,40}:\s*/u', '', $tesWorldLine) ?? $tesWorldLine);
+                $tesWorldBody = trim(preg_replace('/^(?:\p{Lu}[\p{L}\-]*[,!]\s*)+/u', '', $tesWorldBody) ?? $tesWorldBody);
+                $tesWorldQuick = $tesWorldBody !== '' ? tesWorldFastOrder(mb_strtolower(mb_substr($tesWorldBody, 0, 1)) . mb_substr($tesWorldBody, 1), $tesWorldWhom) : null;
+                if ($tesWorldQuick) {
+                    $tesWorldDone = tesWorldRunFast($tesWorldQuick, $tesWorldWhom, $tesWorldBody);
+                    $tesWorldAgent = $tesWorldDone !== '' ? "быстро: {$tesWorldDone}" : '';
+                } else {
+                    $tesWorldAgent = tesWorldAgentOrder($tesWorldLine, $tesWorldWhom);
+                }
                 if ($tesWorldAgent !== '') {
                     $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *приказ уже исполняется — не обещай, а подтверди, что делается*" . $tesWorldTail;
                     error_log("[tes_world] spoken order to {$tesWorldWhom}: {$tesWorldAgent} | {$tesWorldLine}");

@@ -243,7 +243,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         $o = trim(preg_replace('/[.!…]+$/u', '', trim($order)) ?? $order);
         $verbs = [
             'bring' => '(?:привести|приведи\p{L}*|позвать|позови\p{L}*|подать|подай\p{L}*|доставить|доставь\p{L}*|притащить|притащи\p{L}*|вызвать|призвать)',
-            'strip' => '(?:раздеть|раздень\p{L}*|раздева\p{L}*|(?:снять|сними\p{L}*|сорвать|сорви\p{L}*|стащить|стащи\p{L}*)\s+(?:всю\s+|вс[её]\s+)?(?:одежду|броню|вещи|наряд)?\s*(?:с|со)(?=\s))',
+            'strip' => '(?:раздеть|раздень\p{L}*|раздева\p{L}*|срыва\p{L}*\s+(?:одежд\p{L}*\s+)?(?:с|со)(?=\s)|(?:снять|сними\p{L}*|сорвать|сорви\p{L}*|стащить|стащи\p{L}*)\s+(?:всю\s+|вс[её]\s+)?(?:одежду|броню|вещи|наряд)?\s*(?:с|со)(?=\s))',
             'kill' => '(?:казнить|казни\p{L}*|убить|убей\p{L}*)',
             'take' => '(?:забрать|забери\p{L}*|отобрать|отбери\p{L}*|изъять|взять)\s+вс[её]\s+у',
             'jail' => '(?:посадить|посади\p{L}*|арестовать|арестуй\p{L}*|(?:бросить|брось\p{L}*|кинуть|кинь\p{L}*|отправить|отправь\p{L}*|заключить)(?=.*(?:тюрьм|темниц|камер)))(?:\s+в\s+(?:тюрьму|темницу|камеру))?',
@@ -534,7 +534,9 @@ if (!function_exists('tesWorldEnsureTable')) {
             $rows = $GLOBALS['db']->fetchAll("SELECT npc_name FROM public.core_npc_master WHERE refid ~ '^[0-9A-Fa-f]{8}$'");
             $all = array_map(fn($r) => strval($r['npc_name']), is_array($rows) ? $rows : []);
         }
-        if (!preg_match('/^\p{Lu}/u', $word) || mb_strlen($word) < 5) {
+        // speech recognition often writes a name small ("Подай мне айрилет", live 13:11): a long
+        // word is taken as a name too, the match below is still by the name's own stem
+        if (mb_strlen($word) < (preg_match('/^\p{Lu}/u', $word) ? 5 : 6)) {
             return '';
         }
         $want = tesWorldNorm($word);
@@ -609,6 +611,19 @@ if (!function_exists('tesWorldEnsureTable')) {
         if (!$targets && $self && $addressee !== '') {
             return ['kind' => 'strip', 'targets' => [$addressee]];
         }
+        if (!$targets && $kind !== '') {
+            // bare "Раздеть." said to a woman - her; "Казнить её!" - whoever the last such order was about
+            // (live 13:12 "Казнить ее!" and 13:19 "раздеть." came to nothing)
+            if ($kind === 'strip' && $addressee !== '' && preg_match('/^[\s\p{P}]*(раздеть|раздень|раздевай)[\s\p{P}]*$/iu', $line)) {
+                return ['kind' => 'strip', 'targets' => [$addressee]];
+            }
+            if (preg_match('/(?<![\p{L}])(е[её]|его|их)(?![\p{L}])/iu', $t) && isset($GLOBALS['db'])) {
+                $last = $GLOBALS['db']->fetchOne("SELECT goal FROM public.tes_agent_tasks WHERE status = 'fast' AND created_at > now() - interval '10 minutes' AND goal ~ '^(kill|strip|jail|bring|take): ' ORDER BY id DESC LIMIT 1");
+                if (!empty($last['goal']) && preg_match('/^\w+: (.+)$/u', strval($last['goal']), $lm)) {
+                    return ['kind' => $kind, 'targets' => [trim($lm[1])]];
+                }
+            }
+        }
         if ($kind === '' || !$targets || count($targets) > 4) {
             return null;
         }
@@ -629,7 +644,10 @@ if (!function_exists('tesWorldEnsureTable')) {
             . '|принеси\p{L}*|отнеси\p{L}*|отдай\p{L}*|отдавай\p{L}*|верни\p{L}*|дай|дайте|передай\p{L}*|найди\p{L}*|сходи|сбегай|отпусти\p{L}*|освободи\p{L}*|накажи\p{L}*|оштрафуй\p{L}*'
             . '|оденься|оденьтесь|одень\p{L}*|одеть|развлекись|развлекайся|развлекайтесь|потрахай\p{L}*|трахни\p{L}*|трахай\p{L}*|выеби\p{L}*|отсоси\p{L}*|поласкай\p{L}*|займись|займитесь'
             . '|следи\p{L}*|охраняй\p{L}*|патрулируй\p{L}*|дежурь\p{L}*|стереги\p{L}*|стой\s+тут|жди\s+здесь|ждите|следуй\p{L}*|охраняйте|заставь\p{L}*|принуди\p{L}*|приказываю|исполняй\p{L}*|исполнять|выполняй\p{L}*'
-            . '|выгони\p{L}*|прогони\p{L}*|убери\p{L}*|унеси\p{L}*|открой\p{L}*|закрой\p{L}*|заплати\p{L}*|выплати\p{L}*|купи\p{L}*|продай\p{L}*)(?![\p{L}])/u', $t);
+            . '|выгони\p{L}*|прогони\p{L}*|убери\p{L}*|унеси\p{L}*|открой\p{L}*|закрой\p{L}*|заплати\p{L}*|выплати\p{L}*|купи\p{L}*|продай\p{L}*'
+            . '|сделай\p{L}*|поставь\p{L}*|клонируй\p{L}*|создай\p{L}*|измени\p{L}*|поменя\p{L}*|включи\p{L}*|выключи\p{L}*|делай\p{L}*|приступ\p{L}*|пусть|брысь|прочь|вон|пошл\p{L}*|пошё\p{L}*'
+            . '|подойди\p{L}*|встань|вставай|ложись|ложитесь|сядь|садись|останови\p{L}*|заморозь\p{L}*|разморозь\p{L}*|вылечи\p{L}*|воскреси\p{L}*|оживи\p{L}*|выпусти\p{L}*|привяжи\p{L}*|свяжи\p{L}*'
+            . '|займись|исправ\p{L}*|суй|вставь\p{L}*|засунь\p{L}*|надень\p{L}*|надеть|сними\p{L}*|снимай\p{L}*|раздень\p{L}*|раздеть|раздевай\p{L}*|срывай\p{L}*|срыв\p{L}*|казни\p{L}*|убей\p{L}*|убить)(?![\p{L}])/u', $t);
     }
 
     /**

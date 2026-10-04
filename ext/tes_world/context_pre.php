@@ -57,6 +57,27 @@ try {
                 $tesWorldHint = $tesWorldSceneLine . ($tesWorldHint !== '' ? ' ' . $tesWorldHint : '');
             }
         }
+        // What the ruler ordered THIS person lately and how it went: the dialogue window is short
+        // (cost) and the order would fall out of it - the NPC then asked "что значит раздеть?" again
+        // (owner, 2026-10-04: "утекает контекст"). ~250 chars, only when there is something.
+        if ($tesWorldMe !== '' && $tesWorldMe !== 'The Narrator' && !empty($tesWorldFacts['player_title'])) {
+            $tesWorldDb = $GLOBALS['db'];
+            $tesWorldOrders = $tesWorldDb->fetchAll("SELECT goal, status, result FROM public.tes_agent_tasks WHERE created_at > now() - interval '90 minutes' AND ("
+                . "goal LIKE 'Приказ правителя%отданный через " . $tesWorldDb->escape($tesWorldMe) . ":%' OR result LIKE 'через " . $tesWorldDb->escape($tesWorldMe) . ":%') ORDER BY id DESC LIMIT 3");
+            $tesWorldOrderLines = [];
+            foreach (is_array($tesWorldOrders) ? $tesWorldOrders : [] as $o) {
+                $txt = preg_match('/отданный через [^:]+:\s*(.+?)\.\s*(?:Дословно|Правитель|$)/us', strval($o['goal']), $om) ? $om[1]
+                    : (preg_match('/^через [^:]+:\s*(.+)$/us', strval($o['result']), $om) ? $om[1] : '');
+                if ($txt === '') {
+                    continue;
+                }
+                $st = ['done' => 'исполнено', 'fast' => 'исполнено', 'failed' => 'не вышло', 'running' => 'идёт', 'queued' => 'идёт', 'waiting' => 'ждёт'][strval($o['status'])] ?? strval($o['status']);
+                $tesWorldOrderLines[] = '«' . mb_substr(trim($txt), 0, 70) . '» — ' . $st;
+            }
+            if ($tesWorldOrderLines) {
+                chimRegisterPromptInjection('prompt_bottom', 'tes_world_orders', 'Приказы ярла тебе недавно (ты их помнишь): ' . implode('; ', $tesWorldOrderLines) . '.', 97);
+            }
+        }
         if ($tesWorldHint !== '' && isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
             $GLOBALS['request'] = '(' . $tesWorldHint . ') ' . $GLOBALS['request'];
         }
