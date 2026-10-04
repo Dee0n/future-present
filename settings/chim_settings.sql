@@ -256,3 +256,8 @@ UPDATE public.general_settings SET value = '11', updated_at = now() WHERE id IN 
 UPDATE public.general_settings SET value = '18', updated_at = now() WHERE id = 'RELLLM_CONNECTOR';
 DELETE FROM public.conf_opts WHERE id IN ('TES_AGENT_LOCAL_FIRST', 'TES_AGENT_LOCAL_ONLY');
 DELETE FROM public.core_llm_connector WHERE id = 20;
+-- TES (2026-10-04): my NPC actions are offered to followers too. A guard who once followed the
+-- player counts as a follower for CHIM, and Arrest_Person / Fine_Person / Sell_House / Furnish_House
+-- (available_to_followers = false) silently disappeared from his list.
+UPDATE public.core_action SET available_to_followers = true, updated_at = now()
+WHERE code_name IN ('ArrestNPC', 'FineNPC', 'SellHouse', 'FurnishHouse');

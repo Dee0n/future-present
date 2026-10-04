@@ -25,6 +25,18 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                 $parts = explode('|', strval($action));
                 $call = explode('@', strval($parts[2] ?? ''));
                 $code = function_exists('getFunctionCodeName') ? getFunctionCodeName($call[0]) : false;
+                // MinAI's adult actions (ExtCmd…): never by a child and never at a child. MinAI's own
+                // server check looks for the word "child" in the race - the race here is «Ребенок».
+                if (strpos(strval($code ?: $call[0]), 'ExtCmd') === 0) {
+                    $extActor = trim(strval($parts[0] ?? ''));
+                    $extRaw = json_decode(implode('@', array_slice($call, 1)), true);
+                    $extTarget = trim(is_array($extRaw) ? strval($extRaw['target'] ?? '') : implode('@', array_slice($call, 1)));
+                    if (tesWorldIsChild($extActor) || ($extTarget !== '' && tesWorldIsChild($extTarget))) {
+                        unset($actions[$n]);
+                        error_log("[tes_world] adult action dropped (a child): {$extActor} -> {$extTarget}");
+                    }
+                    continue;
+                }
                 if (($code ?: $call[0]) !== 'CarryOutOrder') {
                     continue;
                 }
