@@ -312,7 +312,9 @@ if (!function_exists('tesCrimeFine')) {
                 }
                 $db->execQuery("UPDATE public.tes_crime_jail SET stage = 'walk', stage_at = now() WHERE id = {$id}");
                 tesCrimeNotify("{$row['npc']}: ведут в темницу");
-            } elseif ($row['stage'] === 'walk' && intval($row['age']) >= 75) {
+            } elseif ($row['stage'] === 'walk' && intval($row['age']) >= 240) {
+                // owner, 2026-10-04: "почему тп в темницу, а не сопроводят" - 75 s was shorter than the
+                // walk from the street to the Dragonsreach basement; the teleport is only a fallback now
                 tesCrimeQueue(tesCrimeJailCommands($ref, strval($row['inside_ref'])));
                 if (preg_match('/^[0-9A-F]{8}$/', strval($row['guard_ref']))) {
                     tesCrimeQueue(['prid ' . $row['guard_ref'], 'tesfollow 0', 'tesunfollow']);

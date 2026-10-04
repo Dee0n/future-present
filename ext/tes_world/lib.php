@@ -606,6 +606,58 @@ if (!function_exists('tesWorldEnsureTable')) {
         return ['kind' => $kind, 'targets' => array_keys($targets)];
     }
 
+    /** Does the ruler's line read as an order to do something (not a question, not talk)? */
+    function tesWorldLooksLikeOrder(string $line): bool
+    {
+        $t = mb_strtolower(str_replace('ё', 'е', trim($line)));
+        if ($t === '' || mb_strlen($t) < 8 || mb_strpos($t, '?') !== false) {
+            return false;
+        }
+        if (preg_match('/(?<![\p{L}])не\s+(\p{L}+\s+)?(надо|нужно|делай|трогай|убивай|сажай|раздевай)/u', $t)) {
+            return false;
+        }
+        return (bool)preg_match('/(?<![\p{L}])(иди|идите|пойди|пойдите|ступай\p{L}*|веди|отведи\p{L}*|проводи\p{L}*|сопроводи\p{L}*|собери\p{L}*|собрать|созови\p{L}*|согнать|согони\p{L}*'
+            . '|принеси\p{L}*|отнеси\p{L}*|отдай\p{L}*|отдавай\p{L}*|верни\p{L}*|дай|дайте|передай\p{L}*|найди\p{L}*|сходи|сбегай|отпусти\p{L}*|освободи\p{L}*|накажи\p{L}*|оштрафуй\p{L}*'
+            . '|оденься|оденьтесь|одень\p{L}*|одеть|развлекись|развлекайся|развлекайтесь|потрахай\p{L}*|трахни\p{L}*|трахай\p{L}*|выеби\p{L}*|отсоси\p{L}*|поласкай\p{L}*|займись|займитесь'
+            . '|следи\p{L}*|охраняй\p{L}*|патрулируй\p{L}*|дежурь\p{L}*|стереги\p{L}*|стой\s+тут|жди\s+здесь|ждите|следуй\p{L}*|охраняйте|заставь\p{L}*|принуди\p{L}*|приказываю|исполняй\p{L}*|исполнять|выполняй\p{L}*'
+            . '|выгони\p{L}*|прогони\p{L}*|убери\p{L}*|унеси\p{L}*|открой\p{L}*|закрой\p{L}*|заплати\p{L}*|выплати\p{L}*|купи\p{L}*|продай\p{L}*)(?![\p{L}])/u', $t);
+    }
+
+    /**
+     * Hand the ruler's plain words to the goal agent as an order through $actor. Live 2026-10-04
+     * (13:26-18:43, dozens of lines): "Торгар, развлекись с Фианной", "Оденься", "Отдай мясо",
+     * "Собери всех в таверне" - the NPC said "Как прикажете" and its model called no action, so
+     * nothing happened. The agent is started from the words themselves, not from the NPC's choice.
+     */
+    function tesWorldAgentOrder(string $said, string $actor): string
+    {
+        if (!function_exists('tesAgentStart') || !function_exists('tesAgentRunningTask')) {
+            return '';
+        }
+        $db = $GLOBALS['db'];
+        $facts = tesWorldFacts();
+        if (empty($facts['player_title']) || $actor === '' || stripos($actor, 'Narrator') !== false || tesWorldIsChild($actor)) {
+            return '';
+        }
+        $order = trim(preg_replace('/^[^:]{1,40}:\s*/u', '', trim(preg_replace('/\s*\(Talking to [^)]*\)\s*$/u', '', $said) ?? $said)) ?? $said);
+        if (!tesWorldLooksLikeOrder($order)) {
+            return '';
+        }
+        // one such start per 25 s, and never the same words twice in 3 minutes
+        $recent = $db->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '25 seconds' AND goal LIKE 'Приказ правителя%' LIMIT 1");
+        $dup = $db->fetchOne("SELECT 1 AS x FROM public.tes_agent_tasks WHERE created_at > now() - interval '3 minutes' AND goal LIKE '%" . $db->escape(mb_substr($order, 0, 50)) . "%' LIMIT 1");
+        if (!empty($recent) || !empty($dup)) {
+            return '';
+        }
+        $player = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
+        $title = mb_substr($facts['player_title'], 0, mb_strpos($facts['player_title'] . '.', '.'));
+        $around = implode(', ', tesWorldNearbyNames());
+        $context = ($around !== '' ? " Рядом сейчас: {$around} — искажённое имя это тот из них, чьё имя ближе по звучанию." : '');
+        [$ok] = tesAgentStart("Приказ правителя ({$title}), отданный через {$actor}: {$order}. Дословно ярл сказал (с голоса, имена могут быть исковерканы): «" . mb_substr($order, 0, 300) . "».{$context}"
+            . " Правитель — {$player}. Исполнитель {$actor}: исполни приказ ЕГО руками — {npc:{$actor}}.moveto/follow/escort к цели, раздеть — unequipall, одеть — equipitem, секс между двумя — console «{npc:Имя}.teslove <refid партнёра> теги», отдать вещи — tesgive, собрать людей — {npc:Имя}.moveto player (по одному) либо moveto на место. Приказы про тюрьму/штраф — своими инструментами. Делай РОВНО приказанное и ничего сверх. Не выходит с двух попыток — give_up с причиной.", false, false, true);
+        return $ok ? 'агент запущен' : '';
+    }
+
     /**
      * Carry out a plain order now. $by = who was told (he does it if he is a man-at-arms, otherwise
      * the nearest guard). One and the same order is done once in 90 s, whichever way it came -
@@ -676,7 +728,7 @@ if (!function_exists('tesWorldEnsureTable')) {
     {
         $w = mb_strtolower(str_replace('ё', 'е', $what));
         $map = [
-            'vaginalsex' => 'startvaginal|vaginal|вагин|в киск|в пизд|трах|ебат|ебл|секс',
+            'vaginalsex' => 'startvaginal|vaginal|вагин|в киск|в пизд|трах|ебат|ебл|секс|развлек|займись|займитес|удовлетвор|ублажа',
             'analsex' => 'startanal|anal|анал|в зад|в жоп|в поп',
             'blowjob' => 'startblowjob|blowjob|минет|отсос|соси|сосат|в рот',
             'deepthroating,blowjob' => 'deepthroat|глубок\\w* (минет|глотк)|в горло|в глотку',

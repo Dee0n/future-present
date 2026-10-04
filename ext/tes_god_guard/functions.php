@@ -1430,6 +1430,21 @@ if (!function_exists('tesGodGuardValidate')) {
                 $command = $target . '.' . $body;
                 $verb = 'tesgive';
             }
+            // Live 2026-10-04 13:46-13:47 "прокачай полное древо навыков": «player.setav allskills 100» is
+            // "Invalid actor value" - the console knows no such value; one setav per real skill.
+            // «setav furnitureanimate» / «hasperk <слово>» are made-up too and only fill the log.
+            if ($verb === 'setav' && preg_match('/^setav\s+allskills\s+(\d+)/iu', $body, $sm)) {
+                $pre = ($target !== '' ? $target . '.' : '');
+                foreach (['onehanded', 'twohanded', 'marksman', 'block', 'heavyarmor', 'lightarmor', 'smithing', 'alchemy', 'enchanting',
+                    'speechcraft', 'sneak', 'lockpicking', 'pickpocket', 'destruction', 'restoration', 'alteration', 'conjuration', 'illusion'] as $skillAv) {
+                    $kept[] = $pre . 'setav ' . $skillAv . ' ' . min(100, intval($sm[1]));
+                }
+                continue;
+            }
+            if (($verb === 'setav' && preg_match('/^setav\s+furnitureanimate\b/iu', $body))
+                || ($verb === 'hasperk' && !preg_match('/^hasperk\s+[0-9A-Fa-f]{8}\b/u', $body))) {
+                continue;
+            }
             // placeatme makes a NEW object from a base FormID. A name in quotes or a decimal RefID
             // is not one: "player.placeatme 108160" (Анориат's RefID in decimal) dropped a stray
             // book at the player's feet, twice (live 2026-10-04 03:19).

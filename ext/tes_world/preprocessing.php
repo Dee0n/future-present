@@ -73,6 +73,14 @@ try {
                     $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *приказ уже исполняется ({$tesWorldDone}) — не обещай, а подтверди, что делается*" . $tesWorldTail;
                     error_log("[tes_world] spoken order to {$tesWorldWhom}: {$tesWorldDone} | {$tesWorldLine}");
                 }
+            } elseif ($tesWorldWhom !== '' && !preg_match('/(?<![\p{L}])(трахн\p{L}*|трахай\p{L}*|выеби\p{L}*|отсоси\p{L}*|минет\p{L}*|секс\p{L}*|развлек\p{L}*|займись|займитесь|ублажа\p{L}*)(?![\p{L}])/iu', $tesWorldLine)) {
+                // a plain order that is none of the quick kinds: the agent takes it from the words
+                // (sex lines are the scene code's business below)
+                $tesWorldAgent = tesWorldAgentOrder($tesWorldLine, $tesWorldWhom);
+                if ($tesWorldAgent !== '') {
+                    $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *приказ уже исполняется — не обещай, а подтверди, что делается*" . $tesWorldTail;
+                    error_log("[tes_world] spoken order to {$tesWorldWhom}: {$tesWorldAgent} | {$tesWorldLine}");
+                }
             }
         }
         // "Стоп!", "Остановись!" said to someone ends the scene with him (live 14:36-14:37: said
