@@ -17,7 +17,7 @@ try {
     if (isset($GLOBALS['db']) && in_array($tesWorldTickType, ['request', 'infonpc', 'infonpc_close', 'infoloc'], true) && empty($GLOBALS['TES_WORLD_TICKED'])) {
         $GLOBALS['TES_WORLD_TICKED'] = true;
         require_once __DIR__ . '/lib.php';
-        foreach (['tesRealmGatherTick', 'tesErrandTick', 'tesTalkTick'] as $tesWorldTickFn) {
+        foreach (['tesRealmGatherTick', 'tesErrandTick', 'tesTalkTick', 'tesWornIngest'] as $tesWorldTickFn) {
             try {
                 if (function_exists($tesWorldTickFn)) {
                     $tesWorldTickFn();
@@ -67,6 +67,15 @@ try {
                 tesTalkHold($tesWorldTo);
             } catch (Throwable $e) {
                 error_log('[tes_world talk] ' . $e->getMessage());
+            }
+        }
+        // what is really on the one spoken to (worn.php): asked now, told to him from the next request on
+        if ($tesWorldType !== 'narrator_inputtext' && $tesWorldTo !== '' && function_exists('tesWornAsk')) {
+            try {
+                tesWornIngest();
+                tesWornAsk($tesWorldTo);
+            } catch (Throwable $e) {
+                error_log('[tes_world worn] ' . $e->getMessage());
             }
         }
         $tesWorldNames = tesWorldNearbyNames(30);
@@ -243,8 +252,22 @@ try {
             }
         }
         // "отменяю закон" clears the standing laws
-        if (preg_match('/(отмен\p{L}+|снима\p{L}+|упраздн\p{L}+)\s+(все\s+|мой\s+|этот\s+)?(закон|указ)/iu', $tesWorldLine)) {
+        // one law by number or by topic ("отмени закон номер 2", "отмени закон про раздевание") - only that one
+        $tesWorldLawNote = '';
+        if (function_exists('tesLawsRepeal') && preg_match('/(отмен\p{L}+|снима\p{L}+|сними|упраздн\p{L}+|убер\p{L}+)/iu', $tesWorldLine) && preg_match('/закон|указ/iu', $tesWorldLine)) {
+            $tesWorldLawNote = tesLawsRepeal(mb_strtolower($tesWorldLine));
+        }
+        if ($tesWorldLawNote === '' && preg_match('/(отмен\p{L}+|снима\p{L}+|упраздн\p{L}+)\s+(все\s+|мой\s+|этот\s+)?(закон|указ)/iu', $tesWorldLine)) {
             error_log('[tes_world] laws cleared: ' . tesWorldClearLaws());
+        }
+        // "какие законы действуют?" - the real list, not what the model remembers
+        if ($tesWorldLawNote === '' && function_exists('tesLawsList')
+            && preg_match('/(как\p{L}+|сколько|перечисл\p{L}*|назови\p{L}*|огласи\p{L}*|список|напомни\p{L}*)\s+(\p{L}+\s+){0,3}?(закон|указ)/iu', $tesWorldLine)) {
+            $tesWorldLawNote = tesLawsList();
+        }
+        if ($tesWorldLawNote !== '') {
+            $GLOBALS['gameRequest'][3] = rtrim(preg_replace('/\s*\(Talking to [^)]*\)\s*$/u', '', strval($GLOBALS['gameRequest'][3])) ?? '') . $tesWorldLawNote . $tesWorldTail;
+            error_log("[tes_world] laws: {$tesWorldLawNote}");
         }
         if (preg_match('/(хватит|перестань\p{L}*|прекрати\p{L}*|не надо|не нужно|не)\s+(\p{L}+\s+){0,3}?(ходить|ходи\p{L}*|следовать|следуй\p{L}*|таскаться|плестись)|отстань\p{L}*|отвали\p{L}*|отвяжи\p{L}*/iu', $tesWorldLine)
         ) {

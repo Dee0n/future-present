@@ -414,6 +414,9 @@ if (!function_exists('tesWorldEnsureTable')) {
         if (empty($quest['quest_key'])) {
             return false;
         }
+        if (function_exists('tesWornTouched')) {
+            $commands = tesWornTouched($commands);  // worn.php: clothes changed - what was seen before is stale
+        }
         $db->insert('skyrim_quest_action_outbox', [
             'quest_key' => $quest['quest_key'], 'beat_id' => 'tes_world', 'action_type' => 'console_command_sequence',
             'payload_json' => json_encode(['type' => 'console_command_sequence', 'commands' => $commands]),
@@ -528,6 +531,10 @@ if (!function_exists('tesWorldEnsureTable')) {
         $out = [];
         foreach (tesWorldFacts() as $key => $fact) {
             if (strpos($key, 'law_') === 0) {
+                // "Приказать всем стражникам исполнить новый закон…" is the agent's wording of an order, not a law
+                if (function_exists('tesLawsIsJunk') && tesLawsIsJunk(preg_replace('/^Закон правителя \([^)]*\):\s*/u', '', $fact) ?? $fact)) {
+                    continue;
+                }
                 $out[$key] = $fact;
             }
         }
@@ -1105,3 +1112,4 @@ require_once __DIR__ . '/realm.php';
 require_once __DIR__ . '/talk.php';
 require_once __DIR__ . '/errand.php';
 require_once __DIR__ . '/drinks.php';
+require_once __DIR__ . '/worn.php';

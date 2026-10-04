@@ -175,7 +175,8 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                 }
                 // a standing law ("отныне все …", "закон: …") is kept: every character knows it and
                 // the patrol (postrequest.php) keeps enforcing it
-                if (preg_match('/(?<![\p{L}])(закон\p{L}*|указ\p{L}*|отныне|впредь|всегда|кажд(ый|ая|ого|ую)|все\s+\p{L}+\s+(должны|обязаны)|запрещ\p{L}+)(?![\p{L}])/iu', $order)) {
+                if (preg_match('/(?<![\p{L}])(закон\p{L}*|указ\p{L}*|отныне|впредь|всегда|кажд(ый|ая|ого|ую)|все\s+\p{L}+\s+(должны|обязаны)|запрещ\p{L}+)(?![\p{L}])/iu', $order)
+                    && !(function_exists('tesLawsIsJunk') && tesLawsIsJunk($order))) {
                     tesWorldAddLaw($order);
                 }
                 // bring / undress / execute / take everything: done at once, no agent, no queue

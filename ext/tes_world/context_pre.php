@@ -99,6 +99,14 @@ try {
                 $tesWorldHint = $tesWorldSceneLine . ($tesWorldHint !== '' ? ' ' . $tesWorldHint : '');
             }
         }
+        // what is really on the body (worn.php): the model said "я разделась" / "я уже оделся" by mood
+        if ($tesWorldMe !== '' && $tesWorldMe !== 'The Narrator' && function_exists('tesWornLine') && !tesWorldIsChild($tesWorldMe)
+            && empty($tesWorldScene)) {
+            $tesWorldWornLine = tesWornLine($tesWorldMe);
+            if ($tesWorldWornLine !== '') {
+                chimRegisterPromptInjection('prompt_bottom', 'tes_world_worn', $tesWorldWornLine, 100);
+            }
+        }
         // Brevity for everyone and silence on the ruler's word (owner, 17:03: "они рот свой заебали открывать")
         if ($tesWorldMe !== '' && $tesWorldMe !== 'The Narrator') {
             $tesWorldMute = function_exists('tesRealmMuteLine') ? tesRealmMuteLine($tesWorldMe) : '';
