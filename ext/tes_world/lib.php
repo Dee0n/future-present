@@ -71,6 +71,32 @@ if (!function_exists('tesWorldEnsureTable')) {
         return array_slice(array_values(array_unique(array_merge($near, $far))), 0, $max);
     }
 
+    /**
+     * Whom a line said to nobody is about: the partner of the scene started in the last
+     * 10 minutes if still around, else the only living person near the player; '' otherwise.
+     */
+    function tesWorldCompanion(): string
+    {
+        $db = $GLOBALS['db'];
+        $row = $db->fetchOne("SELECT data FROM eventlog WHERE type = 'infonpc_close' AND localts > " . (time() - 180) . " ORDER BY rowid DESC LIMIT 1");
+        $player = mb_strtolower(strval($GLOBALS['PLAYER_NAME'] ?? ''));
+        $alive = [];
+        foreach (explode('/', strval($row['data'] ?? '')) as $name) {
+            if (preg_match('/\((dead|far away)\)/u', $name)) {
+                continue;
+            }
+            $name = trim(preg_replace('/\s*\([a-z ]+\)\s*/u', ' ', $name) ?? $name);
+            if ($name !== '' && mb_strtolower($name) !== $player && mb_strlen($name) <= 60) {
+                $alive[$name] = true;
+            }
+        }
+        $last = $db->fetchOne("SELECT goal FROM public.tes_agent_tasks WHERE status = 'fast' AND goal LIKE 'love: %' AND created_at > now() - interval '10 minutes' ORDER BY id DESC LIMIT 1");
+        if (preg_match('/^love: (.+) \+ игрок/u', strval($last['goal'] ?? ''), $m) && isset($alive[$m[1]])) {
+            return $m[1];
+        }
+        return count($alive) === 1 ? strval(array_key_first($alive)) : '';
+    }
+
     /** Lower case, ё -> е, letters and digits only. */
     function tesWorldNorm(string $s): string
     {
@@ -591,11 +617,11 @@ if (!function_exists('tesWorldEnsureTable')) {
             'vaginalsex' => 'startvaginal|vaginal|вагин|в киск|в пизд|трах|ебат|ебл|секс',
             'analsex' => 'startanal|anal|анал|в зад|в жоп|в поп',
             'blowjob' => 'startblowjob|blowjob|минет|отсос|соси|сосат|в рот',
-            'deepthroat' => 'deepthroat|глубок\\w* (минет|глотк)|в горло|в глотку',
+            'deepthroating,blowjob' => 'deepthroat|глубок\\w* (минет|глотк)|в горло|в глотку',
             'handjob' => 'handjob|рукой|дроч|подроч',
             'footjob' => 'footjob|ногами|ступн',
             'boobjob' => 'boobjob|между груд|сиськами|грудью',
-            'cunnilingus,lickingvagina' => 'cunnilingus|кунилинг|куннилинг|лиз|вылиж',
+            'cunnilingus,lickingvagina' => 'cunnilingus|кун+и|кунилинг|куннилинг|лиз|вылиж',
             'vaginalfingering' => 'fingering|пальц',
             'rimjob' => 'rimjob|римминг|анилингус',
             'facial' => 'facial|на лицо',
@@ -609,13 +635,13 @@ if (!function_exists('tesWorldEnsureTable')) {
             'sixtynine,69' => 'start69|sixtynine|69|шестьдесят девять',
             'grindingpenis,buttjob' => 'grinding|buttjob|потрис|трись',
             'thighjob' => 'thighjob|между б[её]дер|б[её]драми',
-            'cuddling' => 'cuddle|hugging|обним',
-            'frenchkissing' => 'kissing|поцел|целуй|целов',
+            'cuddling,cuddle,hug,hugging' => 'cuddle|hugging|обним',
+            'kissing,frenchkissing' => 'kissing|поцел|целуй|целов',
         ];
         // the more specific kinds are listed so that they win over plain "sex"
-        $order = ['deepthroat', 'reversecowgirl', 'facesitting', 'sixtynine,69', 'analsex', 'blowjob', 'handjob', 'footjob', 'boobjob',
+        $order = ['deepthroating,blowjob', 'reversecowgirl', 'facesitting', 'sixtynine,69', 'analsex', 'blowjob', 'handjob', 'footjob', 'boobjob',
             'cunnilingus,lickingvagina', 'vaginalfingering', 'rimjob', 'facial', 'cumonchest', 'rubbingclitoris', 'missionary',
-            'cowgirl', 'doggystyle', 'grindingpenis,buttjob', 'thighjob', 'cuddling', 'frenchkissing', 'vaginalsex'];
+            'cowgirl', 'doggystyle', 'grindingpenis,buttjob', 'thighjob', 'cuddling,cuddle,hug,hugging', 'kissing,frenchkissing', 'vaginalsex'];
         foreach ($order as $tags) {
             if (preg_match('/(' . $map[$tags] . ')/u', $w)) {
                 return $tags;

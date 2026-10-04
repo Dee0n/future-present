@@ -46,7 +46,17 @@ int Function Start(Actor first, Actor second, String tags = "") Global
         endif
         return running
     endif
-    return OThread.QuickStart(actors, sceneId)
+    int started = OThread.QuickStart(actors, sceneId)
+    if started < 0 && sceneId != ""
+        ; not every scene can be the first one of a thread (live 2026-10-04: a cunnilingus scene
+        ; was found and OStim refused to start with it): start plainly, then go to it
+        started = OThread.QuickStart(actors)
+        if started >= 0
+            Utility.Wait(1.5)
+            OThread.WarpTo(started, sceneId, true)
+        endif
+    endif
+    return started
 EndFunction
 
 ; End the scene the actor is in. Returns true when there was one.
