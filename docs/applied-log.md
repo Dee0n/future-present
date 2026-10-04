@@ -2444,3 +2444,10 @@ stopcombat участникам, `coc WhiterunBreezehome` + Назим к игр
 - `papyrus/.../TESLove.psc` (pex установлен, подхватится после перезапуска игры): если OStim отказался начать с найденной сцены — обычный старт и переход на неё (`WarpTo`).
 - Причина «error: OStim did not start a scene» в 14:39 **не установлена**: повторные проверки 14:40–14:42 били мимо (Сигрид уже не было рядом, «Пленники» мертвы — мост верно отказал). Сцена куннилингуса в игре **не проверена**.
 - Замечено: на «пять женщин» Рассказчик поставил `placeatme 00079F52…` — это мёртвые «Пленники».
+
+## 2026-10-04 14:50 — «сделай Айрилет моей спутницей»
+
+- Живой лог 14:44–14:47: Рассказчик понял «сделай (её) спутницей» как «сделай две Айрилет» — трижды `player.placeatme {npc:Айрилет}` («Invalid object») и `setav speedmult 0`; затем `addtofaction/setfactionrank PlayerFollowerFaction` — отклонены валидатором, спутницей она не стала.
+- `ext/tes_god_guard/functions.php`: новый глагол `{npc:Имя}.follow` / `.unfollow` (а также `addtofaction|setfactionrank … PlayerFollowerFaction`, `setplayerteammate`) → `setrestrained 0; setav speedmult 100; tesfollow 20` / `tesfollow 0` (пакет следования CHIM через мост). `player.placeatme {npc:Имя}` → `{npc:Имя}.moveto player`.
+- `ext/tes_agent/context_pre.php`: Рассказчику — команда спутника, не создавать заново и не замораживать существующих, ослышки имён («арилет», «эринет») = ближайшее знакомое имя рядом.
+- Проверено в игре 14:48: `tesfollow 20` → «Айрилет goes after Шаман». Через Рассказчика голосом — **не проверено**.
