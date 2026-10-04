@@ -114,6 +114,29 @@ if (!function_exists('tesRealmAfterOrder')) {
                 tesWorldQueue(['prid ' . $ref, 'playidle 00103656']);
             }
         }
+        // talk: every ~40 s one guest is told to turn to a neighbour and say something live (a toast, a joke, gossip,
+        // a jab) - the others can answer on their own (RECHAT is raised for the feast). The Narrator's own
+        // "Instruction" channel, the one CHIM uses for it.
+        $tk = tesWatchGet('party_talk');
+        if ($tk['value'] === '' || $tk['age'] >= 40) {
+            tesWatchSet('party_talk', '1');
+            shuffle($refs);
+            $pair = array_slice($refs, 0, 2);
+            if (count($pair) === 2) {
+                $names = [];
+                foreach ($pair as $pr) {
+                    $row = $db->fetchOne("SELECT npc_name FROM public.core_npc_master WHERE refid = '" . $db->escape($pr) . "' LIMIT 1");
+                    $names[] = trim(strval($row['npc_name'] ?? ''));
+                }
+                if ($names[0] !== '' && $names[1] !== '') {
+                    $themes = ['тост за ярла, но со своей шуткой', 'шутку про стражу', 'сплетню про соседа по столу', 'подначку, что тот не умеет пить', 'байку о том, как он однажды напился', 'вопрос, как ему вообще эта выпивка',
+                        'жалобу, что эль слабоват, или хвалу, что крепок', 'песенку или припев', 'спор о том, кто из них пьянее', 'воспоминание о лучшем пире в его жизни'];
+                    $theme = $themes[array_rand($themes)];
+                    $text = "Instruction@{$names[0]}@(Ты на гулянке. Повернись к {$names[1]} и скажи ему одну короткую живую фразу: {$theme}. По-русски, в своём характере, без пересказа этих слов.)@0";
+                    $db->insert('responselog', ['localts' => time(), 'sent' => 0, 'text' => $text, 'actor' => 'rolemaster', 'action' => 'rolecommand', 'tag' => '']);
+                }
+            }
+        }
         // who walked off: ask, and on the next round read the answers
         $probe = tesWatchGet('party_probe');
         if ($probe['value'] !== '' && $probe['age'] >= 10 && $probe['age'] < 120) {
