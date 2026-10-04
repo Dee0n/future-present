@@ -8,6 +8,29 @@
  *     and for anyone around named in the line - saying "да, ярл" changed nothing (13:12, 2026-10-04).
  */
 
+// The ticks (the feast keeper, errands, letting go of the one who was talked to) ran only in postrequest.php - after
+// an answer of the model. When nobody talks - and at a feast nobody did - they never ran (live 22:50: "все уходят с
+// пьянки", the keeper had last worked 5 minutes before). The game sends a request every ~5 s: the ticks ride on those.
+// Each tick keeps its own rate limit.
+try {
+    $tesWorldTickType = strval($GLOBALS['gameRequest'][0] ?? '');
+    if (isset($GLOBALS['db']) && in_array($tesWorldTickType, ['request', 'infonpc', 'infonpc_close', 'infoloc'], true) && empty($GLOBALS['TES_WORLD_TICKED'])) {
+        $GLOBALS['TES_WORLD_TICKED'] = true;
+        require_once __DIR__ . '/lib.php';
+        foreach (['tesRealmGatherTick', 'tesErrandTick', 'tesTalkTick'] as $tesWorldTickFn) {
+            try {
+                if (function_exists($tesWorldTickFn)) {
+                    $tesWorldTickFn();
+                }
+            } catch (Throwable $e) {
+                error_log("[tes_world tick {$tesWorldTickFn}] " . $e->getMessage());
+            }
+        }
+    }
+} catch (Throwable $e) {
+    error_log('[tes_world tick] ' . $e->getMessage());
+}
+
 try {
     $tesWorldType = strval($GLOBALS['gameRequest'][0] ?? '');
     if (isset($GLOBALS['db']) && in_array($tesWorldType, ['inputtext', 'inputtext_s', 'narrator_inputtext', 'ginputtext'], true)
