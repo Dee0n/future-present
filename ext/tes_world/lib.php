@@ -880,7 +880,9 @@ if (!function_exists('tesWorldEnsureTable')) {
     {
         $w = mb_strtolower(str_replace('ё', 'е', $what));
         $map = [
-            'vaginalsex' => 'startvaginal|vaginal|вагин|в киск|в пизд|трах|ебат|ебл|секс|развлек|займись|займитес|удовлетвор|ублажа',
+            // not bare "ебать/еблан" (swearing - "Так ебать, я твой гость" started a scene with Элисиф, live
+            // 17:34) and not "страх"; "займись/развлеки" alone is any task ("займись делом")
+            'vaginalsex' => 'startvaginal|vaginal|вагин|в киск|в пизд|(?<![\p{L}])(?:трах\p{L}*|потрах\p{L}*|оттрах\p{L}*|выеб\p{L}*|поеб(?:и|у|ем|ём)\p{L}*|еби|ебу|ебём|ебем|ебись)(?![\p{L}])|секс|удовлетвор|ублажа',
             'analsex' => 'startanal|anal|анал|в зад|в жоп|в поп',
             'blowjob' => 'startblowjob|blowjob|минет|отсос|соси|сосат|в рот',
             'deepthroating,blowjob' => 'deepthroat|глубок\\w* (минет|глотк)|в горло|в глотку',

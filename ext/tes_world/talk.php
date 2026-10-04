@@ -32,7 +32,9 @@ if (!function_exists('tesTalkHold')) {
             return;
         }
         $ref = tesWorldRefOf($npc);
-        if ($ref === '' || !function_exists('tesBridgeVersion') || tesBridgeVersion() < 9) {
+        // the remembered bridge version only: tesBridgeVersion() would wait up to 5 s for the game
+        // on a stale cache, on the player's line; others refresh it
+        if ($ref === '' || !function_exists('tesWatchGet') || intval(tesWatchGet('bridge_ver')['value']) < 9) {
             return;
         }
         tesTalkEnsure();
