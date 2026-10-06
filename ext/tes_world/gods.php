@@ -107,8 +107,11 @@ if (!function_exists('tesGodsSpoken')) {
             if (preg_match('/(?<![\p{L}])(воскрес\p{L}*|верни\s+(?:к\s+жизни|из\s+мертв)|оживи\p{L}*)/u', $t)) {
                 $who = tesGodTarget($line);
                 $ref = $who !== '' ? tesWorldRefOf($who) : '';
+                $dead = $who !== '' ? $GLOBALS['db']->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE npc_name = '" . $GLOBALS['db']->escape($who) . "' LIMIT 1") : [];
                 if ($ref === '' || tesChildSafeIsChildRef($ref)) {
                     $did = 'ярл не назвал, кого вернуть, — спроси имя';
+                } elseif (strval($dead['d'] ?? '') !== 'true') {
+                    $did = "{$who} и так жив — Аркей не трогает живых";  // resurrect on the living can reset them
                 } else {
                     tesWorldQueue(['prid ' . $ref, 'resurrect']);
                     tesGodFavor($god, -15);  // death is not cheated for free

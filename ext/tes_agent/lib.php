@@ -204,6 +204,13 @@ if (!function_exists('tesAgentInverse')) {
                     $not[] = strval($r['command']);
                     continue;
                 }
+                if ($m[4] === 'resurrect') {
+                    // only the dead come back: the kill may never have landed, and resurrect on the living resets them
+                    $dead = $db->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE upper(refid) = '" . $db->escape($ref) . "' LIMIT 1");
+                    if (strval($dead['d'] ?? '') !== 'true') {
+                        continue;
+                    }
+                }
                 $cmds[] = ['prid ' . $ref, $m[4]];
             }
             $done[] = strval($r['command']);

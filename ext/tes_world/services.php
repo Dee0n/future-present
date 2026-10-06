@@ -43,6 +43,34 @@ if (!function_exists('tesServiceSpoken')) {
         ][$kind];
     }
 
+    /** Prices back: one item ("эль") or all the ruler set. */
+    function tesPriceUndo(string $phrase): string
+    {
+        tesPriceEnsure();
+        $db = $GLOBALS['db'];
+        $where = '';
+        if ($phrase !== '' && function_exists('tesWorldItemByName')) {
+            $item = tesWorldItemByName($phrase);
+            if (!$item) {
+                return '';
+            }
+            $where = " WHERE formid = '{$item['formid']}'";
+        }
+        $rows = $db->fetchAll("DELETE FROM public.tes_prices{$where} RETURNING formid, base, name");
+        $cmds = [];
+        $names = [];
+        foreach (is_array($rows) ? $rows : [] as $r) {
+            $names[] = strval($r['name']);
+            if ($r['base'] !== null) {
+                $cmds[] = 'tesprice ' . hexdec(strval($r['formid'])) . ' ' . intval($r['base']);
+            }
+        }
+        foreach (array_chunk($cmds, 8) as $chunk) {
+            tesWorldQueue($chunk);
+        }
+        return $names ? ' *прежние цены вернулись: ' . implode(', ', array_slice($names, 0, 5)) . '; подтверди*' : ' *особых цен не было — менять нечего*';
+    }
+
     function tesPriceEnsure(): void
     {
         $GLOBALS['db']->execQuery("CREATE TABLE IF NOT EXISTS public.tes_prices (formid text PRIMARY KEY, name text NOT NULL, gold int NOT NULL, base int, why text NOT NULL DEFAULT '',
@@ -66,14 +94,24 @@ if (!function_exists('tesServiceSpoken')) {
             return '';
         }
         $t = mb_strtolower(str_replace('ё', 'е', $line));
+        // "верни цену на эль", "отмени цены": the old prices come back
+        if (preg_match('/(?:верни|отмени|сбрось|убери)\s+(?:\p{L}+\s+)?цен\p{L}*(?:\s+на\s+(.{3,40}?))?\s*(?:[.!]|$)/u', $t, $um)) {
+            return tesPriceUndo(trim(strval($um[1] ?? '')));
+        }
+        // only a decree: bargaining ("эльфийский лук стоит 200, не больше?") must not change every trader's price
+        if (preg_match('/\?\s*$/u', trim($t)) || !preg_match('/(?<![\p{L}])(теперь|отныне|указ\p{L}*|повелеваю|приказываю|устанавливаю|объявляю|пусть)(?![\p{L}])/u', $t)) {
+            return '';
+        }
         if (!preg_match('/(?:цен\p{L}*\s+(?:на\s+)?(.{3,40}?)\s+(?:теперь\s+|будет\s+|-\s*)?(\d{1,6})|(.{3,40}?)\s+(?:теперь\s+)?(?:стоит|стоят|будет\s+стоить|продавать\s+по)\s+(\d{1,6}))/u', $t, $m)) {
             return '';
         }
         $phrase = trim($m[1] !== '' ? $m[1] : $m[3]);
         $gold = intval($m[2] !== '' ? $m[2] : $m[4]);
         $phrase = trim(preg_replace('/^(?:пусть|теперь|отныне|а|и)\s+/u', '', $phrase) ?? $phrase);
+        $phrase = trim(preg_replace('/^(?:теперь|отныне|указ\p{L}*|повелеваю|приказываю|устанавливаю|объявляю|пусть)\s+/u', '', $phrase) ?? $phrase);
         $item = function_exists('tesWorldItemByName') ? tesWorldItemByName($phrase) : [];
-        if (!$item) {
+        // a one-word phrase ("меч") would pick an arbitrary item: only an exact name then
+        if (!$item || (count(preg_split('/\s+/u', $phrase)) < 2 && mb_strtolower($item['name']) !== $phrase)) {
             return '';
         }
         if (!function_exists('tesBridgeVersion') || tesBridgeVersion() < 16) {

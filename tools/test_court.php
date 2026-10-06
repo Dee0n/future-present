@@ -208,5 +208,9 @@ foreach (['Давай поторгуем' => 'tesbarter', 'Покажи свой
     $check($got === $want, "«{$line}» => '{$got}'");
 }
 
+foreach (['Эльфийский лук стоит 200, не больше?', 'Этот меч стоит 300', 'Эльфийский лук стоит 200', 'Меч теперь стоит 300'] as $line) {
+    $check(tesPriceSpoken($line) === '', "bargaining / one word is not a decree: «{$line}»");
+}
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);
