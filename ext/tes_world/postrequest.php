@@ -70,7 +70,8 @@ try {
 }
 
 // Rumors go into EVERY prompt (25 of them = ~1.7K tokens, with duplicates: owner, 2026-10-04,
-// "расход огромный"). Once a minute: duplicates out, at most 8 newest stay (backup in tes_backup_rumors).
+// "расход огромный"). Once a minute: duplicates out, at most 8 newest stay PER HOLD (a character sees only the
+// rumours of his own hold; rumours.php sends copies to the other holds) - backup in tes_backup_rumors.
 try {
     $tesRumorMark = sys_get_temp_dir() . '/tes_rumors_trim.ts';
     if (isset($GLOBALS['db']) && (time() - intval(@file_get_contents($tesRumorMark))) > 60) {
@@ -78,10 +79,10 @@ try {
         $db = $GLOBALS['db'];
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_backup_rumors AS SELECT *, now() AS saved_at FROM public.rumors WHERE false");
         $db->execQuery("INSERT INTO public.tes_backup_rumors SELECT r.*, now() FROM public.rumors r WHERE r.id IN ("
-            . "SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY content ORDER BY id DESC) AS dup, row_number() OVER (ORDER BY id DESC) AS pos FROM public.rumors) t WHERE dup > 1 OR pos > 8)"
+            . "SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY content ORDER BY id DESC) AS dup, row_number() OVER (PARTITION BY hold ORDER BY id DESC) AS pos FROM public.rumors) t WHERE dup > 1 OR pos > 8)"
             . " AND r.id NOT IN (SELECT id FROM public.tes_backup_rumors)");
         $db->execQuery("DELETE FROM public.rumors WHERE id IN ("
-            . "SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY content ORDER BY id DESC) AS dup, row_number() OVER (ORDER BY id DESC) AS pos FROM public.rumors) t WHERE dup > 1 OR pos > 8)");
+            . "SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY content ORDER BY id DESC) AS dup, row_number() OVER (PARTITION BY hold ORDER BY id DESC) AS pos FROM public.rumors) t WHERE dup > 1 OR pos > 8)");
     }
 } catch (Throwable $e) {
     error_log('[tes_world rumors] ' . $e->getMessage());
@@ -92,7 +93,7 @@ try {
         $GLOBALS['TES_WORLD_POST'] = true;
         require_once __DIR__ . '/lib.php';
         tesWorldDuelTick();
-        foreach (['tesWorldVerifyTick', 'tesWatchTick', 'tesTreasuryTax', 'tesRealmReport', 'tesRealmPlots', 'tesCourtTick', 'tesTalkTick', 'tesRealmGatherTick', 'tesErrandTick'] as $tesWorldTick) {
+        foreach (['tesWorldVerifyTick', 'tesWatchTick', 'tesTreasuryTax', 'tesRealmReport', 'tesRealmPlots', 'tesCourtTick', 'tesTalkTick', 'tesRealmGatherTick', 'tesErrandTick', 'tesRumorSpreadTick'] as $tesWorldTick) {
             try {
                 if (function_exists($tesWorldTick)) {
                     $tesWorldTick();

@@ -103,5 +103,25 @@ foreach (['снимаю торгара с должности палача' => '�
 }
 echo '  info ' . tesRealmCourtList() . "\n";
 
+echo "== rumours travel ==\n";
+require_once "$X/tes_world/rumors.php";
+$map = tesRumorNeighbours();
+$sym = true;
+foreach ($map as $h => $ns) {
+    foreach ($ns as $n) {
+        $sym = $sym && in_array($h, $map[$n] ?? [], true);
+    }
+}
+$check(count($map) === 9 && $sym, 'nine holds, every border goes both ways');
+$far = tesRumorFarHolds('Хаафингар');
+sort($far);
+$check($far === ['Белый Берег', 'Вайтран', 'Фолкрит'], 'two steps from Хаафингар: ' . implode(', ', $far));
+$src = 'Говорят, на суде Шаман Назим оштрафован на 500 септимов в казну.';
+$d1 = tesRumorDistort($src, 'Вайтран', 1, 'Рифт');
+$d2 = tesRumorDistort($src, 'Вайтран', 2, 'Винтерхолд');
+$check($d1 === tesRumorDistort($src, 'Вайтран', 1, 'Рифт'), 'the same rumour reads the same in the same hold');
+$check(strpos($d1, '500 ') === false && preg_match('/\d{4}/u', $d1) === 1, "numbers grow: {$d1}");
+$check($d2 !== $d1 && mb_strlen($d2) <= 400, "two hops is told worse: {$d2}");
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);
