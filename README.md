@@ -67,6 +67,36 @@ first time and the dead ends (a couple of god-mode ideas turned out to need
 Papyrus source that just doesn't exist for some mods; that's written down
 too, not swept under the rug).
 
+## Part 3: a world that answers back
+
+On top of that, `ext/tes_world` makes the player a ruler and the world react
+to it — all by voice, all server-side, almost no extra LLM calls:
+
+- **Court, treasury, posts.** «Суд над X» brings the accused; «приговариваю к
+  казни / к тюрьме на 3 дня / штраф 500 в казну / оправдан» is carried out.
+  Taxes come in, the treasury pays whoever you name, you appoint a
+  housecarl and he follows you. «Верни как было» undoes the last order,
+  sentence or whole Narrator task.
+- **Rumours travel.** They start in the hold where something happened and
+  reach the neighbouring holds half an hour later, a little worse each time.
+  People who saw a death remember it and are named in the rumour; a hard one
+  may write to you for silver.
+- **Gods.** Sanguine, Arkay, Kynareth, Mara, Hermaeus Mora, Clavicus Vile and
+  Sheogorath answer through the Narrator in their own voices (the game's own
+  Daedra voices where they exist) and actually do things: wagers, healing,
+  weather, a debt that comes due. Their deeds go into a book of legends.
+- **Companions with a will.** Trust moves with what you do, by their own
+  character; grudges are remembered; below a line they leave.
+- **A living world.** Smiths take orders and a courier brings the result;
+  places remember what happened there; you get a nickname from your deeds and
+  bards sing about them; «давай поторгуем» opens the barter window (bridge v16).
+- **A director's panel** at `http://localhost:8081/HerikaServer/ext/tes_world/panel.php`:
+  tasks, court, treasury, rumours by hold, legends, companions, letters — and
+  an undo button.
+
+What to say and what happens is listed in [docs/ROADMAP.md](docs/ROADMAP.md);
+`tools/test_court.php` checks it without touching the game.
+
 ## Installing
 
 ```
@@ -110,6 +140,10 @@ or after a CHIM update, before trusting it in a real playthrough.
 - No real answer yet for the Narrator learning a command's result within
   the same reply instead of the next one; it would mean blocking the
   request on the game, which isn't safe to do casually.
+- Pressing E still opens the vanilla dialogue menu (CHIM's MCM has a
+  "Prevent traditional dialogue" option worth trying).
+- The plugins' own tables don't roll back with an older save yet; the core
+  patch for CHIM's Playthrough Save is ready in `patches/` but not applied.
 
 ## Credits
 
