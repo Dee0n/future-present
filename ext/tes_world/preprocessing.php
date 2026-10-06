@@ -108,6 +108,10 @@ try {
             // said to the Narrator ("Суд над Оранверном идёт…" 16:53 - went nowhere): the same court
             $tesWorldAddr = $tesWorldTo !== '' ? $tesWorldTo : 'The Narrator';
             $tesWorldCourt = tesCourtSpoken($tesWorldLine, $tesWorldAddr);
+            // Sanguine before the realm: "Сангвин, повесели нас" is his, not a plain wonder (sanguine.php)
+            if ($tesWorldCourt === '' && function_exists('tesSanguineSpoken')) {
+                $tesWorldCourt = tesSanguineSpoken($tesWorldLine, $tesWorldAddr);
+            }
             if ($tesWorldCourt === '' && function_exists('tesRealmSpoken')) {
                 $tesWorldCourt = tesRealmSpoken($tesWorldLine, $tesWorldAddr);
             }

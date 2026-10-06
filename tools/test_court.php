@@ -130,5 +130,12 @@ $seers = tesWitnessSeers($line);
 $check($seers === ['Хронгар', 'Ольфина Серая Грива', 'Коза', 'Фротар', 'Дагни'], 'alive and near only: ' . implode(', ', $seers));
 $check(!empty(tesWitnessPerson('Ольфина Серая Грива')) && empty(tesWitnessPerson('Коза')), 'a person is in the NPC table, a goat is not');
 
+echo "== Sanguine ==\n";
+require_once "$X/tes_world/sanguine.php";
+$fav = tesSanguineFavor();
+$check($fav >= 0 && $fav <= 100, "favour within 0-100: {$fav}");
+$check(mb_strpos(tesSanguineVoice(), 'Сангвин') !== false, 'his voice is described for the Narrator');
+$check(tesSanguineSpoken('Балгруф, налей мне', 'Ярл Балгруф Старший') === '', 'a line without his name is not his');
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);
