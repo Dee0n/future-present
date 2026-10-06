@@ -63,6 +63,7 @@ if (!empty($args['goal'])) {
 } else {
     $taskId = intval($args['task'] ?? 0);
 }
+$GLOBALS['TES_AGENT_TASK_ID'] = $taskId;
 $task = $db->fetchOne("SELECT * FROM public.tes_agent_tasks WHERE id = {$taskId}");
 if (!$task) {
     fwrite(STDERR, "no task {$taskId}\n");
@@ -215,6 +216,9 @@ function tesAgentWrite(string $text, bool $dry): array
         $call = explode('@', explode('|', $filtered)[2] ?? '', 2);
         $kept = trim(strval(json_decode($call[1] ?? '', true)['target'] ?? ''));
         $queued = $kept === '' ? 0 : herikaQueueGodCommands($kept);
+        if ($queued > 0 && function_exists('tesAgentJournal')) {
+            tesAgentJournal(intval($GLOBALS['TES_AGENT_TASK_ID'] ?? 0), $kept);  // «верни как было» undoes the whole task
+        }
     }
     $guard = $db->fetchAll("SELECT * FROM public.tes_god_guard_log WHERE id > {$guardSince} ORDER BY id");
     $verdicts = array_map(function ($g) {

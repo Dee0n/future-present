@@ -114,3 +114,113 @@ if (!function_exists('tesAgentEnsureTable')) {
         ]);
     }
 }
+
+if (!function_exists('tesAgentInverse')) {
+    /**
+     * The command that undoes one god command ("{npc:X}.additem F 5" -> "{npc:X}.removeitem F 5"), or null when it
+     * can not be undone (moveto, placeatme, setav without the old value...). Roadmap: "откат задач агента".
+     */
+    function tesAgentInverse(string $one): ?string
+    {
+        $one = trim($one);
+        if (!preg_match('/^(\{npc:[^}]+\}|player|[0-9A-Fa-f]{8})\.(\w+)\s*(.*)$/u', $one, $m)) {
+            return null;
+        }
+        [$who, $cmd, $args] = [$m[1], strtolower($m[2]), trim($m[3])];
+        $a = preg_split('/\s+/u', $args, -1, PREG_SPLIT_NO_EMPTY);
+        $pairs = ['additem' => 'removeitem', 'removeitem' => 'additem', 'addspell' => 'removespell', 'removespell' => 'addspell',
+            'addperk' => 'removeperk', 'removeperk' => 'addperk', 'addshout' => 'removeshout'];
+        if (isset($pairs[$cmd]) && $a) {
+            return "{$who}.{$pairs[$cmd]} {$args}";
+        }
+        if ($cmd === 'addfac' && $a) {
+            return "{$who}.removefac {$a[0]}";
+        }
+        if ($cmd === 'setscale') {
+            return "{$who}.setscale 1";
+        }
+        if (in_array($cmd, ['kill', 'teskill'], true)) {
+            return "{$who}.resurrect";
+        }
+        if ($cmd === 'setessential' && $a) {
+            return "{$who}.setessential " . ($a[0] === '0' ? '1' : '0');
+        }
+        if ($cmd === 'unequipall') {
+            return "{$who}.tesredress";
+        }
+        if ($cmd === 'tesgive') {
+            return "{$who}.tesungive";
+        }
+        return null;
+    }
+
+    /** After a task step was sent: what undoes it, in order (table tes_agent_undo). */
+    function tesAgentJournal(int $taskId, string $kept): void
+    {
+        if ($taskId <= 0 || trim($kept) === '') {
+            return;
+        }
+        $db = $GLOBALS['db'];
+        $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_agent_undo (id bigserial PRIMARY KEY, task_id bigint NOT NULL, command text NOT NULL, inverse text, undone boolean NOT NULL DEFAULT false, created_at timestamptz NOT NULL DEFAULT now())");
+        foreach (preg_split('/\s*;\s*/u', $kept, -1, PREG_SPLIT_NO_EMPTY) as $one) {
+            $inv = tesAgentInverse($one);
+            $db->execQuery("INSERT INTO public.tes_agent_undo (task_id, command, inverse) VALUES ({$taskId}, '" . $db->escape(mb_substr($one, 0, 400)) . "', "
+                . ($inv === null ? 'NULL' : "'" . $db->escape(mb_substr($inv, 0, 400)) . "'") . ")");
+        }
+    }
+
+    /**
+     * Undo the last task of the agent (30 minutes): the inverse commands in reverse order, as console sequences.
+     * Returns [what was undone, what could not be] or null when there is no such task.
+     */
+    function tesAgentUndoLast(): ?array
+    {
+        $db = $GLOBALS['db'];
+        $has = $db->fetchOne("SELECT to_regclass('public.tes_agent_undo') AS t");
+        if (empty($has['t'])) {
+            return null;
+        }
+        $t = $db->fetchOne("SELECT task_id, max(created_at) AS at FROM public.tes_agent_undo WHERE NOT undone AND created_at > now() - interval '30 minutes' GROUP BY task_id ORDER BY max(created_at) DESC LIMIT 1");
+        if (empty($t['task_id'])) {
+            return null;
+        }
+        $tid = intval($t['task_id']);
+        $rows = $db->fetchAll("SELECT id, command, inverse FROM public.tes_agent_undo WHERE task_id = {$tid} AND NOT undone ORDER BY id DESC");
+        $db->execQuery("UPDATE public.tes_agent_undo SET undone = true WHERE task_id = {$tid}");
+        $cmds = [];
+        $done = [];
+        $not = [];
+        foreach (is_array($rows) ? $rows : [] as $r) {
+            $inv = strval($r['inverse'] ?? '');
+            if ($inv === '' || !preg_match('/^(\{npc:([^}]+)\}|player|([0-9A-Fa-f]{8}))\.(.+)$/u', $inv, $m)) {
+                $not[] = strval($r['command']);
+                continue;
+            }
+            if ($m[1] === 'player') {
+                $cmds[] = ['player.' . $m[4]];
+            } else {
+                $ref = $m[2] !== '' && function_exists('tesWorldRefOf') ? tesWorldRefOf($m[2]) : strtoupper(strval($m[3] ?? ''));
+                if ($ref === '') {
+                    $not[] = strval($r['command']);
+                    continue;
+                }
+                $cmds[] = ['prid ' . $ref, $m[4]];
+            }
+            $done[] = strval($r['command']);
+        }
+        // sequences of at most ~10 commands (bridge-console-races), a "prid X; cmd" pair never split
+        $chunk = [];
+        foreach ($cmds as $g) {
+            if (count($chunk) + count($g) > 10 && function_exists('tesWorldQueue')) {
+                tesWorldQueue($chunk);
+                $chunk = [];
+            }
+            $chunk = array_merge($chunk, $g);
+        }
+        if ($chunk && function_exists('tesWorldQueue')) {
+            tesWorldQueue($chunk);
+        }
+        $goal = $db->fetchOne("SELECT goal FROM public.tes_agent_tasks WHERE id = {$tid}");
+        return ['task' => strval($goal['goal'] ?? "#{$tid}"), 'done' => $done, 'not' => $not];
+    }
+}

@@ -383,6 +383,23 @@ if (!function_exists('tesRealmAfterOrder')) {
         tesRealmEnsure();
         $db = $GLOBALS['db'];
         $r = $db->fetchOne("SELECT * FROM public.tes_undo WHERE undone = false AND created_at > now() - interval '30 minutes' ORDER BY id DESC LIMIT 1");
+        // the Narrator-agent's task, when it is newer than the last order: undone as a whole (tes_agent/lib.php)
+        $agentLib = __DIR__ . '/../tes_agent/lib.php';
+        if (!function_exists('tesAgentUndoLast') && is_readable($agentLib)) {
+            require_once $agentLib;
+        }
+        if (function_exists('tesAgentUndoLast')) {
+            $hasJ = $db->fetchOne("SELECT to_regclass('public.tes_agent_undo') AS t");
+            $lastTask = !empty($hasJ['t']) ? $db->fetchOne("SELECT max(created_at) AS at FROM public.tes_agent_undo WHERE NOT undone AND created_at > now() - interval '30 minutes'") : [];
+            if (!empty($lastTask['at']) && (empty($r) || strtotime(strval($lastTask['at'])) > strtotime(strval($r['created_at'])))) {
+                $u = tesAgentUndoLast();
+                if ($u !== null) {
+                    tesWatchNotify('Откат задачи: ' . mb_substr($u['task'], 0, 60) . ' — отменено ' . count($u['done']) . ', нельзя ' . count($u['not']));
+                    return ' *отменена задача «' . mb_substr($u['task'], 0, 80) . '»: возвращено ' . count($u['done']) . ' действий'
+                        . ($u['not'] ? '; не отменить (перемещения, призванное, характеристики): ' . implode('; ', array_slice($u['not'], 0, 3)) : '') . '; скажи это ярлу*';
+                }
+            }
+        }
         if (empty($r)) {
             return ' *откатывать нечего — недавних приказов нет*';
         }

@@ -144,5 +144,20 @@ $check($fav >= 0 && $fav <= 100, "favour within 0-100: {$fav}");
 $check(mb_strpos(tesSanguineVoice(), 'Сангвин') !== false, 'his voice is described for the Narrator');
 $check(tesSanguineSpoken('Балгруф, налей мне', 'Ярл Балгруф Старший') === '', 'a line without his name is not his');
 
+echo "== agent task undo ==\n";
+require_once "$X/tes_agent/lib.php";
+foreach ([
+    '{npc:Ярл Балгруф Старший}.additem 000DABA7 1' => '{npc:Ярл Балгруф Старший}.removeitem 000DABA7 1',
+    'player.removeitem 1A481AD7 1' => 'player.additem 1A481AD7 1',
+    '{npc:Ярл Балгруф Старший}.addperk 2C3CDF4F' => '{npc:Ярл Балгруф Старший}.removeperk 2C3CDF4F',
+    '{npc:Ярл Балгруф Старший}.setscale 1.5' => '{npc:Ярл Балгруф Старший}.setscale 1',
+    '{npc:Назим}.kill' => '{npc:Назим}.resurrect',
+    '{npc:Ярл Балгруф Старший}.moveto player' => null,
+    '{npc:Ярл Балгруф Старший}.setav Speechcraft 100' => null,
+] as $cmd => $want) {
+    $got = tesAgentInverse($cmd);
+    $check($got === $want, "undo of «{$cmd}» => " . var_export($got, true));
+}
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);
