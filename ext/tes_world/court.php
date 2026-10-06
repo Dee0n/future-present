@@ -398,6 +398,11 @@ if (!function_exists('tesTreasuryAdd')) {
             $note = " *приговор: {$who} " . ($child ? 'отпущен — детей не казнят и не сажают' : 'оправдан и свободен') . '*';
         }
         $GLOBALS['TES_COURT_NOW'] = true;  // preprocessing.php: the same words are not run again as a plain order
+        // «верни как было» undoes a sentence too (realm.php tesRealmUndo: kill -> resurrect, jail -> released)
+        if ($ref !== '' && in_array($kind, ['kill', 'jail'], true) && function_exists('tesRealmEnsure')) {
+            tesRealmEnsure();
+            $db->execQuery("INSERT INTO public.tes_undo (kind, who, ref) VALUES ('{$kind}', '" . $db->escape($who) . "', '" . $db->escape($ref) . "')");
+        }
         $db->execQuery("UPDATE public.tes_court SET closed = true, verdict = '" . $db->escape($text) . "' WHERE id = {$courtId}");
         tesWatchEnsure();
         tesWatchSet('court_last', '');
