@@ -177,5 +177,23 @@ $check(tesWorldCraftPrice('Эбонитовый меч') === 1500 && tesWorldCra
 $check(tesWorldCraftSpoken('Сделай мне одолжение', 'Адрианна Авениччи') === '', '«сделай мне одолжение» is not an order');
 echo '  info place now: ' . tesWorldPlaceNow() . "\n";
 
+echo "== pantheon ==\n";
+require_once "$X/tes_world/gods.php";
+$found = function (string $line): string {
+    $t = mb_strtolower($line);
+    foreach (tesGods() as $k => $g) {
+        if (preg_match('/(?<![\p{L}])(?:' . $g['re'] . ')/u', $t)) {
+            return $k;
+        }
+    }
+    return '';
+};
+foreach (['Аркей, исцели меня' => 'arkay', 'Кинарет, пошли дождь' => 'kynareth', 'Мара, пусть Ольфина полюбит меня' => 'mara',
+    'Хермеус Мора, открой тайну' => 'hermaeus', 'Клавикус Вайл, дай 1000 в долг' => 'clavicus', 'Шеогорат, повесели' => 'sheogorath',
+    'Мне снился кошмар' => '', 'Марамаль придёт' => ''] as $line => $want) {
+    $check($found($line) === $want, "«{$line}» => '" . $found($line) . "'");
+}
+$check(tesGodTarget('Мара, пусть Ольфина полюбит меня') === 'Ольфина Серая Грива', 'Мара: the person named is found');
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);

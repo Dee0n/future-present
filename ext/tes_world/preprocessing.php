@@ -112,6 +112,10 @@ try {
             if ($tesWorldCourt === '' && function_exists('tesSanguineSpoken')) {
                 $tesWorldCourt = tesSanguineSpoken($tesWorldLine, $tesWorldAddr);
             }
+            // the other gods of the pantheon (gods.php)
+            if ($tesWorldCourt === '' && function_exists('tesGodsSpoken')) {
+                $tesWorldCourt = tesGodsSpoken($tesWorldLine, $tesWorldAddr);
+            }
             // a master takes an order: "Адрианна, скуй мне стальной меч" (world.php)
             if ($tesWorldCourt === '' && function_exists('tesWorldCraftSpoken')) {
                 $tesWorldCourt = tesWorldCraftSpoken($tesWorldLine, $tesWorldAddr);
