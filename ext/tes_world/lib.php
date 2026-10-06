@@ -1203,3 +1203,4 @@ require_once __DIR__ . '/sanguine.php';
 require_once __DIR__ . '/companion.php';
 require_once __DIR__ . '/world.php';
 require_once __DIR__ . '/gods.php';
+require_once __DIR__ . '/services.php';

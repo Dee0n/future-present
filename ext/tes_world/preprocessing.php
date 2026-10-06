@@ -120,6 +120,13 @@ try {
             if ($tesWorldCourt === '' && function_exists('tesWorldCraftSpoken')) {
                 $tesWorldCourt = tesWorldCraftSpoken($tesWorldLine, $tesWorldAddr);
             }
+            // trade / training / a gift window, and the ruler's prices (services.php, bridge 16)
+            if ($tesWorldCourt === '' && function_exists('tesServiceSpoken')) {
+                $tesWorldCourt = tesServiceSpoken($tesWorldLine, $tesWorldAddr);
+            }
+            if ($tesWorldCourt === '' && function_exists('tesPriceSpoken')) {
+                $tesWorldCourt = tesPriceSpoken($tesWorldLine);
+            }
             if ($tesWorldCourt === '' && function_exists('tesRealmSpoken')) {
                 $tesWorldCourt = tesRealmSpoken($tesWorldLine, $tesWorldAddr);
             }

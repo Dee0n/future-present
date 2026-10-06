@@ -195,5 +195,18 @@ foreach (['Аркей, исцели меня' => 'arkay', 'Кинарет, по�
 }
 $check(tesGodTarget('Мара, пусть Ольфина полюбит меня') === 'Ольфина Серая Грива', 'Мара: the person named is found');
 
+echo "== services and prices (bridge 16) ==\n";
+require_once "$X/tes_world/services.php";
+$src = file_get_contents("$X/tes_world/services.php");
+$check(strpos($src, "tesBridgeVersion() < 16") !== false, 'services wait for bridge 16 (a game on the old bridge gets a polite note)');
+$psc = file_get_contents(dirname(__DIR__) . '/papyrus/TESGodConsoleReport/Source/Scripts/AIAgentQuestProgressionBridge.psc');
+$check(strpos($psc, 'tesversion@@16') !== false && strpos($psc, 'Function TESService') !== false && strpos($psc, 'Function TESPrice') !== false, 'the bridge source has v16: tesbarter/testrain/tesgiftmenu/tesprice');
+foreach (['Давай поторгуем' => 'tesbarter', 'Покажи свой товар' => 'tesbarter', 'Научи меня' => 'testrain', 'Прими подарок' => 'tesgiftmenu', 'Как дела?' => ''] as $line => $want) {
+    $t = mb_strtolower($line);
+    $got = preg_match('/(?<![\p{L}])(поторгуем|покажи\s+(?:свой\s+|свои\s+)?товар\p{L}*)(?![\p{L}])/u', $t) ? 'tesbarter'
+        : (preg_match('/научи\s+меня/u', $t) ? 'testrain' : (preg_match('/прими\s+(?:мой\s+)?подар/u', $t) ? 'tesgiftmenu' : ''));
+    $check($got === $want, "«{$line}» => '{$got}'");
+}
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);

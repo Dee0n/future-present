@@ -277,7 +277,8 @@ bool Function TESRunAndReport(String command) Global
         ; 6 = also "tesplace here"; 7 = also "tespeace"; 8 = held people have their AI off (no walking in place);
         ; 9 = also "testalk on|off"; 10 = also "tesswapworn <other>", "tesdressbest any|rich"; 14 = first-person eyes = size x 1.087 (tescam <factor> changes it); 13 = tesscale sets the first-person skeleton node scale (camera height), speed not divided; 11 = also "tesscale", "tesspeed", held people stand in the do-nothing package (no T-pose)
         ; 15 = also "tesgrab [all]": the selected NPC picks up loose things lying near the player
-        AIAgentFunctions.logMessage("tesversion@@15", "tes_god_console")
+        ; 16 = services without the dialogue menu: "tesbarter", "testrain", "tesgiftmenu" (selected NPC), "tesprice <formid> <gold>"
+        AIAgentFunctions.logMessage("tesversion@@16", "tes_god_console")
         return true
     endif
     if command == "teskill"
@@ -392,6 +393,14 @@ bool Function TESRunAndReport(String command) Global
     endif
     if StringUtil.Find(command, "tesoutfit ") == 0
         TESOutfit(StringUtil.Substring(command, 10))
+        return true
+    endif
+    if command == "tesbarter" || command == "testrain" || command == "tesgiftmenu"
+        TESService(command)
+        return true
+    endif
+    if StringUtil.Find(command, "tesprice ") == 0
+        TESPrice(StringUtil.Substring(command, 9))
         return true
     endif
     if command == "tesremove"
@@ -1787,4 +1796,42 @@ Function TESOutfit(String formIdText) Global
     endif
     target.SetOutfit(wanted, false)
     AIAgentFunctions.logMessage("tesoutfit " + formIdText + "@@" + target.GetDisplayName() + " now has a new default outfit", "tes_god_console")
+EndFunction
+
+; TES-Speech-Adapter v16: services without the dialogue menu. The server says "torguem" for the NPC the player
+; talks to by voice: the barter / training / gift window opens for the selected actor (vanilla Actor/Game
+; functions; the trade needs the NPC to be a merchant, training a trainer - otherwise nothing opens).
+Function TESService(String command) Global
+    Actor npc = ConsoleUtil.GetSelectedReference() as Actor
+    if !npc || npc.IsDead()
+        AIAgentFunctions.logMessage(command + "@@error: no living actor selected", "tes_god_console")
+        return
+    endif
+    if command == "tesbarter"
+        npc.ShowBarterMenu()
+    elseif command == "testrain"
+        Game.ShowTrainingMenu(npc)
+    else
+        npc.ShowGiftMenu(false, None, false, true)
+    endif
+    AIAgentFunctions.logMessage(command + "@@" + npc.GetDisplayName() + " opened", "tes_god_console")
+EndFunction
+
+; "tesprice <formid as int> <gold>": the base value of a thing (SKSE Form.SetGoldValue). Kept for the session
+; only - the server sends the prices again after a load.
+Function TESPrice(String arg) Global
+    int sp = StringUtil.Find(arg, " ")
+    if sp <= 0
+        AIAgentFunctions.logMessage("tesprice " + arg + "@@error: need <formid> <gold>", "tes_god_console")
+        return
+    endif
+    Form f = Game.GetForm(StringUtil.Substring(arg, 0, sp) as int)
+    int gold = StringUtil.Substring(arg, sp + 1) as int
+    if !f || gold < 0
+        AIAgentFunctions.logMessage("tesprice " + arg + "@@error: no such form", "tes_god_console")
+        return
+    endif
+    int before = f.GetGoldValue()
+    f.SetGoldValue(gold)
+    AIAgentFunctions.logMessage("tesprice " + arg + "@@" + f.GetName() + " " + before + " -> " + gold, "tes_god_console")
 EndFunction
