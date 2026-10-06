@@ -347,7 +347,14 @@ function tesAgentNpcInfo(string $name): array
 {
     $row = function_exists('tesGodGuardResolveNpcLoose') ? tesGodGuardResolveNpcLoose(trim($name)) : null;
     if (!$row) {
-        return ['error' => "сервер не знает «{$name}» (с ним ещё не говорили?) — попробуй find kind=npc"];
+        // not met yet: the game index answers at once (before, the model spent a second turn on find kind=npc -
+        // logs 210-214: npc_info "Лидия" -> error -> find -> the same answer)
+        $db = $GLOBALS['db'];
+        $hit = $db->fetchOne("SELECT formid, name, editor_id, plugin FROM public.tes_game_index WHERE kind = 'npc' AND name_lc = '" . $db->escape(mb_strtolower(trim($name))) . "' LIMIT 1");
+        return !empty($hit['formid'])
+            ? ['name' => $hit['name'], 'base_formid' => $hit['formid'], 'editor_id' => $hit['editor_id'], 'plugin' => $hit['plugin'],
+                'note' => 'с ним ещё не говорили: профиля CHIM нет, это данные игры; {npc:' . $hit['name'] . '} в командах работает, состояние — get_state']
+            : ['error' => "«{$name}» нет ни среди знакомых, ни в индексе игры — проверь имя (find kind=npc с частью имени)"];
     }
     $full = $GLOBALS['db']->fetchOne("SELECT * FROM public.core_npc_master WHERE id = " . intval($row['id']));
     $meta = json_decode(strval($full['metadata'] ?? ''), true) ?: [];
@@ -695,7 +702,7 @@ $system = "Ты — исполнитель воли бога-Нарратора 
     . "Ответ на вопрос отдай в finish.summary (expect пустой). Задания игрока за него не проходи, если он прямо не попросил. "
     . "Изменения отношений, характера, памяти, брака сервер подтверждает сам («было → стало» в ответе инструмента) — их в expect не включай. "
     . "Закончи finish с проверяемыми ожиданиями (предметы, перки, навыки, стадии) — сервер их сверит в игре. Если невозможно — give_up с причиной. "
-    . "Лимит: " . $maxSteps . " вызовов инструментов.";
+    . "Лимит: " . $maxSteps . " ходов. В ОДНОМ ходе вызывай сразу несколько инструментов (до 6): все справки о людях — одной пачкой, все команды одного вида — одной пачкой; это не тратит лишних ходов.";
 $messages = [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => 'Цель: ' . $task['goal']]];
 $tools = tesAgentTools();
 if ($readonly) {
@@ -718,7 +725,12 @@ if (!$dry && !$silent) {
     tesAgentNotify('Нарратор: ' . mb_substr($task['goal'], 0, 120));
 }
 
-while (!$finish['done'] && $steps < $maxSteps && time() - $started < $maxSeconds) {
+// the limit counts the model's TURNS (what costs money), not single tool calls: «раздень всех женщин» spent 8 of its
+// 10 steps on eight npc_info calls of one turn and ran out before doing anything (tasks 171, 192 - failed at the
+// limit). A hard cap on calls stays: 6 per turn on average.
+$turns = 0;
+while (!$finish['done'] && $turns < $maxSteps && $steps < $maxSteps * 6 && time() - $started < $maxSeconds) {
+    $turns++;
     $msg = tesAgentLlm($messages, $tools, $cost);
     if ($msg === null) {
         $finish['summary'] = 'модель не ответила';
