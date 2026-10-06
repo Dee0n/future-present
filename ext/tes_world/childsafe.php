@@ -30,13 +30,19 @@ if (!function_exists('tesChildSafeCommands')) {
                 $child = tesChildSafeIsChildRef($m[1]);
             } elseif (preg_match('/^player\./i', $s)) {
                 // a command on the player, not on the selected one
-            } elseif ($child && preg_match('/^(unequipall|unequipitem|removeallitems|removeitem|tesjailbox\s+in|teslove|tesswapworn|tesgive)\b/i', $s)) {
+            } elseif ($child && preg_match('/^(unequipall|unequipitem|removeallitems|removeitem|tesjailbox\s+in|teslove|tesswapworn|tesgive|teskill|kill|killactor|tesmortal|damageav|damageactorvalue|setessential|removefromallfactions)\b/i', $s)) {
                 error_log('[childsafe] dropped for a child: ' . $s);
                 continue;
             }
-            // "teslove <partner>", "tesswapworn <other>": the other one must not be a child either
-            if (preg_match('/^(teslove|tesswapworn)\s+(\d{3,10})\b/i', $s, $m) && tesChildSafeIsChildRef(sprintf('%08X', intval($m[2])))) {
+            // "teslove <partner>", "tesswapworn <other>": the other one must not be a child either; nobody is set on
+            // a child either (live 2026-10-06 18:02: the guard Джон was sent at Фротар, Нелкир and Дагни -
+            // Балгруф's children - by the impunity watcher because they went for the ruler at the jarl's execution)
+            if (preg_match('/^(teslove|tesswapworn|tesduel)\s+(\d{3,10})\b/i', $s, $m) && tesChildSafeIsChildRef(sprintf('%08X', intval($m[2])))) {
                 error_log('[childsafe] dropped, the other one is a child: ' . $s);
+                continue;
+            }
+            if (preg_match('/^startcombat\s+([0-9A-Fa-f]{8})\b/i', $s, $m) && tesChildSafeIsChildRef($m[1])) {
+                error_log('[childsafe] dropped, the target is a child: ' . $s);
                 continue;
             }
             $out[] = $c;

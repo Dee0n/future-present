@@ -137,12 +137,23 @@ if (!function_exists('tesWatchNotify')) {
                     if ($ref === '') {
                         continue;
                     }
+                    // the executioner himself turned on the ruler (live 18:02:36, Джон one second after tesduel): he
+                    // is stopped and set at the condemned again
+                    $duel = $db->fetchOne("SELECT victim_ref FROM public.tes_world_duels WHERE executioner_ref = '" . $db->escape($ref) . "' AND NOT done AND created_at > now() - interval '5 minutes' ORDER BY id DESC LIMIT 1");
+                    if (!empty($duel['victim_ref'])) {
+                        array_push($cmds, 'prid ' . $ref, 'stopcombat', 'tesduel ' . hexdec(strval($duel['victim_ref'])));
+                        continue;
+                    }
                     $isGuard = (bool)preg_match('/Стражник|Командир|Хускарл/u', $name);
-                    if (!$isGuard && function_exists('tesCrimeNearestGuard') && function_exists('tesWorldDuel')) {
+                    // not avenged, only stopped: a child, and anyone while an execution goes on - the kin of the
+                    // condemned rush at the ruler, and a guard set at each of them turned the execution into a
+                    // massacre (live 2026-10-06 18:02: Балгруф's brother and three children)
+                    $avenge = !$isGuard && !tesChildSafeIsChildRef($ref) && !(function_exists('tesWorldExecutionGoing') && tesWorldExecutionGoing());
+                    if ($avenge && function_exists('tesCrimeNearestGuard') && function_exists('tesWorldDuel')) {
                         // a townsman is beating the ruler (live 16:27, Анориат): the nearest guard goes for HIM
                         // (owner: "меня бьют а стража бездействует")
                         $defender = tesCrimeNearestGuard($name);
-                        if ($defender !== '' && tesWorldDuel($defender, $name)) {
+                        if ($defender !== '' && tesWorldDuel($defender, $name, false)) {
                             tesWatchNotify("Стража {$defender} бросилась на {$name}, напавшего на тебя");
                             continue;
                         }

@@ -132,7 +132,8 @@ try {
             }
         }
         // what the ruler plainly ordered is done at once, whether or not the NPC passes it on
-        if ($tesWorldErrand === '' && $tesWorldType !== 'narrator_inputtext' && !empty(tesWorldFacts()['player_title'])) {
+        // (not after a sentence of the court: it has done the same words already - court.php)
+        if ($tesWorldErrand === '' && empty($GLOBALS['TES_COURT_NOW']) && $tesWorldType !== 'narrator_inputtext' && !empty(tesWorldFacts()['player_title'])) {
             $tesWorldWhom = $tesWorldTo;
             $tesWorldOrder = tesWorldSpokenOrder($tesWorldLine, $tesWorldWhom);
             if ($tesWorldOrder) {

@@ -453,25 +453,55 @@ if (!function_exists('tesWorldEnsureTable')) {
      * condemned is still alive 45 s later, tesWorldDuelTick() ends it. Returns false when there is
      * nobody to do it - the caller then kills at once.
      */
-    function tesWorldDuel(string $executioner, string $victim): bool
+    function tesWorldDuel(string $executioner, string $victim, bool $sentence = true): bool
     {
         $ex = tesWorldRefOf($executioner);
         $vi = tesWorldRefOf($victim);
         if ($ex === '' || $vi === '' || $ex === $vi) {
             return false;
         }
+        // a child is never fought - "true": the caller must not kill at once instead either
+        if (tesChildSafeIsChildRef($vi)) {
+            error_log("[tes_world] duel refused: {$victim} is a child");
+            return true;
+        }
         $db = $GLOBALS['db'];
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_world_duels (id bigserial PRIMARY KEY, created_at timestamptz NOT NULL DEFAULT now(),
             victim text NOT NULL, victim_ref text NOT NULL, executioner_ref text NOT NULL, done boolean NOT NULL DEFAULT false)");
+        // only a sentence of the ruler is finished off when the fight does not end it; a guard defending the ruler
+        // only fights
+        $db->execQuery("ALTER TABLE public.tes_world_duels ADD COLUMN IF NOT EXISTS sentence boolean NOT NULL DEFAULT true");
+        // a dead executioner cannot fight (live 18:02:50: dead Джон was sent at four more)
+        $exDead = $db->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE upper(refid) = '{$ex}' LIMIT 1");
+        if (strval($exDead['d'] ?? '') === 'true') {
+            return false;
+        }
         $again = $db->fetchOne("SELECT 1 AS x FROM public.tes_world_duels WHERE victim_ref = '{$vi}' AND NOT done LIMIT 1");
         if (!empty($again)) {
             return true;
         }
-        if (!tesWorldQueue(['prid ' . $vi, 'setrestrained 0', 'prid ' . $ex, 'tesduel ' . hexdec($vi), 'startcombat ' . $vi])) {
+        // the condemned leaves all his factions first: hitting a member of the jarl's household / Whiterun made his
+        // kin and the guards take the RULER for the attacker (live 2026-10-06 18:02:37: Балгруф, Хронгар and the
+        // three children "engage combat with Шаман" one second after the executioner struck). tesduel starts the
+        // fight itself, the second console startcombat is not sent any more.
+        $cmds = $sentence ? ['prid ' . $vi, 'setrestrained 0', 'removefromallfactions', 'stopcombat'] : ['prid ' . $vi, 'setrestrained 0'];
+        if (!tesWorldQueue(array_merge($cmds, ['prid ' . $ex, 'tesduel ' . hexdec($vi)]))) {
             return false;
         }
-        $db->insert('tes_world_duels', ['victim' => $victim, 'victim_ref' => $vi, 'executioner_ref' => $ex]);
+        $db->insert('tes_world_duels', ['victim' => $victim, 'victim_ref' => $vi, 'executioner_ref' => $ex, 'sentence' => $sentence ? 'true' : 'false']);
         return true;
+    }
+
+    /** An execution of the ruler is going on (the last 5 minutes): the kin's fury at it is not an attack to avenge. */
+    function tesWorldExecutionGoing(): bool
+    {
+        $db = $GLOBALS['db'];
+        $has = $db->fetchOne("SELECT to_regclass('public.tes_world_duels') AS t");
+        if (empty($has['t'])) {
+            return false;
+        }
+        $r = $db->fetchOne("SELECT 1 AS x FROM public.tes_world_duels WHERE created_at > now() - interval '5 minutes' LIMIT 1");
+        return !empty($r);
     }
 
     function tesWorldDuelTick(): void
@@ -486,6 +516,12 @@ if (!function_exists('tesWorldEnsureTable')) {
             $db->execQuery("UPDATE public.tes_world_duels SET done = true WHERE id = " . intval($r['id']));
             $dead = $db->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE upper(refid) = '" . $db->escape($r['victim_ref']) . "' LIMIT 1");
             tesWorldQueue(['prid ' . $r['executioner_ref'], 'stopcombat']);
+            // not finished off: a child (rows from before the child check), a fight that was not a sentence, and a
+            // fight from long ago (the game was closed meanwhile - a save may be loaded where it never happened)
+            $stale = strtotime(strval($r['created_at'])) < time() - 1800;
+            if (tesChildSafeIsChildRef(strval($r['victim_ref'])) || strval($r['sentence'] ?? 't') === 'f' || $stale) {
+                continue;
+            }
             if (strval($dead['d'] ?? '') !== 'true') {
                 tesWorldQueue(['prid ' . $r['victim_ref'], 'teskill', 'kill']);
                 error_log("[tes_world] execution of {$r['victim']}: the fight did not end it in 4 minutes - finished");
@@ -926,6 +962,10 @@ if (!function_exists('tesWorldEnsureTable')) {
                 }
                 tesWorldQueue(['prid ' . $ref, 'tesgive all']);
             } elseif ($fast['kind'] === 'kill') {
+                if (tesWorldIsChild($who)) {
+                    $done[] = "{$who}: ребёнок — детей не казнят";
+                    continue;
+                }
                 // the executioner of the court, when there is one, does it himself
                 $exec = function_exists('tesRealmExecutioner') ? tesRealmExecutioner() : '';
                 if ($exec !== '' && $exec !== $who) {
