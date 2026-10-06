@@ -123,5 +123,12 @@ $check($d1 === tesRumorDistort($src, 'Вайтран', 1, 'Рифт'), 'the same
 $check(strpos($d1, '500 ') === false && preg_match('/\d{4}/u', $d1) === 1, "numbers grow: {$d1}");
 $check($d2 !== $d1 && mb_strlen($d2) <= 400, "two hops is told worse: {$d2}");
 
+echo "== witnesses ==\n";
+require_once "$X/tes_world/witness.php";
+$line = '(beings in range:Хронгар (hostile),Ольфина Серая Грива,Тордрир Фурмендер [Стражник Вайтрана] (dead),Коза,Фротар,Хемгар [Стражник Вайтрана] (far away),Дагни)';
+$seers = tesWitnessSeers($line);
+$check($seers === ['Хронгар', 'Ольфина Серая Грива', 'Коза', 'Фротар', 'Дагни'], 'alive and near only: ' . implode(', ', $seers));
+$check(!empty(tesWitnessPerson('Ольфина Серая Грива')) && empty(tesWitnessPerson('Коза')), 'a person is in the NPC table, a goat is not');
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);

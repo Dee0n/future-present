@@ -1183,3 +1183,4 @@ require_once __DIR__ . '/worn.php';
 require_once __DIR__ . '/festival.php';
 require_once __DIR__ . '/sheo.php';
 require_once __DIR__ . '/rumors.php';
+require_once __DIR__ . '/witness.php';
