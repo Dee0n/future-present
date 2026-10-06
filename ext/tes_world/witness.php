@@ -54,6 +54,8 @@ if (!function_exists('tesWitnessTick')) {
             return;
         }
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_witness_seen (key text PRIMARY KEY, deed text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT now())");
+        // who did it to whom and who saw it - the court calls them (court.php), a secret can be sold (info.php)
+        $db->execQuery("ALTER TABLE public.tes_witness_seen ADD COLUMN IF NOT EXISTS killer text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS victim text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS witnesses text NOT NULL DEFAULT ''");
         $rows = $db->fetchAll("SELECT rowid, localts, data FROM eventlog WHERE type = 'death' AND rowid > {$last} ORDER BY rowid LIMIT 40");
         $max = $last;
         $player = trim(strval($GLOBALS['PLAYER_NAME'] ?? ''));
@@ -139,7 +141,8 @@ if (!function_exists('tesWitnessTick')) {
                     }
                 }
             }
-            $db->execQuery("INSERT INTO public.tes_witness_seen (key, deed) VALUES ('{$key}', '" . $db->escape(mb_substr($deed, 0, 200)) . "') ON CONFLICT (key) DO NOTHING");
+            $db->execQuery("INSERT INTO public.tes_witness_seen (key, deed, killer, victim, witnesses) VALUES ('{$key}', '" . $db->escape(mb_substr($deed, 0, 200)) . "', '"
+                . $db->escape($killer) . "', '" . $db->escape($victim) . "', '" . $db->escape(implode('|', array_keys($witnesses))) . "') ON CONFLICT (key) DO NOTHING");
             error_log("[tes_world witness] {$deed}{$place}; witnesses: " . implode(', ', array_keys($witnesses)));
         }
         tesWatchSet('witness_rowid', strval($max));

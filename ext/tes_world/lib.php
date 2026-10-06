@@ -1205,3 +1205,4 @@ require_once __DIR__ . '/world.php';
 require_once __DIR__ . '/gods.php';
 require_once __DIR__ . '/services.php';
 require_once __DIR__ . '/fame.php';
+require_once __DIR__ . '/info.php';

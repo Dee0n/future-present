@@ -124,6 +124,10 @@ try {
             if ($tesWorldCourt === '' && function_exists('tesFameSpoken')) {
                 $tesWorldCourt = tesFameSpoken($tesWorldLine, $tesWorldAddr);
             }
+            // a secret bought for gold (info.php)
+            if ($tesWorldCourt === '' && function_exists('tesInfoSpoken')) {
+                $tesWorldCourt = tesInfoSpoken($tesWorldLine, $tesWorldAddr);
+            }
             // trade / training / a gift window, and the ruler's prices (services.php, bridge 16)
             if ($tesWorldCourt === '' && function_exists('tesServiceSpoken')) {
                 $tesWorldCourt = tesServiceSpoken($tesWorldLine, $tesWorldAddr);

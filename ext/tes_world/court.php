@@ -29,6 +29,7 @@ if (!function_exists('tesTreasuryAdd')) {
         // the sentence (court.php tesCourtSentence); here too, so that readers (companions, fame) never meet a table
         // without it before the first sentence
         $db->execQuery("ALTER TABLE public.tes_court ADD COLUMN IF NOT EXISTS verdict text NOT NULL DEFAULT ''");
+        $db->execQuery("ALTER TABLE public.tes_court ADD COLUMN IF NOT EXISTS witnesses text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS seen text NOT NULL DEFAULT ''");
     }
 
     function tesTreasuryBalance(): int
@@ -295,7 +296,9 @@ if (!function_exists('tesTreasuryAdd')) {
                     }
                 }
                 $where = $venueName !== '' ? " ({$venueName})" : '';
-                return " *суд над {$who} открыт{$where} — подсудимого ведут в место суда; приговор скажет ярл*";
+                // the witnesses of what he did are called too (witness.php keeps who saw what)
+                $called = tesCourtCallWitnesses($who, $venueRef);
+                return " *суд над {$who} открыт{$where} — подсудимого ведут в место суда" . ($called ? '; вызваны свидетели: ' . implode(', ', $called) : '') . '; приговор скажет ярл*';
             }
         }
         return '';
@@ -500,6 +503,41 @@ if (!function_exists('tesTreasuryAdd')) {
         }
     }
 
+    /** Bring up to three living witnesses of the accused's deeds to the court. Returns their names. */
+    function tesCourtCallWitnesses(string $who, string $venueRef): array
+    {
+        $db = $GLOBALS['db'];
+        if (empty($db->fetchOne("SELECT to_regclass('public.tes_witness_seen') AS t")['t'])) {
+            return [];
+        }
+        $db->execQuery("ALTER TABLE public.tes_witness_seen ADD COLUMN IF NOT EXISTS killer text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS victim text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS witnesses text NOT NULL DEFAULT ''");
+        $db->execQuery("ALTER TABLE public.tes_court ADD COLUMN IF NOT EXISTS witnesses text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS seen text NOT NULL DEFAULT ''");
+        $rows = $db->fetchAll("SELECT deed, witnesses FROM public.tes_witness_seen WHERE killer = '" . $db->escape($who) . "' AND witnesses <> '' ORDER BY created_at DESC LIMIT 3");
+        $names = [];
+        $deeds = [];
+        foreach (is_array($rows) ? $rows : [] as $r) {
+            $deeds[] = strval($r['deed']);
+            foreach (explode('|', strval($r['witnesses'])) as $w) {
+                $w = trim($w);
+                if ($w === '' || $w === $who || in_array($w, $names, true) || count($names) >= 3) {
+                    continue;
+                }
+                $ref = tesWorldRefOf($w);
+                $dead = $db->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE npc_name = '" . $db->escape($w) . "' LIMIT 1");
+                if ($ref === '' || strval($dead['d'] ?? '') === 'true' || tesChildSafeIsChildRef($ref)) {
+                    continue;  // the dead do not testify, children are not dragged to court
+                }
+                tesWorldQueue(['prid ' . $ref, 'moveto ' . ($venueRef !== '' ? $venueRef : 'player')]);
+                $names[] = $w;
+            }
+        }
+        if ($names) {
+            $db->execQuery("UPDATE public.tes_court SET witnesses = '" . $db->escape(implode('|', $names)) . "', seen = '" . $db->escape(mb_substr(implode('; ', array_unique($deeds)), 0, 300))
+                . "' WHERE id = (SELECT max(id) FROM public.tes_court WHERE defendant = '" . $db->escape($who) . "')");
+        }
+        return $names;
+    }
+
     /** One line about a trial that is going on, for the prompt of anyone in the talk, or ''. */
     function tesCourtLine(string $me): string
     {
@@ -507,13 +545,21 @@ if (!function_exists('tesTreasuryAdd')) {
             return '';
         }
         tesTreasuryEnsure();
-        $c = $GLOBALS['db']->fetchOne("SELECT defendant, charge FROM public.tes_court WHERE opened_at > now() - interval '10 minutes' AND NOT closed ORDER BY id DESC LIMIT 1");
+        $c = $GLOBALS['db']->fetchOne("SELECT defendant, charge, witnesses, seen FROM public.tes_court WHERE opened_at > now() - interval '10 minutes' AND NOT closed ORDER BY id DESC LIMIT 1");
         if (empty($c['defendant'])) {
             return '';
         }
         $d = strval($c['defendant']);
         $venue = trim(strval(tesWatchGet('court_name')['value']));
         $charge = trim(strval($c['charge'])) !== '' ? ', обвинение: ' . trim(strval($c['charge'])) : '';
+        $wit = array_filter(explode('|', strval($c['witnesses'] ?? '')));
+        if ($wit && in_array($me, $wit, true)) {
+            // a witness: tells what he saw - or lies for a friend or kin, in his character
+            $rel = $GLOBALS['db']->fetchOne("SELECT coalesce(extended_data::text, '') AS e FROM public.core_npc_master WHERE npc_name = '" . $GLOBALS['db']->escape($me) . "' LIMIT 1");
+            $close = mb_strpos(strval($rel['e'] ?? ''), $d) !== false;
+            return "Тебя вызвали свидетелем на суд над {$d}: ты своими глазами видел — " . strval($c['seen'] ?? '') . '. Когда правитель спросит, дай показания'
+                . ($close ? " — {$d} тебе близок, и ты можешь солгать или выгородить его, если это в твоём характере" : ' — правду, своими словами') . '.';
+        }
         if ($me === $d) {
             return "Тебя судит правитель{$charge}. Оправдывайся, умоляй или дерзи — в характере; приговор — его слово.";
         }

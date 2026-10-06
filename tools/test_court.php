@@ -228,5 +228,12 @@ $check(mb_strpos($ballad, 'балладу') !== false, 'a bard sings of the rule
 $check(tesFameSpoken('Спой про меня', 'Ярл Балгруф Старший') === '', 'the jarl is not a bard');
 echo '  info deeds now: ' . json_encode(tesFameDeeds()) . ' -> «' . tesFameNick(tesFameDeeds()) . "»\n";
 
+echo "== market of information, witnesses in court ==\n";
+require_once "$X/tes_world/info.php";
+$check(tesInfoSpoken('Что знаешь?', 'Назим') === '', 'a plain question without money is just talk');
+$check(mb_strpos(tesInfoSpoken('Продай мне тайну, вот 10 септимов', 'Назим'), 'фыркни') !== false, 'under 30 septims he scoffs');
+echo '  info secret Назим could tell: ' . tesInfoSecret('Назим') . "\n";
+$check(function_exists('tesCourtCallWitnesses'), 'the court calls witnesses');
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);
