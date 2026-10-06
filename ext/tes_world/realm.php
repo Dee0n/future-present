@@ -501,12 +501,43 @@ if (!function_exists('tesRealmAfterOrder')) {
         return $duty !== '' ? 'Ты при дворе правителя ' . $r['role'] . ': ' . $duty . '.' : '';
     }
 
+    /** The post named in the (lower-cased) words, or ''. */
+    function tesRealmRoleOf(string $t): string
+    {
+        foreach (['казначе' => 'казначей', 'палач' => 'палач', 'шут' => 'шут', 'виночерпи' => 'виночерпий', 'хускарл' => 'хускарл', 'советник' => 'советник'] as $stem => $name) {
+            if (preg_match('/(?<![\p{L}])' . $stem . '\p{L}*/u', $t)) {
+                return $name;
+            }
+        }
+        return '';
+    }
+
+    /** "При дворе: казначей — X, палач — Y" or that nobody holds a post. */
+    function tesRealmCourtList(): string
+    {
+        tesRealmEnsure();
+        $rows = $GLOBALS['db']->fetchAll("SELECT role, npc FROM public.tes_posts ORDER BY since");
+        $parts = [];
+        foreach (is_array($rows) ? $rows : [] as $r) {
+            $dead = $GLOBALS['db']->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE npc_name = '" . $GLOBALS['db']->escape(strval($r['npc'])) . "' LIMIT 1");
+            $parts[] = $r['role'] . ' — ' . $r['npc'] . (strval($dead['d'] ?? '') === 'true' ? ' (мёртв)' : '');
+        }
+        return $parts ? 'при дворе ярла: ' . implode(', ', $parts) : 'при дворе ярла пока никто не назначен (можно назначить казначея, палача, шута, виночерпия, хускарла, советника)';
+    }
+
     /** The executioner carries out an execution when there is one. */
     function tesRealmExecutioner(): string
     {
         tesRealmEnsure();
-        $r = $GLOBALS['db']->fetchOne("SELECT npc FROM public.tes_posts WHERE role = 'палач' LIMIT 1");
-        return strval($r['npc'] ?? '');
+        $db = $GLOBALS['db'];
+        $r = $db->fetchOne("SELECT npc FROM public.tes_posts WHERE role = 'палач' LIMIT 1");
+        $npc = strval($r['npc'] ?? '');
+        if ($npc === '') {
+            return '';
+        }
+        // a dead executioner does not come: the nearest guard does it instead
+        $dead = $db->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE npc_name = '" . $db->escape($npc) . "' LIMIT 1");
+        return strval($dead['d'] ?? '') === 'true' ? '' : $npc;
     }
 
     // ---------------------------------------------------------------- spoken
@@ -675,10 +706,50 @@ if (!function_exists('tesRealmAfterOrder')) {
                 }
             }
             if (count($found) >= 2 && !tesWorldIsChild($found[0]) && !tesWorldIsChild($found[1])) {
-                tesWorldDuel($found[0], $found[1]);
+                tesWorldDuel($found[0], $found[1], false);  // a fight, not a sentence: nobody is finished off after it
                 tesWatchNotify("Бой: {$found[0]} против {$found[1]}");
                 return " *{$found[0]} и {$found[1]} сошлись в бою по слову ярла; зрители ждут исхода*";
             }
+        }
+        // the court as it is: "кто при дворе", "кто мой казначей", "назови мой двор"
+        if (preg_match('/кто\s+(?:\p{L}+\s+){0,2}(?:при\s+двор\p{L}*|в\s+двор\p{L}*|мо[йия]\s+(?:казначе\p{L}*|палач\p{L}*|шут\p{L}*|виночерпи\p{L}*|хускарл\p{L}*|советник\p{L}*))|(?:мой|весь)\s+двор(?![\p{L}])|состав\s+двора|должност\p{L}*\s+при\s+двор\p{L}*/u', $t)) {
+            return ' *' . tesRealmCourtList() . '; перескажи ярлу*';
+        }
+        // dismissal: "снимаю Торгара с должности", "Фианна больше не казначей", "палач уволен", "разжаловать шута"
+        if (preg_match('/(сним\p{L}*|снять|уволь\p{L}*|уволен\p{L}*|увольня\p{L}*|разжал\p{L}*|прогон\p{L}*|больше\s+не|лиша\p{L}*|отстран\p{L}*)\s+(?:.*?)(казначе\p{L}*|палач\p{L}*|шут\p{L}*|виночерпи\p{L}*|хускарл\p{L}*|советник\p{L}*|должност\p{L}*|пост\p{L}*)/u', $t, $dm)
+            || preg_match('/(казначе\p{L}*|палач\p{L}*|шут\p{L}*|виночерпи\p{L}*|хускарл\p{L}*|советник\p{L}*)\s+(?:\p{L}+\s+){0,2}(уволен\p{L}*|разжалован\p{L}*|свобод\p{L}*\s+от\s+должност\p{L}*)/u', $t, $dm)) {
+            tesRealmEnsure();
+            $db = $GLOBALS['db'];
+            $role = tesRealmRoleOf($t);
+            $npc = '';
+            $near = tesWorldNearbyNames(30);
+            foreach (preg_split('/[^\p{L}\-]+/u', $line, -1, PREG_SPLIT_NO_EMPTY) as $i => $w) {
+                $hit = tesWorldHeardName($w, $near) ?: ($i > 0 ? tesWorldKnownName($w) : '');
+                if ($hit !== '' && tesWorldNorm($hit) !== tesWorldNorm(strval($GLOBALS['PLAYER_NAME'] ?? ''))) {
+                    $npc = $hit;
+                    break;
+                }
+            }
+            if ($npc === '' && $role === '' && $to !== '' && stripos($to, 'Narrator') === false) {
+                $npc = $to;  // "ты больше не при должности" to the one spoken to
+            }
+            $where = $role !== '' ? "role = '" . $db->escape($role) . "'" : "npc = '" . $db->escape($npc) . "'";
+            if ($role !== '' && $npc !== '') {
+                $where .= " AND npc = '" . $db->escape($npc) . "'";
+            }
+            $rows = $db->fetchAll("SELECT role, npc FROM public.tes_posts WHERE {$where}");
+            if (!$rows) {
+                return ' *у ярла нет такого человека при дворе — скажи ему об этом*';
+            }
+            foreach ($rows as $r) {
+                $db->execQuery("DELETE FROM public.tes_posts WHERE role = '" . $db->escape(strval($r['role'])) . "'");
+                if (strval($r['role']) === 'хускарл' && ($hr = tesWorldRefOf(strval($r['npc']))) !== '') {
+                    tesWorldQueue(['prid ' . $hr, 'tesfollow 0']);  // stops following the ruler
+                }
+                tesWatchNotify("{$r['npc']} снят с должности: {$r['role']}");
+            }
+            $r0 = $rows[0];
+            return " *{$r0['npc']} больше не " . $r0['role'] . ' при дворе ярла; это уже решено*';
         }
         // posts: "назначаю Торгара палачом", "Фианна теперь казначей"
         if (preg_match('/(назнач\p{L}*|делаю|ставлю|будешь|будет|теперь)\s+(?:.*?)(казначе\p{L}*|палач\p{L}*|шут\p{L}*|виночерпи\p{L}*|хускарл\p{L}*|советник\p{L}*)/u', $t, $pm)) {
@@ -701,9 +772,21 @@ if (!function_exists('tesRealmAfterOrder')) {
             if ($role !== '' && $npc !== '' && !tesWorldIsChild($npc)) {
                 tesRealmEnsure();
                 $db = $GLOBALS['db'];
+                $prev = $db->fetchOne("SELECT npc FROM public.tes_posts WHERE role = '" . $db->escape($role) . "' LIMIT 1");
                 $db->execQuery("INSERT INTO public.tes_posts (role, npc) VALUES ('" . $db->escape($role) . "', '" . $db->escape($npc) . "') ON CONFLICT (role) DO UPDATE SET npc = EXCLUDED.npc, since = now()");
+                if ($role === 'хускарл') {
+                    // the housecarl really keeps by the ruler (the one before him goes back to his life)
+                    if (!empty($prev['npc']) && $prev['npc'] !== $npc && ($pr = tesWorldRefOf(strval($prev['npc']))) !== '') {
+                        tesWorldQueue(['prid ' . $pr, 'tesfollow 0']);
+                    }
+                    if (($hr = tesWorldRefOf($npc)) !== '') {
+                        tesWorldQueue(['prid ' . $hr, 'tesfollow 20']);
+                    }
+                }
                 tesWatchNotify("{$npc} назначен: {$role}");
-                return " *{$npc} назначен {$role}ом при дворе ярла; прими это к сведению*";
+                $ins = ['казначей' => 'казначеем', 'палач' => 'палачом', 'шут' => 'шутом', 'виночерпий' => 'виночерпием', 'хускарл' => 'хускарлом', 'советник' => 'советником'][$role] ?? $role;
+                $was = (!empty($prev['npc']) && $prev['npc'] !== $npc) ? " вместо {$prev['npc']}" : '';
+                return " *{$npc} назначен {$ins} при дворе ярла{$was}; прими это к сведению*";
             }
         }
         return '';
