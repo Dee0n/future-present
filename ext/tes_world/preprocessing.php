@@ -17,7 +17,7 @@ try {
     if (isset($GLOBALS['db']) && in_array($tesWorldTickType, ['request', 'infonpc', 'infonpc_close', 'infoloc'], true) && empty($GLOBALS['TES_WORLD_TICKED'])) {
         $GLOBALS['TES_WORLD_TICKED'] = true;
         require_once __DIR__ . '/lib.php';
-        foreach (['tesRealmGatherTick', 'tesErrandTick', 'tesTalkTick', 'tesWornIngest', 'tesFestTick'] as $tesWorldTickFn) {
+        foreach (['tesRealmGatherTick', 'tesErrandTick', 'tesTalkTick', 'tesWornIngest', 'tesFestTick', 'tesWorldLetterTick'] as $tesWorldTickFn) {
             try {
                 if (function_exists($tesWorldTickFn)) {
                     $tesWorldTickFn();
@@ -111,6 +111,10 @@ try {
             // Sanguine before the realm: "Сангвин, повесели нас" is his, not a plain wonder (sanguine.php)
             if ($tesWorldCourt === '' && function_exists('tesSanguineSpoken')) {
                 $tesWorldCourt = tesSanguineSpoken($tesWorldLine, $tesWorldAddr);
+            }
+            // a master takes an order: "Адрианна, скуй мне стальной меч" (world.php)
+            if ($tesWorldCourt === '' && function_exists('tesWorldCraftSpoken')) {
+                $tesWorldCourt = tesWorldCraftSpoken($tesWorldLine, $tesWorldAddr);
             }
             if ($tesWorldCourt === '' && function_exists('tesRealmSpoken')) {
                 $tesWorldCourt = tesRealmSpoken($tesWorldLine, $tesWorldAddr);

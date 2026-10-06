@@ -190,6 +190,9 @@ if (!function_exists('tesSanguineSpoken')) {
         $w = tesSanguineSafeWonder();
         if ($w !== '') {
             tesWatchNotify("Где-то рядом смеётся Сангвин: {$w}");
+            if (function_exists('tesWorldRememberPlace')) {
+                tesWorldRememberPlace("здесь шалил Сангвин: {$w}");
+            }
             if (function_exists('tesGodGuardAddRumor') && tesWatchGet('sanguine_rumor')['age'] >= 900) {
                 tesWatchSet('sanguine_rumor', '1');
                 tesGodGuardAddRumor("Говорят, в замке творится чертовщина: {$w}. Не иначе Сангвин шалит.");

@@ -411,6 +411,9 @@ if (!function_exists('tesTreasuryAdd')) {
             tesGodGuardAddRumor("Говорят, на суде {$player} {$who} {$text}.");
         }
         tesWatchNotify("Суд окончен: {$who} {$text}");
+        if (function_exists('tesWorldRememberPlace')) {
+            tesWorldRememberPlace("здесь судили {$who}: {$text}");
+        }
         error_log("[tes_world court] sentence: {$who} {$text} | {$line}");
         return $note;
     }

@@ -170,6 +170,10 @@ try {
                 chimRegisterPromptInjection('prompt_bottom', 'tes_world_orders', 'Приказы правителя тебе недавно (ты их помнишь): ' . implode('; ', $tesWorldOrderLines) . '.', 97);
             }
         }
+        // the place remembers what happened here (world.php) - for the Narrator and everyone
+        if (function_exists('tesWorldPlaceLine') && ($tesWorldPlace = tesWorldPlaceLine()) !== '') {
+            chimRegisterPromptInjection('prompt_bottom', 'tes_world_place', $tesWorldPlace, 93);
+        }
         if ($tesWorldHint !== '' && isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
             $GLOBALS['request'] = '(' . $tesWorldHint . ') ' . $GLOBALS['request'];
         }

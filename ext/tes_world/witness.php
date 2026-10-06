@@ -127,6 +127,18 @@ if (!function_exists('tesWitnessTick')) {
                 $names = array_slice(array_keys($witnesses), 0, 3);
                 tesGodGuardAddRumor('Говорят, ' . $deed . $place . ($names ? '; это видели ' . implode(', ', $names) : '') . '.');
             }
+            if (function_exists('tesWorldRememberPlace')) {
+                tesWorldRememberPlace($deed . ($witnesses ? ' на глазах у ' . implode(', ', array_slice(array_keys($witnesses), 0, 3)) : ''), $d['place']);
+            }
+            // a hard witness of the ruler's own killing wants silver for silence: a letter in 15 minutes (world.php)
+            if ($player !== '' && $killer === $player && function_exists('tesWorldLetter') && function_exists('tesCompanionNature')) {
+                foreach ($witnesses as $w => $wp) {
+                    if (tesCompanionNature($w) === 'cruel' && random_int(1, 100) <= 60) {
+                        tesWorldLetter($w, 'Я всё видел', "Я видел, что ты сделал с {$victim}. Положи 500 септимов мне в руку при встрече — и я забуду. Не положишь — узнает весь холд.", 15);
+                        break;
+                    }
+                }
+            }
             $db->execQuery("INSERT INTO public.tes_witness_seen (key, deed) VALUES ('{$key}', '" . $db->escape(mb_substr($deed, 0, 200)) . "') ON CONFLICT (key) DO NOTHING");
             error_log("[tes_world witness] {$deed}{$place}; witnesses: " . implode(', ', array_keys($witnesses)));
         }

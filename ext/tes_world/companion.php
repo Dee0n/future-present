@@ -151,6 +151,9 @@ if (!function_exists('tesCompanionTick')) {
                 }
                 $db->execQuery("UPDATE public.tes_companion SET left_at = now() WHERE npc = '" . $db->escape($npc) . "'");
                 tesWatchNotify("{$npc} больше не идёт с тобой: доверие исчерпано");
+                if (function_exists('tesWorldLetter')) {
+                    tesWorldLetter($npc, 'Прощай', 'Я ушёл. ' . ($grudges ? 'Не смог забыть: ' . implode('; ', array_slice($grudges, -2)) . '. ' : '') . 'Если когда-нибудь захочешь всё исправить — ты знаешь, где меня искать.', 20);
+                }
                 if (function_exists('tesWorldNeedGuard') && tesWorldNeedGuard()) {
                     tesGodGuardAddRumor("Говорят, {$npc} ушёл от " . strval($GLOBALS['PLAYER_NAME'] ?? 'ярла') . ($grudges ? ' — не простил: ' . end($grudges) : '') . '.');
                 }

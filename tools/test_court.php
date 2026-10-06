@@ -168,5 +168,14 @@ $check(tesCompanionDeedWeight('kill')[0] < 0 && tesCompanionDeedWeight('kill')[1
 $check(tesCompanionGoal('Кто-то Несуществующий') !== '', 'everyone gets a goal');
 echo '  info companions now: ' . implode(', ', tesCompanionList()) . "\n";
 
+echo "== living world ==\n";
+require_once "$X/tes_world/world.php";
+$check(tesWorldCraftOf('Адрианна Авениччи') === 'smith' && tesWorldCraftOf('Аркадия') === 'alchemist' && tesWorldCraftOf('Дорти') === '', 'masters: smith, alchemist; a child takes no orders');
+$it = tesWorldItemByName('стальной меч');
+$check(!empty($it['formid']), 'стальной меч found in the index: ' . json_encode($it, JSON_UNESCAPED_UNICODE));
+$check(tesWorldCraftPrice('Эбонитовый меч') === 1500 && tesWorldCraftPrice('Стальной меч') === 150, 'price by material');
+$check(tesWorldCraftSpoken('Сделай мне одолжение', 'Адрианна Авениччи') === '', '«сделай мне одолжение» is not an order');
+echo '  info place now: ' . tesWorldPlaceNow() . "\n";
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);
