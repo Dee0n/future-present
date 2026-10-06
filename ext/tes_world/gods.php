@@ -13,15 +13,38 @@
  */
 
 if (!function_exists('tesGodsSpoken')) {
+    /**
+     * The god's own voice for this answer (F5-TTS has the game's Daedra voices: maleuniquesheogorath, …). Set through
+     * CHIM's XTTS_TEXTMODIFIER hook - it runs right before the voice is picked for every sentence, so nothing
+     * (the Narrator's own settings) can put the Narrator's voice back in between.
+     */
+    function tesWorldGodVoice(string $voice): void
+    {
+        if ($voice === '') {
+            return;
+        }
+        $GLOBALS['TES_GOD_VOICE'] = $voice;
+        $GLOBALS['PATCH_OVERRIDE_VOICE'] = $voice;
+        if (empty($GLOBALS['TES_GOD_VOICE_HOOK'])) {
+            $GLOBALS['TES_GOD_VOICE_HOOK'] = true;
+            $GLOBALS['HOOKS']['XTTS_TEXTMODIFIER'][] = function ($s) {
+                if (!empty($GLOBALS['TES_GOD_VOICE'])) {
+                    $GLOBALS['PATCH_OVERRIDE_VOICE'] = $GLOBALS['TES_GOD_VOICE'];
+                }
+                return $s;
+            };
+        }
+    }
+
     function tesGods(): array
     {
         return [
-            'arkay' => ['name' => 'Аркей', 're' => 'арке[йяюе]\p{L}*', 'voice' => 'Отвечает Аркей, бог жизни и смерти: говори торжественно, сдержанно и строго, о круговороте жизни'],
-            'kynareth' => ['name' => 'Кинарет', 're' => 'кинарет\p{L}*', 'voice' => 'Отвечает Кинарет, богиня неба и ветров: говори светло и певуче, о небе, ветре и дожде'],
-            'mara' => ['name' => 'Мара', 're' => 'мар[аыеу](?![\p{L}])', 'voice' => 'Отвечает Мара, богиня любви: говори тепло и мягко, как мать'],
-            'hermaeus' => ['name' => 'Хермеус Мора', 're' => 'хермеус\p{L}*(?:\s+мор\p{L}*)?|херм[еэ]ус\p{L}*', 'voice' => 'Отвечает Хермеус Мора, даэдрический принц знаний: говори зловеще, вкрадчиво, загадками, будто тысяча шёпотов'],
-            'clavicus' => ['name' => 'Клавикус Вайл', 're' => 'клавикус\p{L}*(?:\s+вайл\p{L}*)?', 'voice' => 'Отвечает Клавикус Вайл, даэдрический принц сделок: говори как хитрый торгаш, льстиво, с мелким шрифтом в каждой фразе'],
-            'sheogorath' => ['name' => 'Шеогорат', 're' => 'шеогорат\p{L}*|шеогорад\p{L}*', 'voice' => 'Отвечает Шеогорат, даэдрический принц безумия: говори безумно, прыгая с мысли на мысль, про сыр и бабочек'],
+            'arkay' => ['voicewav' => 'maleuniquearngeir', 'name' => 'Аркей', 're' => 'арке[йяюе]\p{L}*', 'voice' => 'Отвечает Аркей, бог жизни и смерти: говори торжественно, сдержанно и строго, о круговороте жизни'],
+            'kynareth' => ['voicewav' => 'femaleeventoned', 'name' => 'Кинарет', 're' => 'кинарет\p{L}*', 'voice' => 'Отвечает Кинарет, богиня неба и ветров: говори светло и певуче, о небе, ветре и дожде'],
+            'mara' => ['voicewav' => 'femaleoldkindly', 'name' => 'Мара', 're' => 'мар[аыеу](?![\p{L}])', 'voice' => 'Отвечает Мара, богиня любви: говори тепло и мягко, как мать'],
+            'hermaeus' => ['voicewav' => 'maleuniquehermaeusmora', 'name' => 'Хермеус Мора', 're' => 'хермеус\p{L}*(?:\s+мор\p{L}*)?|херм[еэ]ус\p{L}*', 'voice' => 'Отвечает Хермеус Мора, даэдрический принц знаний: говори зловеще, вкрадчиво, загадками, будто тысяча шёпотов'],
+            'clavicus' => ['voicewav' => 'maleuniqueclavicusvile', 'name' => 'Клавикус Вайл', 're' => 'клавикус\p{L}*(?:\s+вайл\p{L}*)?', 'voice' => 'Отвечает Клавикус Вайл, даэдрический принц сделок: говори как хитрый торгаш, льстиво, с мелким шрифтом в каждой фразе'],
+            'sheogorath' => ['voicewav' => 'maleuniquesheogorath', 'name' => 'Шеогорат', 're' => 'шеогорат\p{L}*|шеогорад\p{L}*', 'voice' => 'Отвечает Шеогорат, даэдрический принц безумия: говори безумно, прыгая с мысли на мысль, про сыр и бабочек'],
         ];
     }
 
@@ -200,6 +223,7 @@ if (!function_exists('tesGodsSpoken')) {
         if (stripos($to, 'Narrator') === false && $to !== '') {
             return ' *ярл воззвал к ' . $G['name'] . ($did !== '' ? '; что произошло: ' . $did : '') . '; отреагируй на это по-своему*';
         }
+        tesWorldGodVoice(strval($G['voicewav'] ?? ''));
         return ' *' . $G['voice'] . '. Одна-две фразы.' . ($did !== '' ? ' Что уже произошло: ' . $did . '.' : '') . '*';
     }
 

@@ -1,0 +1,26 @@
+--- a/lib/playthrough_policy.php	2026-10-06 22:06:47.936276798 +0500
++++ b/lib/playthrough_policy.php	2026-10-06 22:06:48.060683499 +0500
+@@ -15,7 +15,22 @@
+ // Only gameplay tables and gameplay rows of mixed tables belong in a save.
+ function pts_playthrough_tables(): array {
+     $policy = pts_table_policy();
+-    return array_merge($policy['playthrough'], $policy['mixed']);
++    return array_values(array_unique(array_merge($policy['playthrough'], $policy['mixed'], pts_ext_playthrough_tables())));
++}
++
++// TES-Speech-Adapter: plugins declare their own gameplay tables in ext/<name>/playthrough_tables.txt (one per line,
++// "#" comments), so a Playthrough Save carries them too and an older save brings no "memories of the future".
++function pts_ext_playthrough_tables(): array {
++    static $cache = null;
++    if ($cache !== null) return $cache;
++    $cache = [];
++    foreach (glob(dirname(__DIR__) . '/ext/*/playthrough_tables.txt') ?: [] as $file) {
++        foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
++            $t = trim(preg_replace('/#.*$/', '', $line));
++            if ($t !== '' && preg_match('/^[a-z_][a-z0-9_]*$/D', $t)) $cache[] = $t;
++        }
++    }
++    return $cache;
+ }
+ 
+ // Run after database updates so new tables and retired labels follow the capture policy.

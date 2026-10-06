@@ -1,0 +1,37 @@
+# Tables of the TES plugins that belong to a playthrough (saved and restored with CHIM's Playthrough Save, so that
+# loading an older save does not leave "memories of the future"). One per line; read by the core patch
+# patches/herika-playthrough-ext-tables.patch (lib/playthrough_policy.php). Tables are created by the plugins on first
+# use - tools/ensure_playthrough_tables.php creates them all up front before the patch is applied.
+tes_agent_tasks
+tes_agent_undo
+tes_companion
+tes_court
+tes_craft_orders
+tes_crime_fines
+tes_crime_jail
+tes_documents
+tes_errands
+tes_fest_queue
+tes_festival
+tes_gatherings
+tes_legends
+tes_loyalty
+tes_mutes
+tes_npc_worn
+tes_order_checks
+tes_place_memory
+tes_posts
+tes_prices
+tes_rumor_spread
+tes_sanguine_bets
+tes_talk_hold
+tes_treasury
+tes_treasury_log
+tes_undo
+tes_watch
+tes_witness_seen
+tes_world_duels
+tes_world_facts
+tes_world_letters
+tes_world_patrols
+tes_world_titles

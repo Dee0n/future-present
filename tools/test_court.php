@@ -212,5 +212,11 @@ foreach (['Эльфийский лук стоит 200, не больше?', 'Э�
     $check(tesPriceSpoken($line) === '', "bargaining / one word is not a decree: «{$line}»");
 }
 
+echo "== gods' voices ==\n";
+foreach (array_merge(['sanguine' => 'maledrunk'], array_map(fn($g) => strval($g['voicewav'] ?? ''), tesGods())) as $k => $v) {
+    $check($v !== '' && is_file("/home/dwemer/f5-tts/voices/{$v}.wav"), "{$k}: voice {$v}.wav exists in F5-TTS");
+}
+$check(tesPriceSpoken('Сколько стоит эль?') === '', 'a question about a price is not a decree');
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);

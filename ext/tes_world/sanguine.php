@@ -136,6 +136,9 @@ if (!function_exists('tesSanguineSpoken')) {
             // said to a person: he is not the god - he hears the Prince laugh and reacts as himself
             return ' *откуда-то донёсся смех Сангвина, принца разгула' . ($did !== '' ? '; что произошло: ' . preg_replace('/(?<![\p{L}])ты(?![\p{L}])/u', 'Сангвин', $did) : '') . '; отреагируй на это по-своему*';
         }
+        if (function_exists('tesWorldGodVoice')) {
+            tesWorldGodVoice('maledrunk');  // no voice of Sanguine in the game: the merry drunk's
+        }
         return ' *' . tesSanguineVoice() . ($did !== '' ? ' Что уже произошло: ' . $did . '.' : '') . '*';
     }
 
