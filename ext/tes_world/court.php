@@ -144,14 +144,18 @@ if (!function_exists('tesTreasuryAdd')) {
             return '';
         }
         // --- treasury
+        // (only forms of «казна»: «казн\p{L}*» took «казнь/казнить/казначей» for the treasury, and a sentence said in
+        // the middle of a trial - «приговариваю к казни, а семья заплатит» - went to a payout instead)
+        $trialNow = $GLOBALS['db']->fetchOne("SELECT 1 AS x FROM public.tes_court WHERE opened_at > now() - interval '10 minutes' AND NOT closed LIMIT 1");
+        $sentenceNow = !empty($trialNow) && tesCourtVerdict($line) !== null;
         // "куда ушли деньги", "отчёт по казне", "на что потрачено": the last movements, not only the sum
-        if (preg_match('/(куда|на\s+что)\s+(?:\p{L}+\s+){0,2}(ушл\p{L}*|потрач\p{L}*|дел\p{L}*|растрат\p{L}*)|отч[её]т\p{L}*\s+(?:по\s+)?казн\p{L}*|расход\p{L}*\s+казн\p{L}*|казн\p{L}*\s+отч[её]т/u', $t)) {
+        if (!$sentenceNow && preg_match('/(куда|на\s+что)\s+(?:\p{L}+\s+){0,2}(ушл\p{L}*|потрач\p{L}*|дел\p{L}*|растрат\p{L}*)|отч[её]т\p{L}*\s+(?:по\s+)?(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}])|расход\p{L}*\s+(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}])|(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}])\s+отч[её]т/u', $t)) {
             return ' *' . tesTreasuryReport() . '; перескажи ярлу коротко*';
         }
-        if (preg_match('/(сколько|что|как)\s+(там\s+)?(в\s+казне|денег\s+в\s+казне|казн\p{L}*)/u', $t)) {
+        if (!$sentenceNow && preg_match('/(сколько|что|как)\s+(там\s+)?(в\s+казне|денег\s+в\s+казне|(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}]))/u', $t)) {
             return ' *в казне сейчас ' . tesTreasuryBalance() . ' септимов; назови эту сумму ярлу*';
         }
-        if (preg_match('/(из\s+казны|казн\p{L}*)\s*.*(выда\p{L}*|дай|дайте|достань|возьми|отсчитай|заплат\p{L}*|плати|выплат\p{L}*|награ\p{L}*)|(выда\p{L}*|дай|дайте|достань|отсчитай|заплат\p{L}*|плати|выплат\p{L}*|награ\p{L}*)\s+.*из\s+казны/u', $t)) {
+        if (!$sentenceNow && preg_match('/(из\s+казны|(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}]))\s*.*(выда\p{L}*|дай|дайте|достань|возьми|отсчитай|заплат\p{L}*|плати|выплат\p{L}*|награ\p{L}*)|(выда\p{L}*|дай|дайте|достань|отсчитай|заплат\p{L}*|плати|выплат\p{L}*|награ\p{L}*)\s+.*из\s+казны/u', $t)) {
             $n = tesWorldSpokenAmount($line);
             $have = tesTreasuryBalance();
             if ($n <= 0) {
@@ -174,7 +178,7 @@ if (!function_exists('tesTreasuryAdd')) {
             tesWorldQueue(['player.additem 0000000F ' . $n]);
             return " *из казны выдано ярлу {$n} септимов — золото уже у него" . ($short ? ' (это всё, что было)' : '') . '; подтверди это*';
         }
-        if (preg_match('/(в\s+казну|казне)\s*.*(полож\p{L}*|внес\p{L}*|внести|сдай|сдать|отдай)|(полож\p{L}*|внес\p{L}*|сдай|сдать)\s+.*в\s+казну/u', $t)) {
+        if (!$sentenceNow && preg_match('/(в\s+казну|казне)\s*.*(полож\p{L}*|внес\p{L}*|внести|сдай|сдать|отдай)|(полож\p{L}*|внес\p{L}*|сдай|сдать)\s+.*в\s+казну/u', $t)) {
             $n = tesWorldSpokenAmount($line);
             if ($n > 0) {
                 // only what he really carries (before: the sum was credited whether or not he had it)
