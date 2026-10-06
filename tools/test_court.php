@@ -159,5 +159,14 @@ foreach ([
     $check($got === $want, "undo of «{$cmd}» => " . var_export($got, true));
 }
 
+echo "== companions ==\n";
+require_once "$X/tes_world/companion.php";
+foreach (['Назим', 'Даника Свет Весны', 'Айрилет', 'Бренуин'] as $n) {
+    echo "  info {$n}: " . tesCompanionNature($n) . ' / цель: ' . tesCompanionGoal($n) . "\n";
+}
+$check(tesCompanionDeedWeight('kill')[0] < 0 && tesCompanionDeedWeight('kill')[1] > 0, 'an execution: the decent lose trust, the cruel gain it');
+$check(tesCompanionGoal('Кто-то Несуществующий') !== '', 'everyone gets a goal');
+echo '  info companions now: ' . implode(', ', tesCompanionList()) . "\n";
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);
