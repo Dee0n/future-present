@@ -129,6 +129,7 @@ if (!function_exists('tesCompanionTick')) {
                 }
             }
             if (!empty($hasCourt['t'])) {
+                tesTreasuryEnsure();  // the verdict column
                 $cs = $db->fetchAll("SELECT id, defendant, coalesce(verdict, '') AS verdict FROM public.tes_court WHERE id > " . intval($row['court_mark']) . " AND closed ORDER BY id LIMIT 10");
                 foreach (is_array($cs) ? $cs : [] as $c) {
                     $v = strval($c['verdict']);

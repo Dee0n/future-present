@@ -120,6 +120,10 @@ try {
             if ($tesWorldCourt === '' && function_exists('tesWorldCraftSpoken')) {
                 $tesWorldCourt = tesWorldCraftSpoken($tesWorldLine, $tesWorldAddr);
             }
+            // the ruler's own rumour, a bard's ballad (fame.php)
+            if ($tesWorldCourt === '' && function_exists('tesFameSpoken')) {
+                $tesWorldCourt = tesFameSpoken($tesWorldLine, $tesWorldAddr);
+            }
             // trade / training / a gift window, and the ruler's prices (services.php, bridge 16)
             if ($tesWorldCourt === '' && function_exists('tesServiceSpoken')) {
                 $tesWorldCourt = tesServiceSpoken($tesWorldLine, $tesWorldAddr);

@@ -26,6 +26,9 @@ if (!function_exists('tesTreasuryAdd')) {
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_treasury_log (id serial PRIMARY KEY, delta bigint NOT NULL, why text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT now())");
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_court (id serial PRIMARY KEY, defendant text NOT NULL, charge text NOT NULL DEFAULT '', opened_at timestamptz NOT NULL DEFAULT now())");
         $db->execQuery("ALTER TABLE public.tes_court ADD COLUMN IF NOT EXISTS closed boolean NOT NULL DEFAULT false");
+        // the sentence (court.php tesCourtSentence); here too, so that readers (companions, fame) never meet a table
+        // without it before the first sentence
+        $db->execQuery("ALTER TABLE public.tes_court ADD COLUMN IF NOT EXISTS verdict text NOT NULL DEFAULT ''");
     }
 
     function tesTreasuryBalance(): int

@@ -218,5 +218,15 @@ foreach (array_merge(['sanguine' => 'maledrunk'], array_map(fn($g) => strval($g[
 }
 $check(tesPriceSpoken('Сколько стоит эль?') === '', 'a question about a price is not a decree');
 
+echo "== fame ==\n";
+require_once "$X/tes_world/fame.php";
+$check(tesFameNick(['cruel' => 9, 'mercy' => 2, 'generous' => 1, 'reveler' => 6, 'pious' => 0, 'mad' => 0]) === 'Кровавый', 'nine cruel deeds over six feasts: Кровавый');
+$check(tesFameNick(['cruel' => 3, 'mercy' => 2, 'generous' => 1, 'reveler' => 4, 'pious' => 0, 'mad' => 0]) === '', 'nothing stands out yet: no nickname');
+$check(tesFameNick(['cruel' => 5, 'mercy' => 0, 'generous' => 0, 'reveler' => 5, 'pious' => 0, 'mad' => 0]) === '', 'a tie: no nickname');
+$ballad = tesFameSpoken('Спой про меня балладу', 'Микаэль');
+$check(mb_strpos($ballad, 'балладу') !== false, 'a bard sings of the ruler: ' . mb_substr($ballad, 0, 120));
+$check(tesFameSpoken('Спой про меня', 'Ярл Балгруф Старший') === '', 'the jarl is not a bard');
+echo '  info deeds now: ' . json_encode(tesFameDeeds()) . ' -> «' . tesFameNick(tesFameDeeds()) . "»\n";
+
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);
