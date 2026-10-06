@@ -220,6 +220,38 @@ if (!function_exists('tesGodsSpoken')) {
             tesWatchNotify("Клавикус Вайл забрал долг: {$fromPurse} из кошеля" . ($rest > 0 ? ", {$rest} из казны" : ''));
             tesLegend('Клавикус Вайл', "взыскал долг {$debt} септимов");
         }
+        // the gods wager on the ruler: Sanguine bets he throws a feast within the hour, Clavicus that he does not
+        $bet = tesWatchGet('gods_bet');
+        if ($bet['value'] === '' && tesWatchGet('gods_bet_next')['age'] >= 7200 && !empty(tesWorldFacts()['player_title'])) {
+            tesWatchSet('gods_bet', '1');
+            tesWatchSet('gods_bet_next', '1');
+            tesWatchNotify('Сангвин и Клавикус Вайл поспорили: устроишь ли ты пир в ближайший час');
+            tesLegend('Сангвин и Клавикус Вайл', 'поспорили, устроит ли ' . strval($GLOBALS['PLAYER_NAME'] ?? 'ярл') . ' пир в ближайший час');
+        } elseif ($bet['value'] === '1' && $bet['age'] >= 3600) {
+            $db = $GLOBALS['db'];
+            $feast = $db->fetchOne("SELECT 1 AS x FROM public.tes_gatherings WHERE party AND created_at > now() - interval '65 minutes' LIMIT 1");
+            tesWatchSet('gods_bet', '');
+            $winner = !empty($feast) ? 'Сангвин' : 'Клавикус Вайл';
+            if (function_exists('tesSanguineFavor')) {
+                tesSanguineFavor(!empty($feast) ? 10 : -5);
+            }
+            tesGodFavor('clavicus', !empty($feast) ? -5 : 10);
+            tesWatchNotify("Пари богов выиграл {$winner}");
+            tesLegend($winner, 'выиграл пари богов о пире ' . strval($GLOBALS['PLAYER_NAME'] ?? 'ярла'));
+            if (tesWorldNeedGuard()) {
+                tesGodGuardAddRumor("Говорят, сами боги спорили о " . strval($GLOBALS['PLAYER_NAME'] ?? 'ярле') . ", и выиграл {$winner}.");
+            }
+        }
+        // a person near the ruler prays aloud now and then (one model call in 40+ minutes)
+        if (tesWatchGet('npc_prayer')['age'] >= 2400 && random_int(1, 100) <= 30 && function_exists('tesFestSay') && !(function_exists('tesWorldQueueBusy') && tesWorldQueueBusy())) {
+            $people = function_exists('tesSheoPeople') ? tesSheoPeople() : [];
+            if ($people) {
+                tesWatchSet('npc_prayer', '1');
+                $p = $people[0];
+                $god = ['Маре', 'Аркею', 'Кинарет', 'Дибелле', 'Талосу', 'Зенитару'][random_int(0, 5)];
+                tesFestSay(strval($p['name']), "Ты тихо молишься {$god} — о чём-то своём, что тебя сейчас тревожит. Скажи молитву вслух, одной-двумя фразами.", 1);
+            }
+        }
         if (tesWatchGet('god_favor_drift')['age'] >= 3600) {
             tesWatchSet('god_favor_drift', '1');
             foreach (array_keys(tesGods()) as $g) {
