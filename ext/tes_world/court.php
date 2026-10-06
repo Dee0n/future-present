@@ -321,7 +321,13 @@ if (!function_exists('tesTreasuryAdd')) {
         if (preg_match('/' . $L . '(оправда\p{L}*|невинов\p{L}*|не\s+виновен|не\s+виновна|помилова\p{L}*|милую|прощаю|свобод(?:ен|на|ны)|отпустить|отпускаю|отпустите|снимаю\s+обвинени\p{L}*|обвинени\p{L}*\s+снят\p{L}*)' . $R . '/u', $t)) {
             return ['kind' => 'free'];
         }
-        if (preg_match('/' . $L . '(к\s+(?:смертной\s+)?казни|к\s+смерти|смертн\p{L}*\s+казн\p{L}*|казнить|казнь|казни|казнят|повесить|повешени\p{L}*|обезглав\p{L}*|отрубить\s+голов\p{L}*|на\s+плаху|убить\s+его|убить\s+ее|смерть\s+(?:ему|ей))' . $R . '/u', $t) && !preg_match($noKill, $t)) {
+        // only a real sentencing form: a bare «казнь» is a mention («тебе грозит казнь», «за такое бывает казнь»),
+        // and a death sentence can not be taken back (the condemned leaves his factions, the fight is to the death)
+        $deathForm = '(?:приговар\p{L}*|приговор\p{L}*)[\s\p{Pd}:,]+(?:\p{L}+\s+){0,4}?(?:к\s+)?(?:смертной\s+)?(?:казн\p{L}*|смерт\p{L}*)'
+            . '|' . $L . '(?:к\s+(?:смертной\s+)?казни|к\s+смерти|на\s+плаху|на\s+виселицу|повесить\s+(?:его|ее|их)|обезглав\p{L}*|отрубить\s+(?:ему\s+|ей\s+)?голов\p{L}*'
+            . '|казнить\s+(?:его|ее|их)|казните\s+(?:его|ее|их)|смерть\s+(?:ему|ей))' . $R
+            . '|^\s*казнить(?:\s+(?:немедленно|сейчас|сразу))?[\s.!]*$';
+        if (preg_match('/' . $deathForm . '/u', trim($t)) && !preg_match($noKill, $t)) {
             return ['kind' => 'kill'];
         }
         if (preg_match('/' . $L . '(к\s+(?:тюрьм\p{L}*|заключени\p{L}*|темниц\p{L}*)|в\s+тюрьму|в\s+темницу|за\s+решетку|посадить|сажаю|сажать|посажен\p{L}*|заключени\p{L}*|тюремн\p{L}*\s+срок\p{L}*|(?:\d+|\p{L}+)\s+(?:лет|года|год|дней|дня|суток|недел\p{L}*|месяц\p{L}*)\s+(?:тюрьмы|темницы|заключения))' . $R . '/u', $t) && !preg_match($noJail, $t)) {
@@ -344,6 +350,7 @@ if (!function_exists('tesTreasuryAdd')) {
             require_once $crime;
         }
         $db->execQuery("ALTER TABLE public.tes_court ADD COLUMN IF NOT EXISTS verdict text NOT NULL DEFAULT ''");
+        tesWorldNeedGuard();
         $ref = tesWorldRefOf($who);
         $child = $ref !== '' && tesChildSafeIsChildRef($ref);
         $note = '';

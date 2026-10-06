@@ -436,6 +436,21 @@ if (!function_exists('tesWorldEnsureTable')) {
         return true;
     }
 
+    /**
+     * tes_god_guard (memory, rumours) for the code that runs after the model's answer: when that plugin is not loaded
+     * at that moment, witnesses would remember nothing and no rumour would be born - silently.
+     */
+    function tesWorldNeedGuard(): bool
+    {
+        if (!function_exists('tesGodGuardAddRumor')) {
+            $g = __DIR__ . '/../tes_god_guard/functions.php';
+            if (is_readable($g)) {
+                require_once $g;
+            }
+        }
+        return function_exists('tesGodGuardAddRumor') && function_exists('tesGodGuardRemember');
+    }
+
     function tesWorldRefOf(string $name): string
     {
         $db = $GLOBALS['db'];

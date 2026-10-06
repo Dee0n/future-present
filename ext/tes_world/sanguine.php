@@ -26,6 +26,16 @@ if (!function_exists('tesSanguineSpoken')) {
         return $f;
     }
 
+    /** A harmless wonder (food, animals, music, dancing) - for what he does unasked or as a catch. */
+    function tesSanguineSafeWonder(): string
+    {
+        if (!function_exists('tesSheoWonder')) {
+            return '';
+        }
+        $safe = ['cheese', 'sweetroll', 'mead', 'chickens', 'hares', 'dance', 'laugh', 'ovation', 'band', 'drunk'];
+        return tesSheoWonder($safe[random_int(0, count($safe) - 1)], true);
+    }
+
     function tesSanguineEnsure(): void
     {
         $GLOBALS['db']->execQuery("CREATE TABLE IF NOT EXISTS public.tes_sanguine_bets (id serial PRIMARY KEY, stake bigint NOT NULL, what text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT now(), settled boolean NOT NULL DEFAULT false, won boolean)");
@@ -50,7 +60,16 @@ if (!function_exists('tesSanguineSpoken')) {
         tesSanguineEnsure();
         $db = $GLOBALS['db'];
         $did = '';
-        if (preg_match('/(?<![\p{L}])(спор\p{L}*|пари|ставк\p{L}*|ставлю|забьемся|на\s+спор)(?![\p{L}])/u', $t)) {
+        tesWorldNeedGuard();
+        tesWatchEnsure();
+        // "Сангвин, уймись / отстань / хватит" - no pranks of his own until "Сангвин, шали / снова твори"
+        if (preg_match('/(?<![\p{L}])(уймись|угомонись|успокойся|отстань|отвали|хватит|не\s+шали|перестань|прекрати|довольно)(?![\p{L}])/u', $t)) {
+            tesWatchSet('sanguine_quiet', '1');
+            $did = 'ярл велел тебе уняться: сам ты больше не шалишь, пока он не позовёт — согласись, но обиженно';
+        } elseif (preg_match('/(?<![\p{L}])(шали\p{L}*|снова\s+твори|возвращайся|можешь\s+шалить|балуй\p{L}*)(?![\p{L}])/u', $t)) {
+            tesWatchSet('sanguine_quiet', '0');
+            $did = 'ярл снова разрешил тебе шалить — обрадуйся';
+        } elseif (preg_match('/(?<![\p{L}])(спор\p{L}*|пари|ставк\p{L}*|ставлю|забьемся|на\s+спор)(?![\p{L}])/u', $t)) {
             $n = tesWorldSpokenAmount($line);
             if ($n <= 0) {
                 $did = 'ярл предложил пари, но не назвал ставку — потребуй сумму';
@@ -98,7 +117,7 @@ if (!function_exists('tesSanguineSpoken')) {
                 ];
                 $g = $gifts[random_int(0, count($gifts) - 1)];
                 tesWorldQueue($g[0]);
-                $prank = function_exists('tesSheoWonder') ? tesSheoWonder('', true) : '';
+                $prank = tesSanguineSafeWonder();
                 $did = 'ты одарил ярла: ' . $g[1] . ($prank !== '' ? '; и тут же подвох: ' . $prank : '');
             }
             tesSanguineFavor(-3);  // gifts are not free: he likes being amused, not asked
@@ -124,6 +143,7 @@ if (!function_exists('tesSanguineSpoken')) {
     function tesSanguineTick(): void
     {
         $db = $GLOBALS['db'];
+        tesWorldNeedGuard();
         $has = $db->fetchOne("SELECT to_regclass('public.tes_sanguine_bets') AS t");
         if (!empty($has['t'])) {
             $bet = $db->fetchOne("SELECT id, stake, what FROM public.tes_sanguine_bets WHERE NOT settled AND created_at < now() - interval '2 minutes' ORDER BY id LIMIT 1");
@@ -137,7 +157,7 @@ if (!function_exists('tesSanguineSpoken')) {
                     tesWatchNotify("Сангвин проиграл пари: тебе " . ($stake * 2) . " септимов");
                     tesSanguineFavor(3);
                 } else {
-                    $prank = function_exists('tesSheoWonder') ? tesSheoWonder('', true) : '';
+                    $prank = tesSanguineSafeWonder();
                     tesWatchNotify("Сангвин выиграл пари и забрал {$stake} септимов" . ($prank !== '' ? " — а ещё: {$prank}" : ''));
                     tesSanguineFavor(6);  // he loves winning
                 }
@@ -151,6 +171,9 @@ if (!function_exists('tesSanguineSpoken')) {
             return;
         }
         tesWatchEnsure();
+        if (tesWatchGet('sanguine_quiet')['value'] === '1') {
+            return;  // "Сангвин, уймись"
+        }
         $next = intval(tesWatchGet('sanguine_next')['value']);
         if ($next === 0) {
             tesWatchSet('sanguine_next', strval(time() + random_int(1500, 2400)));
@@ -164,7 +187,7 @@ if (!function_exists('tesSanguineSpoken')) {
         if (!empty($trial) || (function_exists('tesWorldExecutionGoing') && tesWorldExecutionGoing()) || (function_exists('tesWorldQueueBusy') && tesWorldQueueBusy())) {
             return;
         }
-        $w = tesSheoWonder('', true);
+        $w = tesSanguineSafeWonder();
         if ($w !== '') {
             tesWatchNotify("Где-то рядом смеётся Сангвин: {$w}");
             if (function_exists('tesGodGuardAddRumor') && tesWatchGet('sanguine_rumor')['age'] >= 900) {

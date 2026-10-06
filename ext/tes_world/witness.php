@@ -46,6 +46,7 @@ if (!function_exists('tesWitnessTick')) {
         @file_put_contents($mark, strval(time()));
         tesWatchEnsure();
         $last = intval(tesWatchGet('witness_rowid')['value']);
+        tesWorldNeedGuard();
         if ($last <= 0) {
             // the first run starts from now: old deaths are not dug up
             $r = $db->fetchOne("SELECT coalesce(max(rowid), 0) AS m FROM eventlog");
