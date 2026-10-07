@@ -165,7 +165,8 @@ if (!function_exists('tesFestTick')) {
         // "пусть пиздец начнётся" (owner, 00:15): a storm - a wonder every ~18 s for five minutes, Games or not
         $storm = tesWatchGet('sheo_storm');
         $stormOn = $storm['value'] === '1' && $storm['age'] < 900;  // "ещё ещё ещё больше": 15 minutes, two at a time
-        if (function_exists('tesSheoWonder') && !tesWorldQueueBusy()
+        // Off (owner, 2026-10-07: "нахуй бури и шеогората"): no storm, no wonders by themselves during the Games.
+        if (false && function_exists('tesSheoWonder') && !tesWorldQueueBusy()
             && (($stormOn && tesWatchGet('sheo_at')['age'] >= 7) || (!empty($act) && tesWatchGet('sheo_at')['age'] >= 100))) {
             if (tesSheoWonder() !== '' && $stormOn) {
                 tesSheoWonder('', true);

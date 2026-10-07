@@ -270,6 +270,10 @@ if (!function_exists('tesSheoWonder')) {
     /** The ruler's words: "весели нас", "ваббаджек", "чуди", "твори", "хаос", "удиви". */
     function tesSheoSpoken(string $t): string
     {
+        // Off (owner, 2026-10-07: "нахуй бури и шеогората"): no wonders and no storms on the ruler's words.
+        // The wonders themselves stay for Sanguine's pranks (sanguine.php).
+        tesWatchSet('sheo_storm', '0');
+        return '';
         // "пусть пиздец начнётся", "устрой ад", "жги": five minutes of wonders one after another; "хватит чудес" ends it
         if (preg_match('/(?<![\p{L}])(хватит|довольно|прекрати\p{L}*|останови\p{L}*|уймись|угомони\p{L}*)\s+(?:\p{L}+\s+){0,2}?(чуд\p{L}*|пиздец\p{L}*|хаос\p{L}*|безуми\p{L}*)/u', $t)) {
             tesWatchSet('sheo_storm', '0');
