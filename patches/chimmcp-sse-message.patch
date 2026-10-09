@@ -1,12 +1,14 @@
 diff --git a/src/http/router.ts b/src/http/router.ts
-index cb670b9..9d42157 100644
+index cb670b9..ec2e1c9 100644
 --- a/src/http/router.ts
 +++ b/src/http/router.ts
-@@ -144,5 +144,10 @@ export function createRouter(mcpServer: McpServer): express.Router {
+@@ -144,5 +144,12 @@ export function createRouter(mcpServer: McpServer): express.Router {
      await mcpServer.handleSseConnection(req, res);
    });
  
-+  // MCP SSE message endpoint (client -> server JSON-RPC)
++  // MCP client -> server messages for the active SSE session. The SDK's
++  // SSEServerTransport tells the client to POST here ('/message'), but this route
++  // never existed before, so every tool call 404'd right after the handshake.
 +  router.post('/message', async (req: Request, res: Response) => {
 +    await mcpServer.handlePostMessage(req, res);
 +  });
@@ -14,34 +16,59 @@ index cb670b9..9d42157 100644
    return router;
  }
 diff --git a/src/mcp/server.ts b/src/mcp/server.ts
-index b1383fe..745a3c6 100644
+index b1383fe..329928b 100644
 --- a/src/mcp/server.ts
 +++ b/src/mcp/server.ts
-@@ -122,16 +122,29 @@ export class McpServer {
-     });
+@@ -11,6 +11,11 @@ import { toolDefinitions, executeTool } from '../tools/index.js';
+ 
+ export class McpServer {
+   private server: Server;
++  // The SDK's SSEServerTransport tells the client to POST follow-up messages to
++  // '/message', but nothing in this server ever registered a route for that - every
++  // tool call failed with "Cannot POST /message" (404) right after the SSE handshake
++  // succeeded. Keep a reference so an Express route can hand incoming POSTs to it.
++  public activeTransport: SSEServerTransport | null = null;
+ 
+   constructor() {
+     this.server = new Server(
+@@ -123,15 +128,42 @@ export class McpServer {
    }
  
-+  private transports = new Map<string, SSEServerTransport>();
-+
    async handleSseConnection(req: Request, res: Response): Promise<void> {
++    // The underlying SDK Server is a singleton reused across connections (this server
++    // only ever expects one MCP client at a time), but it throws "Already connected to
++    // a transport" if .connect() is called again without closing the old one first -
++    // and that throw was happening inside an unawaited promise chain, so it surfaced as
++    // an unhandled rejection that took the whole process down. A client reconnecting
++    // (e.g. after the host's own retry/the owner re-running /mcp) must replace the old
++    // session cleanly instead of crashing the server.
++    if (this.activeTransport) {
++      try {
++        await this.server.close();
++      } catch {
++        // already closed/closing - fine, we're about to connect fresh below
++      }
++      this.activeTransport = null;
++    }
      const transport = new SSEServerTransport('/message', res);
-+    this.transports.set(transport.sessionId, transport);
++    this.activeTransport = transport;
      await this.server.connect(transport);
  
      // Handle client disconnection
      req.on('close', () => {
-+      this.transports.delete(transport.sessionId);
        transport.close();
++      if (this.activeTransport === transport) {
++        this.activeTransport = null;
++      }
      });
    }
  
 +  async handlePostMessage(req: Request, res: Response): Promise<void> {
-+    const transport = this.transports.get(String(req.query.sessionId ?? ''));
-+    if (!transport) {
-+      res.status(400).send('Unknown or expired MCP session');
++    if (!this.activeTransport) {
++      res.status(503).json({ error: 'No active SSE session - connect to /sse first' });
 +      return;
 +    }
-+    await transport.handlePostMessage(req, res, req.body);
++    await this.activeTransport.handlePostMessage(req, res, req.body);
 +  }
 +
    getServer(): Server {
