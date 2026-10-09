@@ -11,12 +11,12 @@ if (!function_exists('tesDrinksSpoken')) {
     function tesDrinksKind(string $t): array
     {
         if (preg_match('/(?<![\p{L}])(вин[оау]|винц\p{L}*)(?![\p{L}])/u', $t)) {
-            return ['0003133C', 'красного вина'];
+            return ['0003133C', 'red wine'];
         }
         if (preg_match('/(?<![\p{L}])(м[её]д\p{L}*|медовух\p{L}*)(?![\p{L}])/u', $t)) {
-            return ['00034C5D', 'мёда'];
+            return ['00034C5D', 'mead'];
         }
-        return ['00034C5E', 'эля'];
+        return ['00034C5E', 'ale'];
     }
 
     function tesDrinksSpoken(string $line, string $to): string
@@ -47,10 +47,10 @@ if (!function_exists('tesDrinksSpoken')) {
             $ref = tesWorldRefOf($to);
             if ($ref !== '') {
                 tesWorldQueue(['prid ' . $ref, 'additem 00034C5E 60', 'additem 0003133C 30', 'additem 00034C5D 30']);
-                return " *{$to} получил запас: эль, вино, мёд — он торгует; это уже сделано*";
+                return " *{$to} got a stock: ale, wine, mead - he sells it; already done*";
             }
         }
         tesWorldQueue(['player.additem ' . $formid . ' ' . $n]);
-        return " *{$n} бутылок {$name} уже у тебя в сумке — его просили, и он принёс; это сделано*";
+        return " *{$n} bottles of {$name} are already in the player's bag - you were asked and brought them; done*";
     }
 }

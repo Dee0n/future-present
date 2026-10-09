@@ -27,16 +27,16 @@ if (strtolower(strval($GLOBALS['gameRequest'][0] ?? '')) === 'tes_god_console') 
                         tesTreasuryAdd($amount, 'штраф: ' . $npc);  // a paid fine goes to the treasury
                     }
                     tesCrimeNotify("{$npc} заплатил штраф {$amount} септимов");
-                    tesCrimeTell($npc, "(С тебя только что взыскали штраф {$amount} септимов, ты заплатил — деваться было некуда. Одна короткая реплика: злость, досада или смирение.)");
+                    tesCrimeTell($npc, "(A fine of {$amount} septims was just taken from you; you paid - there was no way out. One short line: anger, vexation or resignation.)");
                 } else {
                     tesCrimeJail($npc, $ref, "не заплатил штраф {$amount} септимов (было {$gold})");
                     $db->execQuery("UPDATE public.tes_crime_fines SET status = 'jailed', gold = {$gold} WHERE id = " . intval($fine['id']));
                     tesCrimeNotify("{$npc} не смог заплатить {$amount} (при себе {$gold}) — в темницу");
                     if ($guard !== '') {
-                        tesCrimeTell($guard, "({$npc} не смог заплатить штраф {$amount} септимов — при нём всего {$gold}. Его увели в темницу. Скажи об этом одной фразой.)");
+                        tesCrimeTell($guard, "({$npc} could not pay the fine of {$amount} septims - only {$gold} on him. He was taken to jail. Say so in one sentence.)");
                     }
                     // he is in a cell now: he says why when somebody talks to him next
-                    tesCrimeTell($npc, "(Тебе выписали штраф {$amount} септимов, при тебе было только {$gold}. Заплатить ты не смог, и стража посадила тебя в темницу. Одна короткая реплика.)");
+                    tesCrimeTell($npc, "(You were fined {$amount} septims and had only {$gold} on you. You could not pay, and the guards put you in jail. One short line.)");
                 }
             }
         }

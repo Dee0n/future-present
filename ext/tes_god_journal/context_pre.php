@@ -134,21 +134,21 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
         $ageSec = intval($row['age_sec'] ?? 0);
         if ($status === 'pending') {
             return $ageSec > 20
-                ? "{$label} — ещё НЕ выполнено (игра на паузе или мир не принимает команды)."
-                : "{$label} — в очереди, результата пока нет.";
+                ? "{$label} - NOT executed yet (game paused or the world is not taking commands)."
+                : "{$label} - queued, no result yet.";
         }
         if ($status !== 'applied') {
             $reason = trim(strval($row['result_text'] ?? ''));
-            return "{$label} — НЕ вышло" . ($reason !== '' ? " ({$reason})" : '') . '.';
+            return "{$label} - FAILED" . ($reason !== '' ? " ({$reason})" : '') . '.';
         }
 
         // Real console output, when the TESGodConsoleReport bridge override is installed
         // (ext/tes_god_console stores it). An error line beats every other signal.
         $console = tesGodJournalConsole($allCommands, floatval($row['created_epoch'] ?? 0));
         if ($console !== null && $console['error'] !== '') {
-            return "{$label} — НЕ вышло, консоль ответила: «{$console['error']}».";
+            return "{$label} - FAILED, console said: «{$console['error']}».";
         }
-        $consoleNote = ($console !== null && $console['output'] !== '') ? " Консоль: «{$console['output']}»." : '';
+        $consoleNote = ($console !== null && $console['output'] !== '') ? " Console: «{$console['output']}»." : '';
 
         // Dispatched. Only life/death can be checked from the server side.
         $expectDead = null;
@@ -159,8 +159,8 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
         }
         if ($expectDead === null || $refId === '') {
             return $console !== null
-                ? "{$label} — выполнено игрой, консоль без ошибок.{$consoleNote}"
-                : "{$label} — отправлено в мир, проверить результат нечем.";
+                ? "{$label} - executed by the game, no console errors.{$consoleNote}"
+                : "{$label} - sent to the world, result cannot be checked.";
         }
         // activity_status.timestamp is not epoch time (seen: 3.6e13), so freshness is
         // judged in game time: the status must be newer than the game time at which
@@ -170,14 +170,14 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
         $sentGamets = intval($row['sent_gamets'] ?? 0);
         if ($seenGamets <= 0 || $sentGamets <= 0 || $seenGamets <= $sentGamets) {
             return $console !== null
-                ? "{$label} — выполнено игрой без ошибок консоли, но свежих сведений о {$npc['name']} нет.{$consoleNote}"
-                : "{$label} — отправлено, свежих сведений о {$npc['name']} нет, не проверено.";
+                ? "{$label} - executed by the game with no console errors, but no fresh data on {$npc['name']}.{$consoleNote}"
+                : "{$label} - sent, no fresh data on {$npc['name']}, not verified.";
         }
         $isDead = !empty($activity['is_dead']);
         if ($isDead === $expectDead) {
-            return "{$label} — сделано, проверено: " . ($isDead ? 'мёртв.' : 'жив.');
+            return "{$label} - done, verified: " . ($isDead ? 'dead.' : 'alive.');
         }
-        return "{$label} — НЕ вышло: " . ($isDead ? 'всё ещё мёртв.' : 'всё ещё жив.');
+        return "{$label} - FAILED: " . ($isDead ? 'still dead.' : 'still alive.');
     }
 
     function tesGodJournalBuild(): string
@@ -210,9 +210,9 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
                 ORDER BY id DESC LIMIT 4
             ");
             foreach (array_reverse(is_array($refusals) ? $refusals : []) as $refusal) {
-                $label = ['repeat' => 'повтор не отправлен', 'server' => 'СДЕЛАНО (память CHIM)'][$refusal['verdict']] ?? 'ЗАБЛОКИРОВАНО';
+                $label = ['repeat' => 'repeat not sent', 'server' => 'DONE (CHIM memory)'][$refusal['verdict']] ?? 'BLOCKED';
                 foreach (array_filter(explode("\n", strval($refusal['reasons'] ?? ''))) as $reason) {
-                    $lines[] = "- " . (mb_strpos($reason, 'урезано') !== false ? 'ИЗМЕНЕНО' : $label) . ": " . mb_substr($reason, 0, 190) . '.';
+                    $lines[] = "- " . (mb_strpos($reason, 'урезано') !== false ? 'CHANGED' : $label) . ": " . mb_substr($reason, 0, 190) . '.';
                 }
             }
             // ext/tes_god_guard's ScriptProxy channel (equip/resurrect-kill) - a real
@@ -230,7 +230,7 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
                     $who = tesGodJournalNpc($m[1])['name'];
                     $kept = "{$who}: {$m[2]}";
                 }
-                $lines[] = "- ОТПРАВЛЕНО (ScriptProxy, результат не проверяется): {$kept}.";
+                $lines[] = "- SENT (ScriptProxy, result is not verified): {$kept}.";
             }
             // Explicit find/search answers (verdict 'search'): exact names the Narrator
             // asked the game index for - use them verbatim in the NEXT command.
@@ -240,7 +240,7 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
                 ORDER BY id DESC LIMIT 3
             ");
             foreach (array_reverse(is_array($searches) ? $searches : []) as $searchRow) {
-                $lines[] = '- ПОИСК: ' . strval($searchRow['kept_text']) . '.';
+                $lines[] = '- SEARCH: ' . strval($searchRow['kept_text']) . '.';
             }
         }
         // A recent autosave (ext/tes_god_guard's tesGodAutosaveIfNeeded, queued before a
@@ -256,8 +256,8 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
             // PHP (a non-empty string), so that naive check always read as "done".
             $done = in_array($autosave['done'] ?? '', [true, 't', 'true', 1, '1'], true);
             $lines[] = $done
-                ? '- Автосейв сделан перед этим крупным изменением мира (можно откатить обычной загрузкой автосохранения).'
-                : '- Автосейв перед этим изменением запрошен, но игра ещё не подтвердила (пауза или ожидание).';
+                ? '- Autosave made before this big world change (can be rolled back by loading the autosave).'
+                : '- Autosave before this change was requested, but the game has not confirmed it yet (pause or waiting).';
         }
         // People created during play (FFxxxxxx) that the game reported in the last 3 hours:
         // clones, summons, Create_New_NPC. Leftovers pile up unless the Narrator removes them.
@@ -289,9 +289,9 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
         if (!empty($created)) {
             // at most 8 names (cost): the list grew to dozens after mass spawns
             $createdNames = array_keys($created);
-            $lines[] = '- Созданы во время игры: ' . implode(', ', array_slice($createdNames, 0, 8))
-                . (count($createdNames) > 8 ? ' и ещё ' . (count($createdNames) - 8) : '')
-                . '. Лишних убери: {near:Имя}.unsummon.';
+            $lines[] = '- Created during play: ' . implode(', ', array_slice($createdNames, 0, 8))
+                . (count($createdNames) > 8 ? ' and others: ' . (count($createdNames) - 8) : '')
+                . '. Remove the extras: {near:Name}.unsummon.';
         }
         // Roadmap B: a hard stop after a run of failures, not just a soft suggestion in the
         // closing rule below (the model can and does ignore that and keeps retrying variants
@@ -299,14 +299,14 @@ if (!function_exists('tesGodJournalIsNarratorTurn')) {
         // a row as unknown, all in one reply).
         $streak = function_exists('tesGodGuardFailureStreak') ? tesGodGuardFailureStreak($minutes) : 0;
         if ($streak >= 3) {
-            $lines[] = "- ОСТАНОВИСЬ: подряд не прошло уже {$streak} команд. Не изобретай ещё один вариант той же просьбы. "
-                . 'Одной фразой честно скажи, что не можешь это выполнить (или чего именно не хватает — например, точного имени), и жди новой просьбы игрока.';
+            $lines[] = "- STOP: {$streak} commands in a row have failed. Do not invent another variant of the same request. "
+                . 'In one sentence honestly say you cannot do it (or what exactly is missing - e.g. the exact name) and wait for a new request from the player.';
         }
-        return "## Журнал твоих команд (проверяет сервер, последние {$minutes} мин)\n"
+        return "## Journal of your god commands (server-verified, last {$minutes} min)\n"
             . implode("\n", array_slice($lines, -14)) . "\n"
-            . "Не говори, что сработало, если не написано «сделано». «ЗАБЛОКИРОВАНО» — проблема в конкретной команде из причины: "
-            . "исправь её и повтори; не говори «не найден», если причина не об этом. «НЕ вышло» — признай одной фразой и попробуй иначе; "
-            . "«не проверено» — не утверждай результат. Если исполнил не то, что просили, — признай и сделай нужное.";
+            . "Do not say it worked unless it says «done». «BLOCKED» - the problem is in the specific command named in the reason: "
+            . "fix it and retry; do not say «не найден» unless the reason is about that. «FAILED» - admit it in one sentence and try another way; "
+            . "«not verified» - do not claim the result. If you did something other than what was asked, admit it and do what was needed.";
     }
 }
 

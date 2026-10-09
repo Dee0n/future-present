@@ -1,0 +1,5 @@
+Describe the character in the picture. Name is {HERIKA_NAME} .
+Do not focus on clothing, focus on physical appearance (face, eyes, hair, figure, waist,legs,breast size, tattoos if any....). Be concise. 
+Write the description in Russian (Cyrillic).
+Start generation with this text:
+{HERIKA_NAME} — 

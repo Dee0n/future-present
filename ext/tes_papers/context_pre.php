@@ -25,9 +25,9 @@ try {
                 continue;
             }
             $content = tesPapersText($title);
-            $label = "«{$title}»" . ($count > 1 ? " ({$count} экз.)" : '');
+            $label = "«{$title}»" . ($count > 1 ? " ({$count} copies)" : '');
             if ($content === '') {
-                $lines[] = $label . ' — документ с таким названием; его точный текст на сервере не сохранился, суди по названию и словам игрока';
+                $lines[] = $label . ' - a document with this title; its exact text was not kept on the server, judge by the title and the player\'s words';
                 continue;
             }
             $content = mb_substr($content, 0, max(100, min(600, $budget)));
@@ -36,11 +36,11 @@ try {
         }
         if ($lines) {
             chimRegisterPromptInjection('prompt_bottom', 'tes_papers',
-                "ВАЖНО — БУМАГИ У ТЕБЯ НА РУКАХ. {$tesPapersPlayer} уже передал их тебе, они лежат у тебя и ты их прочёл:\n- "
+                "IMPORTANT - YOU HOLD THE PAPERS. {$tesPapersPlayer} has already handed them to you, they are with you and you have read them:\n- "
                 . implode("\n- ", $lines)
-                . "\nВ списке вещей (инвентаре) эти бумаги называются «Generic Note» / «общая записка» — это ОНИ и есть, листы НЕ пустые. "
-                . "Если раньше ты говорил, что бумаг нет, что это просто записки или пустые листы, — ты не разглядел; теперь ты их прочёл. "
-                . "Не проси передать их снова и не отрицай, что они у тебя: отвечай по содержанию этих бумаг.", 98);
+                . "\nIn the item list (inventory) these papers are called «Generic Note» / «общая записка» - these ARE them, the sheets are NOT blank. "
+                . "If you said earlier that there are no papers, that they are mere notes or blank sheets - you had not looked closely; now you have read them. "
+                . "Do not ask to hand them over again and do not deny you have them: answer by the content of these papers.", 98);
             // The system-block line alone lost to the NPC's own earlier denials (live 01:08, Gemini
             // 2.5 Flash, 100k-char prompt: the contract text "заплатившему 500 000 септимов" was in
             // the prompt and the answer was still "нет никаких купчих на полмиллиона"). When the
@@ -49,9 +49,9 @@ try {
             $tesPapersSaid = mb_strtolower(strval($GLOBALS['gameRequest'][3] ?? ''));
             if (isset($GLOBALS['request']) && is_string($GLOBALS['request'])
                 && preg_match('/бумаг|документ|договор|купч|заявлен|записк|прочит|прочт|читай|почита|распис|500|полмиллион|пятьсот/u', $tesPapersSaid)) {
-                $GLOBALS['request'] = "(Перед ответом перечитай бумаги, которые {$tesPapersPlayer} тебе передал — они у тебя в руках, это и есть «Generic Note» из твоих вещей:\n- "
+                $GLOBALS['request'] = "(Before answering reread the papers {$tesPapersPlayer} handed you - they are in your hands, they are the «Generic Note» among your things:\n- "
                     . implode("\n- ", $lines)
-                    . "\nОтвечай строго по их тексту: что в них написано, то и правда. Свои прежние слова «бумаг нет / там пусто» забудь — ты тогда не прочёл.) "
+                    . "\nAnswer strictly by their text: what is written there is the truth. Forget your earlier words «бумаг нет / там пусто» - you had not read them then.) "
                     . $GLOBALS['request'];
             }
         }

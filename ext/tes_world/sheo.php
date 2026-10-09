@@ -201,8 +201,8 @@ if (!function_exists('tesSheoWonder')) {
             [$a, $b] = [$p[0], $p[1]];
             tesWorldQueue(['prid ' . $a['ref'], 'setscale 1.7', 'prid ' . $b['ref'], 'setscale 0.45']);
             tesFestCmd(['prid ' . $a['ref'], 'setscale 1', 'prid ' . $b['ref'], 'setscale 1'], 120);
-            tesFestSay($a['name'], "Тебя только что чудом раздуло до роста великана, а {$b['name']} усох до карлика. Скажи, каково тебе сверху.", 5);
-            tesFestSay($b['name'], "Ты чудом усох до карлика, а {$a['name']} вырос в великана. Возмутись снизу.", 22);
+            tesFestSay($a['name'], "A wonder just swelled you to a giant's height, and {$b['name']} shrank to a dwarf. Say how it feels from above.", 5);
+            tesFestSay($b['name'], "A wonder shrank you to a dwarf, and {$a['name']} grew into a giant. Protest from below.", 22);
             $what = "{$a['name']} вырос в великана, а {$b['name']} усох до карлика (на две минуты)";
         } elseif ($kind === 'dance') {
             foreach ($some(7) as $i => $x) {
@@ -251,7 +251,7 @@ if (!function_exists('tesSheoWonder')) {
             $a = $p[0];
             tesWorldQueue(['prid ' . $a['ref'], 'setav paralysis 1', 'player.pushactoraway ' . $a['ref'] . ' 1']);
             tesFestCmd(['prid ' . $a['ref'], 'setav paralysis 0'], 25);
-            tesFestSay($a['name'], 'Ты только что полминуты пролежал окаменевшей статуей и ожил. Скажи, что ты видел, пока был камнем.', 30);
+            tesFestSay($a['name'], 'You just lay half a minute as a petrified statue and came back to life. Say what you saw while you were stone.', 30);
             $what = "{$a['name']} окаменел и рухнул статуей (оживёт через полминуты)";
         }
         if ($what === '') {
@@ -261,7 +261,7 @@ if (!function_exists('tesSheoWonder')) {
         // somebody says a word about it - not the same person every time, and never about orders or clothes
         if ($n >= 1 && !in_array($kind, ['giant', 'statue'], true)) {
             $w = $p[$n - 1];
-            tesFestSay($w['name'], "Только что случилось чудо: {$what}. Отзовись на это по-своему — восторг, ругань или шутка.", 7);
+            tesFestSay($w['name'], "A wonder just happened: {$what}. React in your own way - delight, cursing or a joke.", 7);
         }
         error_log('[tes_world] wonder: ' . $kind . ' - ' . $what);
         return $what;
@@ -277,12 +277,12 @@ if (!function_exists('tesSheoWonder')) {
         // "пусть пиздец начнётся", "устрой ад", "жги": five minutes of wonders one after another; "хватит чудес" ends it
         if (preg_match('/(?<![\p{L}])(хватит|довольно|прекрати\p{L}*|останови\p{L}*|уймись|угомони\p{L}*)\s+(?:\p{L}+\s+){0,2}?(чуд\p{L}*|пиздец\p{L}*|хаос\p{L}*|безуми\p{L}*)/u', $t)) {
             tesWatchSet('sheo_storm', '0');
-            return ' *чудеса унялись по слову ярла*';
+            return ' *the wonders ceased at the jarl\'s word*';
         }
         if (preg_match('/(?<![\p{L}])(пиздец\p{L}*|апокалипсис\p{L}*|светопреставлени\p{L}*)\s+(?:\p{L}+\s+){0,2}?(начн\p{L}*|начина\p{L}*|устро\p{L}*|давай)|(?:устро\p{L}*|начина\p{L}*|начн\p{L}*|давай|хочу)\s+(?:\p{L}+\s+){0,2}?(пиздец\p{L}*|ад(?![\p{L}])|апокалипсис\p{L}*|хаос\p{L}*|безуми\p{L}*)|(?<![\p{L}])жги(?![\p{L}])/u', $t)) {
             tesWatchSet('sheo_storm', '1');
             $what = tesSheoWonder();
-            return ' *по слову ярла началась буря чудес — пять минут одно за другим' . ($what !== '' ? "; первое: {$what}" : '') . '; это происходит на самом деле, отзовись на это*';
+            return ' *at the jarl\'s word a storm of wonders began - five minutes, one after another' . ($what !== '' ? "; the first: {$what}" : '') . '; this is really happening, react to it*';
         }
         // "ещё веселее", "ещё", "давай ещё": the storm again, from the start
         if (preg_match('/(?<![\p{L}])(еще|ещё)\s+(весел\p{L}*|больше|сильнее|жестче|жёстче|еще|ещё)|давай\s+(еще|ещё)|мало(?![\p{L}])/u', $t)) {
@@ -301,6 +301,6 @@ if (!function_exists('tesSheoWonder')) {
             }
         }
         $what = tesSheoWonder($only);
-        return $what !== '' ? " *по слову ярла случилось чудо: {$what}; это уже произошло на самом деле — отзовись на это, не обещай и не предлагай раздеваться*" : '';
+        return $what !== '' ? " *at the jarl's word a wonder happened: {$what}; it has really happened already - react to it, do not promise and do not suggest undressing*" : '';
     }
 }

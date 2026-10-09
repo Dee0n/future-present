@@ -46,8 +46,8 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
             }
             unset($actions[$n]);
             error_log("[tes_no_attack] dropped {$actor} -> Attack on the player (not in combat, aff " . ($rel['aff'] ?? 'n/a') . ')');
-            $text = '(Ты не нападаешь на игрока с оружием из-за слов. Если он виноват — действуй по закону: назначь штраф (Add_Bounty), '
-                . 'арестуй (Arrest_Player) или прогони словами. Одна короткая реплика.)';
+            $text = '(You do not attack the player with weapons over words. If he is guilty, act by law: fine him (Add_Bounty), '
+                . 'arrest him (Arrest_Player) or send him off with words. One short line.)';
             $db->insert('responselog', [
                 'localts' => time(), 'sent' => 0, 'actor' => 'rolemaster', 'text' => '',
                 'action' => 'rolecommand|Instruction@' . str_replace(['@', '|'], ' ', $actor) . '@' . $text . '@0', 'tag' => '',

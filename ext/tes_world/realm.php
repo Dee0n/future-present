@@ -104,7 +104,7 @@ if (!function_exists('tesRealmAfterOrder')) {
         tesRealmChatter(true);
         tesWatchSet('party_probe', '');
         error_log('[tes_world] feast: reopened, ' . count($refs) . ' guests called back');
-        return ' *гости (' . count($refs) . ') возвращены к ярлу, гулянка продолжается; это уже сделано, подтверди*';
+        return ' *guests (' . count($refs) . ') brought back to the jarl, the feast goes on; already done, confirm*';
     }
 
     /** Is $me at a feast that is going on (not just gathered)? Those are not told to be silent. */
@@ -223,10 +223,10 @@ if (!function_exists('tesRealmAfterOrder')) {
                     $names[] = trim(strval($row['npc_name'] ?? ''));
                 }
                 if ($names[0] !== '' && $names[1] !== '') {
-                    $themes = ['тост за ярла, но со своей шуткой', 'шутку про стражу', 'сплетню про соседа по столу', 'подначку, что тот не умеет пить', 'байку о том, как он однажды напился', 'вопрос, как ему вообще эта выпивка',
-                        'жалобу, что эль слабоват, или хвалу, что крепок', 'песенку или припев', 'спор о том, кто из них пьянее', 'похвалу или ругань еде на столе', 'вопрос, что он будет делать, когда эль кончится', 'хвастовство, сколько он сегодня съел'];
+                    $themes = ['a toast to the jarl, with a joke of your own', 'a joke about the guards', 'gossip about a table neighbour', 'a jab that he cannot drink', 'a tale of how you once got drunk', 'a question how he likes this drink at all',
+                        'a complaint that the ale is weak, or praise that it is strong', 'a ditty or a chorus', 'an argument over which of you is drunker', 'praise or abuse of the food on the table', 'a question what he will do when the ale runs out', 'a boast of how much you ate today'];
                     $theme = $themes[array_rand($themes)];
-                    $text = "Instruction@{$names[0]}@(Ты на гулянке. Повернись к {$names[1]} и скажи ему одну короткую живую фразу: {$theme}. По-русски, в своём характере, без пересказа этих слов.)@0";
+                    $text = "Instruction@{$names[0]}@(You are at a feast. Turn to {$names[1]} and say one short lively phrase to him: {$theme}. In Russian, in character, without retelling these words.)@0";
                     $db->insert('responselog', ['localts' => time(), 'sent' => 0, 'text' => $text, 'actor' => 'rolemaster', 'action' => 'rolecommand', 'tag' => '']);
                 }
             }
@@ -495,7 +495,7 @@ if (!function_exists('tesRealmAfterOrder')) {
             return '';
         }
         $others = array_values(array_diff($names, [$me]));
-        return 'Ты в тайном заговоре против правителя вместе с ' . implode(', ', array_slice($others, 0, 2)) . ': вы ненавидите его, говорите осторожно и ищете случай; открыто не нападай.';
+        return 'You are in a secret plot against the ruler with ' . implode(', ', array_slice($others, 0, 2)) . ': you all hate him, speak carefully and wait for a chance; do not attack openly.';
     }
 
     // ------------------------------------------------------------------ posts
@@ -508,14 +508,14 @@ if (!function_exists('tesRealmAfterOrder')) {
             return '';
         }
         $duty = [
-            'казначей' => 'ведёшь казну правителя и докладываешь о ней: сейчас в казне ' . tesTreasuryBalance() . ' септимов',
-            'палач' => 'исполняешь казни и наказания по слову правителя, без лишних слов',
-            'шут' => 'развлекаешь правителя и двор шутками, в том числе дерзкими',
-            'виночерпий' => 'прислуживаешь правителю за столом, подаёшь питьё и сплетничаешь',
-            'хускарл' => 'личный телохранитель правителя: не отходишь от него и защищаешь',
-            'советник' => 'советник правителя: даёшь совет по законам, казне и людям',
+            'казначей' => 'you keep the ruler\'s treasury and report on it: it now holds ' . tesTreasuryBalance() . ' septims',
+            'палач' => 'you carry out executions and punishments at the ruler\'s word, without extra words',
+            'шут' => 'you amuse the ruler and the court with jokes, bold ones too',
+            'виночерпий' => 'you serve the ruler at table, pour drinks and gossip',
+            'хускарл' => 'the ruler\'s personal bodyguard: you never leave his side and protect him',
+            'советник' => 'the ruler\'s adviser: you advise on laws, the treasury and people',
         ][strval($r['role'])] ?? '';
-        return $duty !== '' ? 'Ты при дворе правителя ' . $r['role'] . ': ' . $duty . '.' : '';
+        return $duty !== '' ? 'Your post at the ruler\'s court is ' . $r['role'] . ': ' . $duty . '.' : '';
     }
 
     /** The post named in the (lower-cased) words, or ''. */
@@ -537,9 +537,9 @@ if (!function_exists('tesRealmAfterOrder')) {
         $parts = [];
         foreach (is_array($rows) ? $rows : [] as $r) {
             $dead = $GLOBALS['db']->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE npc_name = '" . $GLOBALS['db']->escape(strval($r['npc'])) . "' LIMIT 1");
-            $parts[] = $r['role'] . ' — ' . $r['npc'] . (strval($dead['d'] ?? '') === 'true' ? ' (мёртв)' : '');
+            $parts[] = $r['role'] . ' — ' . $r['npc'] . (strval($dead['d'] ?? '') === 'true' ? ' (dead)' : '');
         }
-        return $parts ? 'при дворе ярла: ' . implode(', ', $parts) : 'при дворе ярла пока никто не назначен (можно назначить казначея, палача, шута, виночерпия, хускарла, советника)';
+        return $parts ? 'at the jarl\'s court: ' . implode(', ', $parts) : 'nobody is appointed at the jarl\'s court yet (he can appoint a treasurer, executioner, jester, cupbearer, housecarl, adviser)';
     }
 
     /** The executioner carries out an execution when there is one. */
@@ -574,12 +574,12 @@ if (!function_exists('tesRealmAfterOrder')) {
             tesWatchEnsure();
             if (preg_match('/(?<![\p{L}])(все|всем|вы|вс[её]|заткнитесь|замолчите)(?![\p{L}])/u', $t) || stripos($to, 'Narrator') !== false) {
                 tesWatchSet('mute_all', '1');
-                return ' *ярл велел замолчать всем: пока он не заговорит сам — тишина*';
+                return ' *the jarl ordered everyone to be silent: silence until he speaks himself*';
             }
             $db = $GLOBALS['db'];
             $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_mutes (npc text PRIMARY KEY, until_at timestamptz NOT NULL)");
             $db->execQuery("INSERT INTO public.tes_mutes (npc, until_at) VALUES ('" . $db->escape($to) . "', now() + interval '15 minutes') ON CONFLICT (npc) DO UPDATE SET until_at = EXCLUDED.until_at");
-            return " *ярл велел тебе замолчать — молчи, пока он сам не спросит*";
+            return " *the jarl ordered you to be silent - keep silent until he asks you himself*";
         }
         // undo
         if (preg_match('/(верни\p{L}*|откат\p{L}*|отмен\p{L}*)\s+(как\s+было|приказ|последн\p{L}*|все\s+назад|это)|как\s+было\s+верни|верни\s+все\s+как\s+было/u', $t)
@@ -606,13 +606,13 @@ if (!function_exists('tesRealmAfterOrder')) {
                     tesLoyaltyBump($trader, 0.5, 1.5);  // a heavier tax is remembered by the traders
                 }
             }
-            return " *налог теперь {$new}% от обычного — торговцы " . ($new > $cur ? 'ропщут' : ($new < $cur ? 'довольны' : 'не заметили')) . '; подтверди*';
+            return " *the tax is now {$new}% of the usual - the traders " . ($new > $cur ? 'grumble' : ($new < $cur ? 'are pleased' : 'did not notice')) . '; confirm*';
         }
         // the end of it: "разойдитесь", "все по домам", "праздник окончен"
         if (preg_match('/(?<![\p{L}])(разойд\p{L}*|расходи(?:тесь|сь)|по\s+домам|свободны|праздник\s+(?:окончен|закончен)|гулянк\p{L}*\s+(?:окончен|закончен)\p{L}*)(?![\p{L}])/u', $t)) {
             $n = tesRealmGatherRelease(true);
             if ($n > 0) {
-                return " *по слову ярла собравшиеся ({$n}) расходятся по своим делам; это уже происходит*";
+                return " *at the jarl's word the gathered ({$n}) go back to their own business; already happening*";
             }
         }
         // the Games of the feast: "устрой игры / движуху", "хватит игр" (festival.php)
@@ -708,9 +708,9 @@ if (!function_exists('tesRealmAfterOrder')) {
                     tesRealmChatter(true);
                 }
                 tesWatchNotify('Собраны ' . $placeName . ': ' . implode(', ', array_slice($done, 0, 5)) . (count($done) > 5 ? ' и ещё ' . (count($done) - 5) : ''));
-                return ' *по приказу ярла согнали ' . count($done) . ' человек ' . $placeName . ': ' . implode(', ', array_slice($done, 0, 6)) . '; это уже сделано, подтверди*';
+                return ' *by the jarl\'s order ' . count($done) . ' people were gathered ' . $placeName . ': ' . implode(', ', array_slice($done, 0, 6)) . '; already done, confirm*';
             }
-            return ' *вокруг некого собирать*';
+            return ' *there is nobody around to gather*';
         }
         // the arena: "пусть X и Y сразятся", "X против Y"
         if (preg_match('/(сраз\p{L}+|подерут\p{L}+|драк\p{L}+|дуэл\p{L}+|бой\s+между|против)/u', $t) && function_exists('tesWorldDuel')) {
@@ -725,12 +725,12 @@ if (!function_exists('tesRealmAfterOrder')) {
             if (count($found) >= 2 && !tesWorldIsChild($found[0]) && !tesWorldIsChild($found[1])) {
                 tesWorldDuel($found[0], $found[1], false);  // a fight, not a sentence: nobody is finished off after it
                 tesWatchNotify("Бой: {$found[0]} против {$found[1]}");
-                return " *{$found[0]} и {$found[1]} сошлись в бою по слову ярла; зрители ждут исхода*";
+                return " *{$found[0]} and {$found[1]} are fighting at the jarl's word; the onlookers await the outcome*";
             }
         }
         // the court as it is: "кто при дворе", "кто мой казначей", "назови мой двор"
         if (preg_match('/кто\s+(?:\p{L}+\s+){0,2}(?:при\s+двор\p{L}*|в\s+двор\p{L}*|мо[йия]\s+(?:казначе\p{L}*|палач\p{L}*|шут\p{L}*|виночерпи\p{L}*|хускарл\p{L}*|советник\p{L}*))|(?:мой|весь)\s+двор(?![\p{L}])|состав\s+двора|должност\p{L}*\s+при\s+двор\p{L}*/u', $t)) {
-            return ' *' . tesRealmCourtList() . '; перескажи ярлу*';
+            return ' *' . tesRealmCourtList() . '; tell the jarl*';
         }
         // dismissal: "снимаю Торгара с должности", "Фианна больше не казначей", "палач уволен", "разжаловать шута"
         if (preg_match('/(сним\p{L}*|снять|уволь\p{L}*|уволен\p{L}*|увольня\p{L}*|разжал\p{L}*|прогон\p{L}*|больше\s+не|лиша\p{L}*|отстран\p{L}*)\s+(?:.*?)(казначе\p{L}*|палач\p{L}*|шут\p{L}*|виночерпи\p{L}*|хускарл\p{L}*|советник\p{L}*|должност\p{L}*|пост\p{L}*)/u', $t, $dm)
@@ -756,7 +756,7 @@ if (!function_exists('tesRealmAfterOrder')) {
             }
             $rows = $db->fetchAll("SELECT role, npc FROM public.tes_posts WHERE {$where}");
             if (!$rows) {
-                return ' *у ярла нет такого человека при дворе — скажи ему об этом*';
+                return ' *the jarl has no such person at court - tell him so*';
             }
             foreach ($rows as $r) {
                 $db->execQuery("DELETE FROM public.tes_posts WHERE role = '" . $db->escape(strval($r['role'])) . "'");
@@ -766,7 +766,7 @@ if (!function_exists('tesRealmAfterOrder')) {
                 tesWatchNotify("{$r['npc']} снят с должности: {$r['role']}");
             }
             $r0 = $rows[0];
-            return " *{$r0['npc']} больше не " . $r0['role'] . ' при дворе ярла; это уже решено*';
+            return " *{$r0['npc']} no longer holds the post " . $r0['role'] . ' at the jarl\'s court; already decided*';
         }
         // posts: "назначаю Торгара палачом", "Фианна теперь казначей"
         if (preg_match('/(назнач\p{L}*|делаю|ставлю|будешь|будет|теперь)\s+(?:.*?)(казначе\p{L}*|палач\p{L}*|шут\p{L}*|виночерпи\p{L}*|хускарл\p{L}*|советник\p{L}*)/u', $t, $pm)) {
@@ -801,9 +801,9 @@ if (!function_exists('tesRealmAfterOrder')) {
                     }
                 }
                 tesWatchNotify("{$npc} назначен: {$role}");
-                $ins = ['казначей' => 'казначеем', 'палач' => 'палачом', 'шут' => 'шутом', 'виночерпий' => 'виночерпием', 'хускарл' => 'хускарлом', 'советник' => 'советником'][$role] ?? $role;
-                $was = (!empty($prev['npc']) && $prev['npc'] !== $npc) ? " вместо {$prev['npc']}" : '';
-                return " *{$npc} назначен {$ins} при дворе ярла{$was}; прими это к сведению*";
+                $ins = ['казначей' => 'treasurer', 'палач' => 'executioner', 'шут' => 'jester', 'виночерпий' => 'cupbearer', 'хускарл' => 'housecarl', 'советник' => 'adviser'][$role] ?? $role;
+                $was = (!empty($prev['npc']) && $prev['npc'] !== $npc) ? " instead of {$prev['npc']}" : '';
+                return " *{$npc} is appointed {$ins} at the jarl's court{$was}; take note*";
             }
         }
         return '';
@@ -851,7 +851,7 @@ if (!function_exists('tesRealmAfterOrder')) {
         if (empty($m) && !$allOn) {
             return '';
         }
-        return 'Правитель велел замолчать: не говори фраз — максимум одно-два слова, вздох, кивок или «…», пока он сам не обратится к тебе с вопросом.';
+        return 'The ruler ordered silence: no sentences - at most one or two words, a sigh, a nod or «…», until he himself asks you a question.';
     }
 
     /** A gathering that is going on: for the prompt of those in the talk. */
@@ -864,6 +864,6 @@ if (!function_exists('tesRealmAfterOrder')) {
         if (empty($g['what']) || $myRef === '' || !in_array($myRef, explode(',', strval($g['refs'] ?? '')), true)) {
             return '';
         }
-        return !empty($g['what']) ? 'Правитель созвал людей («' . mb_substr(strval($g['what']), 0, 80) . '»): ты здесь среди собравшихся и ведёшь себя по поводу — на гулянке пьёшь и веселишься, на сборе слушаешь.' . (function_exists('tesFestLine') ? tesFestLine() : '') : '';
+        return !empty($g['what']) ? 'The ruler has gathered people («' . mb_substr(strval($g['what']), 0, 80) . '»): you are among them and act to suit the occasion - at a feast drink and make merry, at a gathering listen.' . (function_exists('tesFestLine') ? tesFestLine() : '') : '';
     }
 }

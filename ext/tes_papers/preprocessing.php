@@ -34,11 +34,11 @@ try {
                         if ($take <= 0) {
                             break;
                         }
-                        $out[] = "{$take} документ «{$title}» (исписанная бумага, получена от игрока)";
+                        $out[] = "{$take} document «{$title}» (written paper, received from the player)";
                         $total -= $take;
                     }
                     if ($total > 0) {
-                        $out[] = "{$total} записка";
+                        $out[] = "{$total} note";
                     }
                     return implode(',', $out);
                 }, $tesPapersData) ?? $tesPapersData;

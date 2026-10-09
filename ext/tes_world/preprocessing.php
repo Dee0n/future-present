@@ -99,7 +99,7 @@ try {
             $tesWorldGoldRef = tesWorldRefOf(trim($gm[1]));  // not into \$tesWorldTo: the blocks below need the name
             if ($tesWorldGold > 0 && $tesWorldGoldRef !== '' && (preg_match('/септим|золот|монет|деньг|денег/iu', $tesWorldLine) || $tesWorldGold >= 100)) {
                 tesWorldQueue(['player.removeitem 0000000F ' . $tesWorldGold, 'prid ' . $tesWorldGoldRef, 'additem 0000000F ' . $tesWorldGold]);
-                $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *отдаёт {$tesWorldGold} септимов — золото уже у тебя в кошеле*" . $tesWorldTail;
+                $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *hands you {$tesWorldGold} septims - the gold is already in your purse*" . $tesWorldTail;
                 error_log("[tes_world] gold: {$tesWorldGold} to " . trim($gm[1]));
             }
         }
@@ -166,7 +166,7 @@ try {
             if ($tesWorldOrder) {
                 $tesWorldDone = tesWorldRunFast($tesWorldOrder, $tesWorldWhom, $tesWorldLine);
                 if ($tesWorldDone !== '') {
-                    $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *приказ уже исполняется ({$tesWorldDone}) — не обещай, а подтверди, что делается*" . $tesWorldTail;
+                    $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *the order is already being carried out ({$tesWorldDone}) - do not promise, confirm it is being done*" . $tesWorldTail;
                     error_log("[tes_world] spoken order to {$tesWorldWhom}: {$tesWorldDone} | {$tesWorldLine}");
                 }
             } elseif ($tesWorldWhom !== '' && !preg_match('/(?<![\p{L}])(трахн\p{L}*|трахай\p{L}*|выеби\p{L}*|отсоси\p{L}*|минет\p{L}*|секс\p{L}*|развлек\p{L}*|займись|займитесь|ублажа\p{L}*)(?![\p{L}])/iu', $tesWorldLine)) {
@@ -184,7 +184,7 @@ try {
                     $tesWorldAgent = tesWorldAgentOrder($tesWorldLine, $tesWorldWhom);
                 }
                 if ($tesWorldAgent !== '') {
-                    $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *приказ уже исполняется — не обещай, а подтверди, что делается*" . $tesWorldTail;
+                    $GLOBALS['gameRequest'][3] = $tesWorldHead . $tesWorldLine . " *the order is already being carried out - do not promise, confirm it is being done*" . $tesWorldTail;
                     error_log("[tes_world] spoken order to {$tesWorldWhom}: {$tesWorldAgent} | {$tesWorldLine}");
                 }
             }
@@ -274,7 +274,7 @@ try {
                     } else {
                         tesWorldQueue(['prid ' . $tesWorldLoveRef, 'unequipall', 'teslove 20 ' . tesWorldLoveArg($tesWorldLove)]);
                     }
-                    $GLOBALS['gameRequest'][3] = rtrim(strval($GLOBALS['gameRequest'][3])) . ($tesWorldThirdRef !== '' ? " *ты уже делаешь это с {$tesWorldThird}, на самом деле; игрок только смотрит — отвечай как участница, а не обещай*" : " *это уже происходит на самом деле — отвечай как участница, а не обещай*") . $tesWorldTail;
+                    $GLOBALS['gameRequest'][3] = rtrim(strval($GLOBALS['gameRequest'][3])) . ($tesWorldThirdRef !== '' ? " *you are already doing this with {$tesWorldThird}, for real; the player only watches - answer as a participant, do not promise*" : " *this is already really happening - answer as a participant, do not promise*") . $tesWorldTail;
                     error_log("[tes_world] scene from the player's words: {$tesWorldKey}");
                 }
             }
@@ -286,7 +286,7 @@ try {
             $tesWorldLawNote = tesLawsRepeal(mb_strtolower($tesWorldLine));
             // a number or a topic was named but no such law: never fall through to "clear them all"
             if ($tesWorldLawNote === '' && preg_match('/(номер|№)\s*\d|закон\p{L}*\s+\d|(закон|указ)\p{L}*\s+(про|о|об|насчет|насчёт)\s/iu', $tesWorldLine)) {
-                $tesWorldLawNote = ' *такого закона нет, ничего не отменено;' . ltrim(tesLawsList(), ' *');
+                $tesWorldLawNote = ' *no such law, nothing repealed;' . ltrim(tesLawsList(), ' *');
             }
         }
         if ($tesWorldLawNote === '' && preg_match('/(отмен\p{L}+|снима\p{L}+|упраздн\p{L}+)\s+(все\s+|мой\s+|этот\s+)?(закон|указ)/iu', $tesWorldLine)) {

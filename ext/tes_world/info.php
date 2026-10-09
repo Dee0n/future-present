@@ -19,19 +19,19 @@ if (!function_exists('tesInfoSpoken')) {
             $seen = array_values(array_filter($lines, fn($l) => mb_strpos($l, 'Видел') !== false));
             $pick = $seen ? end($seen) : ($lines ? end($lines) : '');
             if ($pick !== '') {
-                return 'то, что ты сам знаешь: ' . trim($pick, " -");
+                return 'what you know yourself: ' . trim($pick, " -");
             }
         }
         if (!empty($db->fetchOne("SELECT to_regclass('public.tes_witness_seen') AS t")['t'])) {
             $w = $db->fetchOne("SELECT deed FROM public.tes_witness_seen ORDER BY created_at DESC LIMIT 1");
             if (!empty($w['deed'])) {
-                return 'то, что слышал от очевидцев: ' . $w['deed'];
+                return 'what you heard from eyewitnesses: ' . $w['deed'];
             }
         }
         $g = $db->fetchOne("SELECT npc_name, coalesce(goals::text, '') AS g FROM public.core_npc_master WHERE npc_name <> '" . $db->escape($npc) . "' AND length(coalesce(goals::text, '')) > 20 AND race NOT ILIKE '%реб%' ORDER BY random() LIMIT 1");
         if (!empty($g['npc_name'])) {
             $parts = array_values(array_filter(array_map('trim', preg_split('/(?:^|\s)[*•\-]\s+|\n+/u', trim(preg_replace('/[\[\]{}"]+/u', ' ', strval($g['g'])) ?? '')) ?: [])));
-            return "чего тайно хочет {$g['npc_name']}: " . mb_substr($parts[0] ?? strval($g['g']), 0, 160);
+            return "what {$g['npc_name']} secretly wants: " . mb_substr($parts[0] ?? strval($g['g']), 0, 160);
         }
         return '';
     }
@@ -52,19 +52,19 @@ if (!function_exists('tesInfoSpoken')) {
             return '';
         }
         if ($n < 30) {
-            return " *ярл предлагает за тайну всего {$n} септимов — фыркни: за такие гроши ничего не скажешь*";
+            return " *the jarl offers only {$n} septims for a secret - scoff: for such pennies you tell nothing*";
         }
         $gold = function_exists('tesWorldPlayerGold') ? tesWorldPlayerGold() : -1;
         if ($gold >= 0 && $gold < $n) {
-            return " *у ярла при себе только {$gold} септимов, а обещает {$n} — не верь на слово, потребуй деньги вперёд*";
+            return " *the jarl carries only {$gold} septims but promises {$n} - do not take his word, demand the money up front*";
         }
         $ref = tesWorldRefOf($to);
         $secret = tesInfoSecret($to);
         if ($ref === '' || $secret === '') {
-            return ' *тебе нечего продать — честно скажи, что ничего не знаешь, денег не бери*';
+            return ' *you have nothing to sell - say honestly you know nothing, take no money*';
         }
         tesWorldQueue(['player.removeitem 0000000F ' . $n, 'prid ' . $ref, 'additem 0000000F ' . $n]);
         $GLOBALS['TES_COURT_NOW'] = true;  // not an order for the agent
-        return " *ты взял {$n} септимов (они уже у тебя) и тихо рассказываешь {$secret} — своими словами, вполголоса*";
+        return " *you took {$n} septims (already yours); quietly tell {$secret} - in your own words, in a low voice*";
     }
 }

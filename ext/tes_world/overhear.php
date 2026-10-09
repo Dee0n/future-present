@@ -91,14 +91,14 @@ if (!function_exists('tesOverhearTick')) {
         $loss = tesEconomyTraderLoss();
         $parts = [];
         if ($rate >= 150) {
-            $parts[] = "налог правителя {$rate}% душит торговлю — ты ворчишь на это и поднял цены";
+            $parts[] = "the ruler's {$rate}% tax chokes trade - you grumble about it and raised your prices";
         } elseif ($rate <= 50) {
-            $parts[] = "налог правителя всего {$rate}% — торговля идёт бойко, ты доволен";
+            $parts[] = "the ruler's tax is only {$rate}% - trade is brisk, you are content";
         }
         if ($loss >= 2) {
-            $parts[] = 'после недавних казней несколько торговцев уехали из города, покупателей меньше, ты боишься за свою лавку';
+            $parts[] = 'after the recent executions several traders left town, buyers are fewer, you fear for your shop';
         }
-        return $parts ? 'Ты торговец: ' . implode('; ', $parts) . '.' : '';
+        return $parts ? 'You are a trader: ' . implode('; ', $parts) . '.' : '';
     }
 
     /** At a high tax drink costs more (services.php prices, bridge 16): ale 1.5x while the tax stays >= 150 %. */

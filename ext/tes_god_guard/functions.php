@@ -522,7 +522,7 @@ if (!function_exists('tesGodGuardValidate')) {
         }
         $row = $db->fetchOne("SELECT COALESCE(speechstyle, '') AS speechstyle, COALESCE(goals, '') AS goals FROM public.core_npc_master WHERE id = {$id}");
         $why = $note !== '' ? " ({$note})" : '';
-        $lead = "Игрок ({$player}) теперь ему друг, отношение: {$type}{$why}. Говорит с игроком доброжелательно и вежливо, без грубостей, угроз и прогонов; прошлые ссоры позади.";
+        $lead = "The player ({$player}) is now a friend, relation: {$type}{$why}. Speaks to the player kindly and politely, no rudeness, threats or sending away; past quarrels are over.";
         $style = strval($row['speechstyle'] ?? '');
         $marker = '[К игроку] ';
         $style = preg_replace('/^' . preg_quote($marker, '/') . '[^\n]*\n?/u', '', $style) ?? $style;
@@ -544,7 +544,7 @@ if (!function_exists('tesGodGuardValidate')) {
         $goalsText = trim(implode("\n", $goals));
         $db->execQuery("UPDATE public.core_npc_master SET speechstyle = '" . $db->escape($style) . "', goals = '" . $db->escape($goalsText) . "', lock_profile = 1 WHERE id = {$id}");
         tesGodGuardRemember($id, "Моё отношение к игроку ({$player}) изменилось: {$type}{$why}. Прошлые ссоры позади, я не держу зла.");
-        return "; профиль согласован: манера речи к {$player} смягчена, убрано целей против {$player}: {$dropped}, память обновлена";
+        return "; profile reconciled: speech style towards {$player} softened, goals against {$player} removed: {$dropped}, memory updated";
     }
 
     function tesGodGuardSetRelation(array $npc, string $target, int $aff, string $type, string $note): void
@@ -586,7 +586,7 @@ if (!function_exists('tesGodGuardValidate')) {
                     tesGodGuardRemember(intval($prevNpc['id']), "Брак с {$who} распался: теперь {$who} в браке с {$newSpouse}.");
                 }
                 $db->execQuery("DELETE FROM public.tes_world_facts WHERE subject = '" . $db->escape($prevName) . "' AND predicate = 'spouse'");
-                $notes[] = "{$prevName} теперь бывший супруг {$who}";
+                $notes[] = "{$prevName} is now the ex-spouse of {$who}";
             }
         }
         // Any other romance of either spouse, in both directions, is over now.
@@ -601,7 +601,7 @@ if (!function_exists('tesGodGuardValidate')) {
                 $whoNpc = RelationshipManager::resolveNpcByName($who);
                 if ($whoNpc) {
                     tesGodGuardSetRelation($whoNpc, $other, 10, 'ex', "в прошлом; теперь в браке с {$spouse}");
-                    $notes[] = "{$who} больше не влюблён(а) в {$other}";
+                    $notes[] = "{$who} is no longer in love with {$other}";
                 }
             }
             $admirers = $db->fetchAll("
@@ -611,7 +611,7 @@ if (!function_exists('tesGodGuardValidate')) {
             foreach (is_array($admirers) ? $admirers : [] as $admirer) {
                 tesGodGuardSetRelation($admirer, $who, 10, 'ex', "{$who} теперь в браке с {$spouse}");
                 tesGodGuardRemember(intval($admirer['id']), "{$who} женился/вышла замуж за {$spouse}; между нами всё кончено.");
-                $notes[] = "{$admirer['npc_name']} знает, что {$who} теперь в браке";
+                $notes[] = "{$admirer['npc_name']} knows {$who} is now married";
             }
         }
         foreach ([[$a, $bn], [$b, $an]] as [$npc, $spouse]) {
@@ -623,7 +623,7 @@ if (!function_exists('tesGodGuardValidate')) {
             ");
         }
         $hold = tesGodGuardAddRumor("Говорят, {$an} и {$bn} поженились.");
-        return "{$an} и {$bn} теперь супруги (любовь, память, слух по холду {$hold})" . ($notes ? '; ' . implode('; ', $notes) : '');
+        return "{$an} and {$bn} are now spouses (love, memory, rumor in hold {$hold})" . ($notes ? '; ' . implode('; ', $notes) : '');
     }
 
     // Server commands (character/relation/remember/marry) need an existing CHIM profile
@@ -672,7 +672,7 @@ if (!function_exists('tesGodGuardValidate')) {
         $content = mb_substr(trim($content), 0, 2000);
         if ($who === 'player') {
             $refId = '00000014';
-            $label = 'игроку';
+            $label = 'the player';
         } else {
             $refId = tesGodGuardResolveRealRefId(preg_match('/^[0-9A-F]{8}$/', $who) ? $who : '{npc:' . $who . '}');
             $label = $who;
@@ -723,7 +723,7 @@ if (!function_exists('tesGodGuardValidate')) {
             'localts' => time(), 'sent' => 0, 'actor' => 'rolemaster', 'text' => '',
             'action' => "rolecommand|generateLetter@{$title}", 'tag' => '',
         ]);
-        return [true, "документ «{$title}» отправлен в инвентарь ({$label})"];
+        return [true, "document «{$title}» sent to inventory ({$label})"];
     }
 
     function tesGodGuardRunServer(array $cmd): array
@@ -734,7 +734,7 @@ if (!function_exists('tesGodGuardValidate')) {
                 return [false, 'слух слишком короткий'];
             }
             $hold = tesGodGuardAddRumor($cmd['args']);
-            return [true, "по холду {$hold} пошёл слух: «" . mb_substr($cmd['args'], 0, 120) . "»"];
+            return [true, "rumor spread in hold {$hold}: «" . mb_substr($cmd['args'], 0, 120) . "»"];
         }
         if ($cmd['verb'] === 'document') {
             return tesGodGuardMakeDocument(strval($cmd['npc']), strval($cmd['args']));
@@ -774,10 +774,10 @@ if (!function_exists('tesGodGuardValidate')) {
             $db->insert('responselog', [
                 'localts' => time(), 'sent' => 0, 'actor' => 'rolemaster', 'text' => '',
                 'action' => 'rolecommand|Instruction@' . str_replace(['@', '|'], ' ', $name)
-                    . '@(Воля свыше, исполни сейчас, без споров и отсрочек, своими словами и действиями: ' . mb_substr($what, 0, 500) . ')@0',
+                    . '@(Will from above - carry it out now, no arguing or delay, in your own words and actions: ' . mb_substr($what, 0, 500) . ')@0',
                 'tag' => '',
             ]);
-            return [true, "{$name} получил приказ и исполняет: «" . mb_substr($what, 0, 120) . "»"];
+            return [true, "{$name} got the order and is carrying it out: «" . mb_substr($what, 0, 120) . "»"];
         }
         if ($cmd['verb'] === 'jail' || $cmd['verb'] === 'unjail') {
             if (!function_exists('tesCrimeJail')) {
@@ -805,7 +805,7 @@ if (!function_exists('tesGodGuardValidate')) {
             if (mb_strlen($cmd['args']) < 5) {
                 return [false, "«{$name}»: пустое воспоминание"];
             }
-            return [true, "{$name} теперь помнит: " . mb_substr(tesGodGuardRemember($id, $cmd['args']), -300)];
+            return [true, "{$name} now remembers: " . mb_substr(tesGodGuardRemember($id, $cmd['args']), -300)];
         }
         if ($cmd['verb'] === 'marry') {
             $other = tesGodGuardResolveNpcLoose(trim($cmd['args']));
@@ -847,7 +847,7 @@ if (!function_exists('tesGodGuardValidate')) {
                 error_log('[tes_god_guard] hypnosis dispatch rc=' . $rc . ' ' . implode(' | ', array_slice($out, -3)));
                 return [false, "«{$name}»: гипноз не запустился (код {$rc})"];
             }
-            return [true, "{$name}: гипноз запущен - характер, цели, манера речи и занятие перепишутся по внушению «" . mb_substr($wish, 0, 120) . "»; профиль заблокирован от автоперезаписи"];
+            return [true, "{$name}: hypnosis started - personality, goals, speech style and occupation will be rewritten per the suggestion «" . mb_substr($wish, 0, 120) . "»; profile locked against auto-rewrite"];
         }
 
         if ($cmd['verb'] === 'character') {
@@ -870,9 +870,9 @@ if (!function_exists('tesGodGuardValidate')) {
             if ($field === 'occupation') {
                 // Family and neighbours should hear about it (the son didn't know his father got rich).
                 $hold = tesGodGuardAddRumor("Говорят, {$name} теперь {$text}.");
-                $news = "; по холду {$hold} пошёл слух";
+                $news = "; rumor spread in hold {$hold}";
             }
-            return [true, "{$name}: {$field} было «{$old}» → стало «" . mb_substr($text, 0, 120) . "»{$news}"];
+            return [true, "{$name}: {$field} was «{$old}» → now «" . mb_substr($text, 0, 120) . "»{$news}"];
         }
 
         // relation [to <Name>] <aff> <type> [note] - towards the player unless "to <Name>"
@@ -902,7 +902,7 @@ if (!function_exists('tesGodGuardValidate')) {
         $aff = max(-100, min(100, intval($m[2])));
         $toName = trim($m[1]);
         $target = 'Player';
-        $targetLabel = 'игроку';
+        $targetLabel = 'the player';
         if ($toName !== '' && RelationshipManager::normalizeTargetName($toName) !== 'Player') {
             $other = tesGodGuardResolveNpcLoose($toName);
             if (!$other) {
@@ -912,7 +912,7 @@ if (!function_exists('tesGodGuardValidate')) {
             $targetLabel = $target;
         }
         $before = RelationshipManager::getRelationship($name, $target);
-        $oldText = is_array($before) ? (($before['aff'] ?? '?') . ' ' . ($before['type'] ?? '?') . ' «' . ($before['note'] ?? '') . '»') : 'нет';
+        $oldText = is_array($before) ? (($before['aff'] ?? '?') . ' ' . ($before['type'] ?? '?') . ' «' . ($before['note'] ?? '') . '»') : 'none';
         if (!RelationshipManager::setRelationship($name, $target, $aff, strtolower($m[3]))) {
             return [false, "«{$name}»: CHIM не принял изменение отношения"];
         }
@@ -935,7 +935,7 @@ if (!function_exists('tesGodGuardValidate')) {
         }
         $after = RelationshipManager::getRelationship($name, $target);
         $newText = is_array($after) ? (($after['aff'] ?? '?') . ' ' . ($after['type'] ?? '?') . ' «' . ($after['note'] ?? '') . '»') : '?';
-        return [true, "{$name}: отношение к {$targetLabel} было {$oldText} → стало {$newText}{$reconciled}"];
+        return [true, "{$name}: relation to {$targetLabel} was {$oldText} → now {$newText}{$reconciled}"];
     }
 
     // "equipitem <HEX>" for an NPC -> "tesdress <signed decimal>" (bridge: EquipItem with
@@ -1162,20 +1162,20 @@ if (!function_exists('tesGodGuardValidate')) {
             // on the Narrator's NEXT turn - the command itself never reaches the game.
             if (preg_match('/^(?:find|найди|поиск)\s+(.+)$/isu', $body, $fm)) {
                 $kindMap = [
-                    'item' => [['item'], 'предмет'], 'предмет' => [['item'], 'предмет'], 'вещь' => [['item'], 'предмет'],
-                    'spell' => [['spell'], 'заклинание'], 'заклинание' => [['spell'], 'заклинание'],
-                    'perk' => [['perk'], 'способность'], 'способность' => [['perk'], 'способность'],
-                    'npc' => [['actor'], 'персонаж'], 'actor' => [['actor'], 'персонаж'],
-                    'персонаж' => [['actor'], 'персонаж'], 'кто' => [['actor'], 'персонаж'],
-                    'faction' => [['faction'], 'фракция'], 'фракция' => [['faction'], 'фракция'],
-                    'place' => [['cell', 'location', 'world'], 'место'], 'cell' => [['cell'], 'место'],
-                    'место' => [['cell', 'location', 'world'], 'место'], 'город' => [['cell', 'location', 'world'], 'место'],
-                    'локация' => [['cell', 'location', 'world'], 'место'],
-                    'существо' => [['npc', 'leveled_npc'], 'существо'], 'creature' => [['npc', 'leveled_npc'], 'существо'],
+                    'item' => [['item'], 'item'], 'предмет' => [['item'], 'item'], 'вещь' => [['item'], 'item'],
+                    'spell' => [['spell'], 'spell'], 'заклинание' => [['spell'], 'spell'],
+                    'perk' => [['perk'], 'perk'], 'способность' => [['perk'], 'perk'],
+                    'npc' => [['actor'], 'npc'], 'actor' => [['actor'], 'npc'],
+                    'персонаж' => [['actor'], 'npc'], 'кто' => [['actor'], 'npc'],
+                    'faction' => [['faction'], 'faction'], 'фракция' => [['faction'], 'faction'],
+                    'place' => [['cell', 'location', 'world'], 'place'], 'cell' => [['cell'], 'place'],
+                    'место' => [['cell', 'location', 'world'], 'place'], 'город' => [['cell', 'location', 'world'], 'place'],
+                    'локация' => [['cell', 'location', 'world'], 'place'],
+                    'существо' => [['npc', 'leveled_npc'], 'creature'], 'creature' => [['npc', 'leveled_npc'], 'creature'],
                 ];
                 $rest = trim($fm[1]);
                 $kinds = ['item'];
-                $kindRu = 'предмет';
+                $kindRu = 'item';
                 if (preg_match('/^(\S+)\s+(.+)$/su', $rest, $km) && isset($kindMap[mb_strtolower(trim($km[1]))])) {
                     $map = $kindMap[mb_strtolower(trim($km[1]))];
                     $kinds = $map[0];
@@ -2231,7 +2231,7 @@ if (!function_exists('tesGodGuardValidate')) {
         // god journal (tes_god_journal shows verdict 'search'), visible on the NEXT turn.
         foreach ($check['searches'] as $search) {
             $label = "find {$search['kind']} {$search['query']}";
-            $result = empty($search['result']) ? 'ничего похожего не найдено' : implode('; ', $search['result']);
+            $result = empty($search['result']) ? 'nothing similar found' : implode('; ', $search['result']);
             tesGodGuardLog($text, "{$label} → {$result}", 'search', []);
             error_log("[tes_god_guard] search: {$label} => {$result}");
         }
@@ -2268,7 +2268,7 @@ if (!function_exists('tesGodGuardValidate')) {
             return null;
         }
         if (tesGodGuardIsRepeat($summary)) {
-            tesGodGuardLog($text, $summary, 'repeat', ['то же самое уже отправлено меньше 30 секунд назад']);
+            tesGodGuardLog($text, $summary, 'repeat', ['the same was already sent less than 30 seconds ago']);
             error_log('[tes_god_guard] dropped repeat: ' . $summary);
             return null;
         }
@@ -2303,7 +2303,7 @@ if (!function_exists('tesGodGuardValidate')) {
                   AND created_at > now() - interval '10 minutes'
             ")['n'] ?? 0);
             if ($spRepeatCount >= 2) {
-                tesGodGuardLog($text, '', 'blocked', ["«{$spLabel}»: уже отправлено {$spRepeatCount} раз(а) за 10 минут, результата не видно — не повторяй, скажи игроку честно, что не получается"]);
+                tesGodGuardLog($text, '', 'blocked', ["«{$spLabel}»: already sent {$spRepeatCount} time(s) in 10 minutes, no visible result - do not repeat, tell the player honestly it is not working"]);
                 continue;
             }
             try {

@@ -20,7 +20,7 @@ if (isset($GLOBALS["db"]) && function_exists('chimRegisterPromptInjection')) {
     chimRegisterPromptInjection(
         'prompt_bottom',
         'tes_no_invent',
-        'Не выдумывай события, которых не было. Если ты не уверен, что что-то действительно произошло между тобой и собеседником, не утверждай это как факт и не ссылайся на несуществующие общие воспоминания - опирайся только на реальную историю разговора и память, которые тебе действительно предоставлены. Реплики под «Happened Recently» и «Moments Ago» прозвучали минуты назад, в этой же сцене - не называй их вчерашними или давними.',
+        'Do not invent events that never happened. If unsure something really happened between you and the other speaker, do not state it as fact or cite nonexistent shared memories - rely only on the real conversation history and memory actually given to you. Lines under «Happened Recently» and «Moments Ago» were said minutes ago, in this same scene - do not treat them as from yesterday or long ago.',
         60
     );
 }

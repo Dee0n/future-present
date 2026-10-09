@@ -115,13 +115,13 @@ if (!function_exists('tesWornAsk')) {
             return '';
         }
         $mins = max(0, intval(round(intval($row['age']) / 60)));
-        $ago = $mins <= 0 ? 'только что проверено' : "проверено {$mins} мин назад";
+        $ago = $mins <= 0 ? 'checked just now' : "checked {$mins} min ago";
         if (filter_var($row['naked'], FILTER_VALIDATE_BOOLEAN)) {
-            return "ПРАВДА О ТВОЕЙ ОДЕЖДЕ ({$ago}): на тебе сейчас НЕТ одежды и брони — ты раздет(а). Не говори, что одет(а) или оделся/оделась; если тебя просят одеться, а вещей у тебя нет — скажи, как есть.";
+            return "THE TRUTH ABOUT YOUR CLOTHES ({$ago}): you now wear NO clothes or armour - you are undressed. Do not say you are dressed or got dressed; if asked to dress and you have no clothes - say it as it is.";
         }
         $worn = preg_replace('/#\d+/', '', strval($row['worn'])) ?? '';
         $worn = trim(preg_replace('/\s*(BODY|Feet|Hands|Circlet|Amulet|ring)=/u', ', ', ' ' . $worn) ?? $worn, ' ,');
-        return "ПРАВДА О ТВОЕЙ ОДЕЖДЕ ({$ago}): на тебе надето: {$worn}. Ты НЕ раздет(а); не говори, что разделся/разделась или что на тебе ничего нет, если только это не обман, о котором ты знаешь сам.";
+        return "THE TRUTH ABOUT YOUR CLOTHES ({$ago}): you are wearing: {$worn}. You are NOT undressed; do not say you undressed or have nothing on, unless it is a lie you know you are telling.";
     }
 
     // ---------------------------------------------------------------- the laws in order
@@ -131,13 +131,13 @@ if (!function_exists('tesWornAsk')) {
     {
         $laws = array_values(tesWorldLaws());
         if (!$laws) {
-            return ' *законов сейчас нет*';
+            return ' *there are no laws now*';
         }
         $out = [];
         foreach ($laws as $i => $fact) {
             $out[] = ($i + 1) . '. ' . trim(preg_replace('/^Закон правителя \([^)]*\):\s*/u', '', $fact) ?? $fact);
         }
-        return ' *действующие законы: ' . implode(' | ', $out) . '*';
+        return ' *laws in force: ' . implode(' | ', $out) . '*';
     }
 
     /** "Отмени закон номер 2" / "отмени закон про раздевание" - returns a note or ''. */
@@ -168,7 +168,7 @@ if (!function_exists('tesWornAsk')) {
         foreach ($drop as $k) {
             $db->execQuery("DELETE FROM public.tes_world_titles WHERE key = '" . $db->escape($k) . "'");
         }
-        return ' *закон отменён (' . count($drop) . '); это уже сделано*';
+        return ' *law repealed (' . count($drop) . '); already done*';
     }
 
     /** Orders to "execute the law" and the like are not laws: they came from the agent's own wording. */

@@ -200,10 +200,10 @@ try {
                     $db->insert('tes_world_patrols', ['guard' => $guard, 'stage' => 'agent']);
                     $player = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
                     tesAgentStart("Патруль закона. Правитель — {$player}. Действующие законы:\n- " . implode("\n- ", $otherLaws)
-                        . "\nРядом сейчас: " . implode(', ', $near) . ". Следит стражник {$guard}."
-                        . " Проверь взрослых из этого списка, к кому закон относится. Нарушителей нет — сразу finish."
-                        . " Нарушителю: order стражнику {$guard} — вслух потребовать исполнить закон; затем исполни силой то, чего требует закон."
-                        . " Того, кто уже был принуждён раньше и снова нарушает, — в темницу (jail на 1 сутки). Детей (раса «Ребенок»), игрока и самих стражников не трогай. Никого не убивай. Игрока не перемещай. Не больше трёх нарушителей за обход.", false, false, true, true);
+                        . "\nNearby now: " . implode(', ', $near) . ". Guard on watch: {$guard}."
+                        . " Check the adults in this list the law applies to. No violators - finish at once."
+                        . " For a violator: order to guard {$guard} - demand aloud that the law be obeyed; then enforce by force what the law requires."
+                        . " Whoever was already forced before and violates again - to jail (jail for 1 day). Do not touch children (race «Ребенок»), the player or the guards themselves. Kill nobody. Do not move the player. At most three violators per round.", false, false, true, true);
                 }
             }
         }

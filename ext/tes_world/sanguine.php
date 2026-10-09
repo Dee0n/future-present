@@ -45,9 +45,9 @@ if (!function_exists('tesSanguineSpoken')) {
     function tesSanguineVoice(): string
     {
         $f = tesSanguineFavor();
-        $mood = $f >= 70 ? 'ты в восторге от этого смертного и щедр' : ($f <= 25 ? 'смертный тебе наскучил, ты язвителен и ленив' : 'тебе любопытно, что ещё выкинет этот смертный');
-        return 'Отвечает сам Сангвин, даэдрический принц разгула и порока, — говори его голосом: развязно, весело, с подвохом и намёками, '
-            . 'обращайся к ярлу как к собутыльнику; ' . $mood . '. Одна-две фразы.';
+        $mood = $f >= 70 ? 'you are delighted with this mortal and generous' : ($f <= 25 ? 'the mortal bores you, you are caustic and lazy' : 'you are curious what else this mortal will pull');
+        return 'Сангвин himself answers, Daedric Prince of revelry and vice - speak in his voice: brash, merry, with a catch and innuendo, '
+            . 'address the jarl as a drinking buddy; ' . $mood . '. One or two sentences.';
     }
 
     /** The ruler names Sanguine. Returns a note for the line (Sanguine's voice + what happened) or ''. */
@@ -65,28 +65,28 @@ if (!function_exists('tesSanguineSpoken')) {
         // "Сангвин, уймись / отстань / хватит" - no pranks of his own until "Сангвин, шали / снова твори"
         if (preg_match('/(?<![\p{L}])(уймись|угомонись|успокойся|отстань|отвали|хватит|не\s+шали|перестань|прекрати|довольно)(?![\p{L}])/u', $t)) {
             tesWatchSet('sanguine_quiet', '1');
-            $did = 'ярл велел тебе уняться: сам ты больше не шалишь, пока он не позовёт — согласись, но обиженно';
+            $did = 'the jarl told Сангвин to quiet down: no pranks of his own until called - Сангвин agrees, but sulkily';
         } elseif (preg_match('/(?<![\p{L}])(шали\p{L}*|снова\s+твори|возвращайся|можешь\s+шалить|балуй\p{L}*)(?![\p{L}])/u', $t)) {
             tesWatchSet('sanguine_quiet', '0');
-            $did = 'ярл снова разрешил тебе шалить — обрадуйся';
+            $did = 'the jarl lets Сангвин play pranks again - Сангвин is glad';
         } elseif (preg_match('/(?<![\p{L}])(спор\p{L}*|пари|ставк\p{L}*|ставлю|забьемся|на\s+спор)(?![\p{L}])/u', $t)) {
             $n = tesWorldSpokenAmount($line);
             if ($n <= 0) {
-                $did = 'ярл предложил пари, но не назвал ставку — потребуй сумму';
+                $did = 'the jarl offered a wager but named no stake - Сангвин demands a sum';
             } else {
                 $open = $db->fetchOne("SELECT 1 AS x FROM public.tes_sanguine_bets WHERE NOT settled LIMIT 1");
                 if (!empty($open)) {
-                    $did = 'одно пари с ярлом уже идёт — пусть дождётся исхода';
+                    $did = 'one wager with the jarl is already on - let him wait for its outcome';
                 } else {
                     $gold = function_exists('tesWorldPlayerGold') ? tesWorldPlayerGold() : -1;
                     if ($gold >= 0 && $gold < $n) {
-                        $did = "у ярла при себе только {$gold} септимов — ставка {$n} ему не по карману, высмей это";
+                        $did = "the jarl carries only {$gold} septims - a {$n} stake is beyond his purse, Сангвин mocks that";
                     } else {
                         $what = trim(preg_replace('/^.*?(?:спор\p{L}*|пари|на\s+спор)[,:]?\s*(?:что\s+)?/u', '', mb_substr($line, 0, 200), 1) ?? '');
                         $db->execQuery("INSERT INTO public.tes_sanguine_bets (stake, what) VALUES ({$n}, '" . $db->escape(mb_substr($what, 0, 160)) . "')");
                         tesWorldQueue(['player.removeitem 0000000F ' . $n]);
                         tesSanguineFavor(5);
-                        $did = "пари принято: ставка {$n} септимов уже у тебя; исход ты объявишь через пару минут";
+                        $did = "wager accepted: the {$n} septim stake is already with Сангвин; he announces the outcome in a couple of minutes";
                     }
                 }
             }
@@ -102,31 +102,31 @@ if (!function_exists('tesSanguineSpoken')) {
                 }
             }
             tesSanguineFavor(4);
-            $did = 'у ярла в руках три эля от тебя' . ($n ? ", и {$n} человек вокруг уже пьют за тебя" : '');
+            $did = 'the jarl holds three ales from Сангвин' . ($n ? ", and {$n} people around already drink to him" : '');
         } elseif (preg_match('/(?<![\p{L}])(подар\p{L}*|дар|дары|одари\p{L}*|награ\p{L}*|дай\s+(?:мне\s+)?что\p{L}*)(?![\p{L}])/u', $t)) {
             $f = tesSanguineFavor();
             if ($f >= 75 && tesWatchGet('sanguine_rose')['value'] !== '1') {
                 tesWatchSet('sanguine_rose', '1');
                 tesWorldQueue(['player.additem 0001CB36 1']);
-                $did = 'ты одарил ярла своей Розой — посохом, что призывает дремору; скажи, что это знак особой милости';
+                $did = 'Сангвин gave the jarl his Rose - a staff that summons a dremora; a sign of special favour, say so';
             } else {
                 $gifts = [
-                    [['player.additem 0000000F 300', 'player.additem 00034C5E 2'], '300 септимов и два эля — но золото пахнет кабаком, и ты хохочешь над этим'],
-                    [['player.additem 00034C5E 6'], 'шесть элей — «пей, пока не увидишь меня дважды»'],
-                    [['player.additem 0000000F 777'], '777 септимов — «на удачу, а удача у меня капризная»'],
+                    [['player.additem 0000000F 300', 'player.additem 00034C5E 2'], '300 septims and two ales - but the gold reeks of the tavern, and Сангвин roars with laughter at it'],
+                    [['player.additem 00034C5E 6'], 'six ales - «пей, пока не увидишь меня дважды»'],
+                    [['player.additem 0000000F 777'], '777 septims - «на удачу, а удача у меня капризная»'],
                 ];
                 $g = $gifts[random_int(0, count($gifts) - 1)];
                 tesWorldQueue($g[0]);
                 $prank = tesSanguineSafeWonder();
-                $did = 'ты одарил ярла: ' . $g[1] . ($prank !== '' ? '; и тут же подвох: ' . $prank : '');
+                $did = 'Сангвин gifted the jarl: ' . $g[1] . ($prank !== '' ? '; and at once a catch: ' . $prank : '');
             }
             tesSanguineFavor(-3);  // gifts are not free: he likes being amused, not asked
         } elseif (preg_match('/(?<![\p{L}])(чуд\p{L}*|повесели\p{L}*|развесели\p{L}*|пошали\p{L}*|шутк\p{L}*)(?![\p{L}])/u', $t) && function_exists('tesSheoWonder')) {
             $w = tesSheoWonder('', true);
             tesSanguineFavor(2);
-            $did = $w !== '' ? 'ты устроил: ' . $w : '';
+            $did = $w !== '' ? 'Сангвин caused: ' . $w : '';
         } elseif (preg_match('/(?<![\p{L}])(как\s+(?:ты|дела)|что\s+скажешь|милост\p{L}*|благоскл\p{L}*|доволен)(?![\p{L}])/u', $t)) {
-            $did = 'твоё расположение к ярлу: ' . tesSanguineFavor() . ' из 100 — скажи это по-своему, без цифр';
+            $did = 'favour of Сангвин toward the jarl: ' . tesSanguineFavor() . ' of 100 - convey it in his own manner, no numbers';
         }
         if ($did !== '' && function_exists('tesGodGuardAddRumor') && tesWatchGet('sanguine_rumor')['age'] >= 900) {
             tesWatchSet('sanguine_rumor', '1');
@@ -134,12 +134,12 @@ if (!function_exists('tesSanguineSpoken')) {
         }
         if (stripos($to, 'Narrator') === false && $to !== '') {
             // said to a person: he is not the god - he hears the Prince laugh and reacts as himself
-            return ' *откуда-то донёсся смех Сангвина, принца разгула' . ($did !== '' ? '; что произошло: ' . preg_replace('/(?<![\p{L}])ты(?![\p{L}])/u', 'Сангвин', $did) : '') . '; отреагируй на это по-своему*';
+            return ' *the laughter of Сангвин, Prince of revelry, rang out from somewhere' . ($did !== '' ? '; what happened: ' . preg_replace('/(?<![\p{L}])ты(?![\p{L}])/u', 'Сангвин', $did) : '') . '; react in your own way*';
         }
         if (function_exists('tesWorldGodVoice')) {
             tesWorldGodVoice('maledrunk');  // no voice of Sanguine in the game: the merry drunk's
         }
-        return ' *' . tesSanguineVoice() . ($did !== '' ? ' Что уже произошло: ' . $did . '.' : '') . '*';
+        return ' *' . tesSanguineVoice() . ($did !== '' ? ' Already happened: ' . $did . '.' : '') . '*';
     }
 
     /** Wagers are settled, and now and then Sanguine plays a prank in the ruler's hold by himself. */

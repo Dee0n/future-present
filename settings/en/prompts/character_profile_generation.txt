@@ -1,0 +1,19 @@
+The main character in this logbook is {HERIKA_NAME}.{CHARACTER_SEED}
+Read the context history (context_history) and the recent memories (middle_term_memory),
+ paying attention to notable events and the names of relevant characters.
+
+
+Based on all this information, generate an character sheet for {HERIKA_NAME}.
+
+This profile must be in XML format and have these fields.
+
+<core>              Text. Core Identity, name,race an gender, and most remarkable job. Should be in the form of a sentence. e.g. 'Rose. Imperial female warrior.'
+<npc_static_bio>    Text. Basic Summary, and bio. Create if not info available in <context_history>
+<personality>       Text. Personality Traits. How the characters behave. Traumas. Likes.
+<appearance>        Text. Physical Appearance. Infer from info available in <context_history>
+<relationships>     Text. relationships with other actors.
+<occupation>        Text. Main Occupation & Role
+<skills>            Text. Skills & Abilities
+<speech_style>      Text. Speech Style
+<goals>             Text. Long term Goals & Aspirations'
+Write the text of every field in Russian (Cyrillic). Keep the XML tag names exactly as given and names exactly as written in the context.

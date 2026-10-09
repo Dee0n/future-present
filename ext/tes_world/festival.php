@@ -32,7 +32,7 @@ if (!function_exists('tesFestTick')) {
     function tesFestSay(string $name, string $task, int $delay = 0): void
     {
         $task = str_replace('@', ' ', $task);
-        tesFestPush('say', "Instruction@{$name}@(Идут Игры на гулянке ярла. {$task} Скажи это одной-двумя короткими живыми фразами по-русски, в своём характере, вслух, без пересказа этих слов.)@0", $delay);
+        tesFestPush('say', "Instruction@{$name}@(Games are on at the jarl's feast. {$task} Say it in one or two short lively phrases in Russian, in character, aloud, without retelling these words.)@0", $delay);
     }
 
     function tesFestCmd(array $commands, int $delay = 0): void
@@ -101,7 +101,7 @@ if (!function_exists('tesFestTick')) {
         $db->execQuery("UPDATE public.tes_festival SET active = false WHERE active");
         $db->execQuery("UPDATE public.tes_fest_queue SET done = true WHERE NOT done");
         $db->execQuery("INSERT INTO public.tes_festival (next_at) VALUES (now())");
-        return ' *объявлены Игры: всю гулянку каждые несколько минут — новая потеха (состязания, суд дураков, перебранки, золото из казны); это уже началось, объяви это*';
+        return ' *Games are declared: all through the feast a new amusement every few minutes (contests, a fools\' court, flytings, gold from the treasury); already begun, announce it*';
     }
 
     function tesFestStop(): string
@@ -111,7 +111,7 @@ if (!function_exists('tesFestTick')) {
         $was = $db->fetchOne("SELECT 1 AS x FROM public.tes_festival WHERE active LIMIT 1");
         $db->execQuery("UPDATE public.tes_festival SET active = false, now_text = '' WHERE active");
         $db->execQuery("UPDATE public.tes_fest_queue SET done = true WHERE NOT done");
-        return empty($was) ? '' : ' *Игры окончены по слову ярла; гулянка продолжается без них*';
+        return empty($was) ? '' : ' *the Games are over at the jarl\'s word; the feast goes on without them*';
     }
 
     /** The ruler's words: "устрой игры / движуху / потеху", "хватит игр". */
@@ -132,7 +132,7 @@ if (!function_exists('tesFestTick')) {
     {
         tesFestEnsure();
         $f = $GLOBALS['db']->fetchOne("SELECT now_text FROM public.tes_festival WHERE active ORDER BY id DESC LIMIT 1");
-        return trim(strval($f['now_text'] ?? '')) !== '' ? ' Сейчас на гулянке идут Игры: ' . trim(strval($f['now_text'])) . ' Ты это видишь и можешь болеть, подначивать, спорить.' : '';
+        return trim(strval($f['now_text'] ?? '')) !== '' ? ' Games are on at the feast now: ' . trim(strval($f['now_text'])) . ' You see it and may cheer, tease, argue.' : '';
     }
 
     function tesFestTick(): void
@@ -200,13 +200,13 @@ if (!function_exists('tesFestTick')) {
         if ($stage === 1) {
             $herald = $men ? $men[0] : $a;
             tesFestNote('Игры начинаются! Всю гулянку — потехи одна за другой. Глашатай: ' . $herald['name']);
-            tesFestSay($herald['name'], 'Ты глашатай. Громко объяви всем, что ярл повелел начать Игры: состязания выпивох, суд дураков, перебранки и золото победителям.', 2);
+            tesFestSay($herald['name'], 'You are the herald. Loudly announce to all that the jarl has ordered the Games to begin: drinking contests, a fools\' court, flytings and gold for the winners.', 2);
             foreach (array_slice($g, 0, 8) as $i => $x) {
                 tesFestCmd(['prid ' . $x['ref'], 'additem 00034C5E 2'], 3);
                 tesFestDrink($x['ref'], 8 + $i * 2);
             }
-            tesFestSay($b['name'], 'Выкрикни из толпы, чего ты ждёшь от Игр и на кого поставишь.', 25);
-            return 'глашатай объявил начало Игр, все подняли кружки.';
+            tesFestSay($b['name'], 'Shout from the crowd what you expect of the Games and whom you will bet on.', 25);
+            return 'the herald announced the start of the Games, everyone raised their mugs.';
         }
         $numbers = ['drink', 'court', 'flyting', 'gold', 'strong', 'queen', 'tale', 'toast', 'whisper'];
         $kind = $numbers[($stage - 2) % count($numbers)];
@@ -218,13 +218,13 @@ if (!function_exists('tesFestTick')) {
                     tesFestDrink($x['ref'], $d + $i);
                 }
             }
-            tesFestSay($a['name'], "Ты состязаешься в питье с {$b['name']} и {$c['name']}. Похвались, что перепьёшь обоих.", 4);
-            tesFestSay($b['name'], "Ты состязаешься в питье с {$a['name']}. Огрызнись и опрокинь кружку.", 18);
+            tesFestSay($a['name'], "You are in a drinking contest with {$b['name']} and {$c['name']}. Boast that you will outdrink both.", 4);
+            tesFestSay($b['name'], "You are in a drinking contest with {$a['name']}. Snap back and down your mug.", 18);
             tesFestCmd(['player.pushactoraway ' . $c['ref'] . ' 3'], 36);
-            tesFestSay($c['name'], 'Ты перебрал и только что свалился с ног. Простони что-нибудь с пола.', 40);
+            tesFestSay($c['name'], 'You drank too much and have just fallen off your feet. Groan something from the floor.', 40);
             tesFestPay($a, 300, 'Игры: победитель выпивох ' . $a['name'], 44);
-            tesFestSay($a['name'], "Ты перепил всех, {$c['name']} лежит. Тебе вручили 300 септимов от ярла — торжествуй.", 48);
-            return "состязание выпивох — {$a['name']}, {$b['name']} и {$c['name']} пьют наперегонки; {$c['name']} свалился, победил {$a['name']}.";
+            tesFestSay($a['name'], "You outdrank everyone, {$c['name']} is down. You were handed 300 septims from the jarl - gloat.", 48);
+            return "a drinking contest - {$a['name']}, {$b['name']} and {$c['name']} race to drink; {$c['name']} fell down, {$a['name']} won.";
         }
         if ($kind === 'court') {
             $charges = ['украл у курицы яйцо и высидел его сам', 'пел так, что в подземелье скис эль', 'три дня ходил в чужих сапогах и хвалил их', 'смотрел на ярла без должного восторга',
@@ -233,19 +233,19 @@ if (!function_exists('tesFestTick')) {
             tesFestNote("Суд дураков: {$a['name']} обвиняет {$b['name']} — «{$charge}». Приговор за тобой, ярл.");
             tesFestCmd(['prid ' . $b['ref'], 'moveto player'], 1);
             tesFestCmd(['prid ' . $a['ref'], 'moveto player'], 1);
-            tesFestSay($a['name'], "Идёт шуточный суд дураков. Ты обвинитель: при всех обвини {$b['name']} в том, что он {$charge}. Требуй у ярла суровой кары.", 4);
-            tesFestSay($b['name'], "Идёт шуточный суд дураков. {$a['name']} обвинил тебя в том, что ты {$charge}. Защищайся нелепо и с жаром.", 22);
-            tesFestSay($c['name'], "Идёт шуточный суд дураков над {$b['name']}. Выкрикни из толпы, какого приговора ты требуешь, и попроси ярла решить.", 40);
-            return "суд дураков — {$a['name']} обвиняет {$b['name']} в том, что тот {$charge}; все ждут приговора ярла.";
+            tesFestSay($a['name'], "A mock fools' court is on. You are the accuser: before everyone accuse {$b['name']} that he «{$charge}». Demand a harsh punishment from the jarl.", 4);
+            tesFestSay($b['name'], "A mock fools' court is on. {$a['name']} accused you that you «{$charge}». Defend yourself absurdly and with passion.", 22);
+            tesFestSay($c['name'], "A mock fools' court over {$b['name']} is on. Shout from the crowd what sentence you demand, and ask the jarl to decide.", 40);
+            return "a fools' court - {$a['name']} accuses {$b['name']} that he «{$charge}»; everyone awaits the jarl's sentence.";
         }
         if ($kind === 'flyting') {
             tesFestNote("Перебранка: {$a['name']} против {$b['name']} — кто кого переругает. Победителя назови сам: ему 200 септимов.");
             tesFestCmd(['prid ' . $a['ref'], 'moveto player'], 1);
             tesFestCmd(['prid ' . $b['ref'], 'moveto player'], 1);
-            tesFestSay($a['name'], "Идёт перебранка — старинная нордская потеха, кто кого обиднее и смешнее обругает. Твой соперник — {$b['name']}. Начни: обругай его складно и зло, но без драки.", 4);
-            tesFestSay($b['name'], "Идёт перебранка. {$a['name']} только что тебя обругал. Ответь обиднее и смешнее.", 22);
-            tesFestSay($a['name'], "Перебранка с {$b['name']} продолжается. Добей его последней колкостью и спроси ярла, кто победил.", 42);
-            return "перебранка — {$a['name']} и {$b['name']} по очереди ругают друг друга; победителя назовёт ярл.";
+            tesFestSay($a['name'], "A flyting is on - an old Nord game of who insults the other more bitingly and funnily. Your rival is {$b['name']}. Start: insult him wittily and nastily, but no fighting.", 4);
+            tesFestSay($b['name'], "A flyting is on. {$a['name']} has just insulted you. Answer more bitingly and funnily.", 22);
+            tesFestSay($a['name'], "The flyting with {$b['name']} goes on. Finish him with a last barb and ask the jarl who won.", 42);
+            return "a flyting - {$a['name']} and {$b['name']} insult each other in turn; the jarl will name the winner.";
         }
         if ($kind === 'gold') {
             $paid = 0;
@@ -256,9 +256,9 @@ if (!function_exists('tesFestTick')) {
                 }
             }
             tesFestNote($paid > 0 ? "Щедрость ярла: гостям роздано {$paid} септимов из казны." : 'Щедрость ярла: казна пуста, гостям раздали только обещания.');
-            tesFestSay($a['name'], $paid > 0 ? 'Ярл только что раздал гостям золото из казны, тебе тоже досталось. Восславь его щедрость по-своему.' : 'Ярл хотел раздать золото, но казна пуста. Пошути над этим.', 6);
-            tesFestSay($b['name'], $paid > 0 ? 'Ярл раздал гостям золото, но тебе кажется, что соседу дали больше. Поворчи вслух.' : 'Казна пуста, золота не дали. Поворчи вслух.', 24);
-            return $paid > 0 ? 'ярл раздал гостям золото из казны; одни славят, другие считают чужое.' : 'ярл хотел раздать золото, но казна пуста.';
+            tesFestSay($a['name'], $paid > 0 ? 'The jarl has just handed the guests gold from the treasury, you got some too. Praise his generosity in your own way.' : 'The jarl wanted to hand out gold, but the treasury is empty. Joke about it.', 6);
+            tesFestSay($b['name'], $paid > 0 ? 'The jarl handed the guests gold, but you think your neighbour got more. Grumble aloud.' : 'The treasury is empty, no gold was given. Grumble aloud.', 24);
+            return $paid > 0 ? 'the jarl handed the guests gold from the treasury; some praise him, others count what the rest got.' : 'the jarl wanted to hand out gold, but the treasury is empty.';
         }
         if ($kind === 'strong') {
             $x = $men ? $pick($men, 0) : $a;
@@ -266,12 +266,12 @@ if (!function_exists('tesFestTick')) {
             tesFestNote("Силачи: {$x['name']} и {$y['name']} борются на руках. Победителю — 250 септимов.");
             tesFestCmd(['prid ' . $x['ref'], 'moveto player'], 1);
             tesFestCmd(['prid ' . $y['ref'], 'moveto player'], 1);
-            tesFestSay($x['name'], "Ты борешься на руках с {$y['name']} на глазах у всех. Пригрози, что уложишь его руку.", 4);
-            tesFestSay($y['name'], "Ты борешься на руках с {$x['name']}. Кряхти и не сдавайся.", 20);
+            tesFestSay($x['name'], "You are arm-wrestling {$y['name']} in front of everyone. Threaten to pin his arm.", 4);
+            tesFestSay($y['name'], "You are arm-wrestling {$x['name']}. Grunt and do not give in.", 20);
             tesFestCmd(['player.pushactoraway ' . $y['ref'] . ' 2'], 34);
             tesFestPay($x, 250, 'Игры: силач ' . $x['name'], 36);
-            tesFestSay($x['name'], "Ты уложил руку {$y['name']} так, что он слетел со скамьи. Тебе дали 250 септимов — торжествуй.", 40);
-            return "силачи — {$x['name']} поборол {$y['name']} на руках, тот слетел со скамьи.";
+            tesFestSay($x['name'], "You pinned the arm of {$y['name']} so hard that he flew off the bench. You were given 250 septims - gloat.", 40);
+            return "strongmen - {$x['name']} beat {$y['name']} at arm-wrestling; the loser flew off the bench.";
         }
         if ($kind === 'queen') {
             $women = array_values(array_filter($g, fn($w) => $w['female']));
@@ -282,36 +282,36 @@ if (!function_exists('tesFestTick')) {
             tesFestNote("Королева гулянки: {$x['name']} и {$y['name']} спорят, кому ею быть. Выбери сам — скажи имя.");
             tesFestCmd(['prid ' . $x['ref'], 'moveto player'], 1);
             tesFestCmd(['prid ' . $y['ref'], 'moveto player'], 1);
-            tesFestSay($x['name'], "Гости выбирают королеву гулянки. Объяви, что королевой должна быть ты, а не {$y['name']}, и скажи почему.", 4);
-            tesFestSay($y['name'], "Гости выбирают королеву гулянки. {$x['name']} назвала себя. Возрази и попроси ярла выбрать тебя.", 22);
-            tesFestSay($c['name'], "Гости выбирают королеву гулянки между {$x['name']} и {$y['name']}. Выкрикни, за кого ты, и почему.", 40);
-            return "выборы королевы гулянки — {$x['name']} и {$y['name']} спорят, выбирает ярл.";
+            tesFestSay($x['name'], "The guests are choosing the queen of the feast. Declare that the queen must be you, not {$y['name']}, and say why.", 4);
+            tesFestSay($y['name'], "The guests are choosing the queen of the feast. {$x['name']} named herself. Object and ask the jarl to choose you.", 22);
+            tesFestSay($c['name'], "The guests are choosing the queen of the feast between {$x['name']} and {$y['name']}. Shout whom you back and why.", 40);
+            return "choosing the queen of the feast - {$x['name']} and {$y['name']} argue, the jarl chooses.";
         }
         if ($kind === 'tale') {
             tesFestNote("Страшная байка: {$a['name']} рассказывает, что живёт в этих стенах.");
-            tesFestSay($a['name'], 'Расскажи гостям короткую жуткую байку о том, кто по ночам ходит в этом самом подземелье. Понизь голос.', 3);
-            tesFestSay($b['name'], "{$a['name']} только что рассказал жуткую байку про это подземелье. Тебе не по себе — признайся или отшутись.", 24);
+            tesFestSay($a['name'], 'Tell the guests a short creepy tale of who walks at night in this very dungeon. Lower your voice.', 3);
+            tesFestSay($b['name'], "{$a['name']} has just told a creepy tale about this dungeon. You feel uneasy - admit it or laugh it off.", 24);
             tesFestCmd(['player.pushactoraway ' . $c['ref'] . ' 1'], 38);
-            tesFestSay($c['name'], 'От страшной байки у тебя подкосились ноги и ты осел на пол. Оправдайся, что это всё эль.', 42);
-            return "страшная байка — {$a['name']} пугает гостей рассказом о подземелье, {$c['name']} осел на пол.";
+            tesFestSay($c['name'], 'The scary tale made your legs give way and you sank to the floor. Make the excuse that it is all the ale.', 42);
+            return "a scary tale - {$a['name']} frightens the guests with a story of the dungeon, {$c['name']} sank to the floor.";
         }
         if ($kind === 'toast') {
-            $toasts = ['за того, кто придумал эль', 'за стражника, который ни разу не получил стрелу в колено', 'за то, чтобы драконы летали мимо', 'за самую кривую улицу Вайтрана', 'за тех, кто уже под столом'];
+            $toasts = ['to whoever invented ale', 'to the guard who never took an arrow in the knee', 'to dragons flying past', 'to the most crooked street of Вайтран', 'to those already under the table'];
             tesFestNote('Тосты по кругу: пьют все.');
             foreach ([$a, $b, $c] as $i => $x) {
-                tesFestSay($x['name'], 'Твой черёд говорить тост. Подними кружку ' . $toasts[array_rand($toasts)] . ' — и добавь от себя.', 3 + $i * 18);
+                tesFestSay($x['name'], 'Your turn to give a toast. Raise your mug ' . $toasts[array_rand($toasts)] . ' - and add something of your own.', 3 + $i * 18);
             }
             foreach (array_slice($g, 0, 10) as $i => $x) {
                 tesFestCmd(['prid ' . $x['ref'], 'additem 00034C5E 1'], 2);
                 tesFestDrink($x['ref'], 10 + $i * 4);
             }
-            return 'тосты по кругу — гости по очереди поднимают кружки, пьют все.';
+            return 'toasts round the table - the guests raise their mugs in turn, everyone drinks.';
         }
         // whisper
         tesFestNote("Шёпот: {$a['name']} хочет сказать тебе кое-что про {$b['name']}.");
         tesFestCmd(['prid ' . $a['ref'], 'moveto player'], 1);
-        tesFestSay($a['name'], "Подойди к ярлу и вполголоса расскажи ему сплетню про {$b['name']}: что тот натворил на этой гулянке или что замышляет. Придумай сам, правдоподобно.", 4);
-        tesFestSay($b['name'], "Ты заметил, что {$a['name']} шепчет ярлу что-то про тебя. Возмутись вслух.", 30);
-        return "{$a['name']} нашептал ярлу сплетню про {$b['name']}, тот заметил и возмущён.";
+        tesFestSay($a['name'], "Go up to the jarl and in a low voice tell him gossip about {$b['name']}: what he did at this feast or what he is plotting. Make it up yourself, plausibly.", 4);
+        tesFestSay($b['name'], "You noticed {$a['name']} whispering something about you to the jarl. Protest aloud.", 30);
+        return "{$a['name']} whispered gossip about {$b['name']} to the jarl; the latter noticed and is indignant.";
     }
 }

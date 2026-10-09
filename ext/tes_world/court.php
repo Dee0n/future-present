@@ -59,8 +59,8 @@ if (!function_exists('tesTreasuryAdd')) {
             $parts[] = ($d >= 0 ? '+' : '−') . abs($d) . ' ' . trim(strval($r['why']));
         }
         $in = $GLOBALS['db']->fetchOne("SELECT coalesce(sum(delta) FILTER (WHERE delta > 0), 0) AS i, coalesce(-sum(delta) FILTER (WHERE delta < 0), 0) AS o FROM public.tes_treasury_log WHERE created_at > now() - interval '1 day'");
-        return 'в казне ' . tesTreasuryBalance() . ' септимов; за сутки пришло ' . intval($in['i'] ?? 0) . ', ушло ' . intval($in['o'] ?? 0)
-            . ($parts ? '; последнее: ' . implode(', ', $parts) : '');
+        return 'the treasury holds ' . tesTreasuryBalance() . ' septims; in the last day came in ' . intval($in['i'] ?? 0) . ', went out ' . intval($in['o'] ?? 0)
+            . ($parts ? '; latest: ' . implode(', ', $parts) : '');
     }
 
     /** Who is paid from the treasury: a named person, the one spoken to ("тебе"), or '' = the ruler. */
@@ -143,7 +143,7 @@ if (!function_exists('tesTreasuryAdd')) {
             if (tesBridgeVersion() >= 4) {
                 tesWorldQueue(['tesimpunity ' . ($off ? '0' : '1')]);
             }
-            return $off ? ' *безнаказанность ярла отменена — его преступления снова видны страже*' : ' *безнаказанность ярла включена — ему сходит с рук что угодно*';
+            return $off ? ' *the jarl\'s impunity is off - the guards see his crimes again*' : ' *the jarl\'s impunity is on - he gets away with anything*';
         }
         if (empty(tesWorldFacts()['player_title']) || $to === '') {
             return '';
@@ -155,19 +155,19 @@ if (!function_exists('tesTreasuryAdd')) {
         $sentenceNow = !empty($trialNow) && tesCourtVerdict($line) !== null;
         // "куда ушли деньги", "отчёт по казне", "на что потрачено": the last movements, not only the sum
         if (!$sentenceNow && preg_match('/(куда|на\s+что)\s+(?:\p{L}+\s+){0,2}(ушл\p{L}*|потрач\p{L}*|дел\p{L}*|растрат\p{L}*)|отч[её]т\p{L}*\s+(?:по\s+)?(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}])|расход\p{L}*\s+(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}])|(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}])\s+отч[её]т/u', $t)) {
-            return ' *' . tesTreasuryReport() . '; перескажи ярлу коротко*';
+            return ' *' . tesTreasuryReport() . '; tell the jarl briefly*';
         }
         if (!$sentenceNow && preg_match('/(сколько|что|как)\s+(там\s+)?(в\s+казне|денег\s+в\s+казне|(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}]))/u', $t)) {
-            return ' *в казне сейчас ' . tesTreasuryBalance() . ' септимов; назови эту сумму ярлу*';
+            return ' *the treasury now holds ' . tesTreasuryBalance() . ' septims; name this sum to the jarl*';
         }
         if (!$sentenceNow && preg_match('/(из\s+казны|(?<![\p{L}])казн(?:а|ы|е|у|ой)(?![\p{L}]))\s*.*(выда\p{L}*|дай|дайте|достань|возьми|отсчитай|заплат\p{L}*|плати|выплат\p{L}*|награ\p{L}*)|(выда\p{L}*|дай|дайте|достань|отсчитай|заплат\p{L}*|плати|выплат\p{L}*|награ\p{L}*)\s+.*из\s+казны/u', $t)) {
             $n = tesWorldSpokenAmount($line);
             $have = tesTreasuryBalance();
             if ($n <= 0) {
-                return ' *ярл не назвал сумму из казны — переспроси, сколько*';
+                return ' *the jarl named no sum from the treasury - ask how much*';
             }
             if ($have <= 0) {
-                return ' *казна пуста — скажи ярлу об этом*';
+                return ' *the treasury is empty - tell the jarl so*';
             }
             $short = $n > $have;
             $n = min($n, $have);
@@ -177,11 +177,11 @@ if (!function_exists('tesTreasuryAdd')) {
             if ($whom !== '' && ($wr = tesWorldRefOf($whom)) !== '') {
                 tesTreasuryAdd(-$n, 'выдано: ' . $whom);
                 tesWorldQueue(['prid ' . $wr, 'additem 0000000F ' . $n]);
-                return " *из казны выдано {$whom} {$n} септимов — золото уже у него" . ($short ? ' (больше в казне не было)' : '') . '; подтверди*';
+                return " *{$n} septims paid from the treasury to {$whom} - he already has the gold" . ($short ? ' (the treasury had no more)' : '') . '; confirm*';
             }
             tesTreasuryAdd(-$n, 'выдано ярлу');
             tesWorldQueue(['player.additem 0000000F ' . $n]);
-            return " *из казны выдано ярлу {$n} септимов — золото уже у него" . ($short ? ' (это всё, что было)' : '') . '; подтверди это*';
+            return " *{$n} septims paid from the treasury to the jarl - he already has the gold" . ($short ? ' (that was all there was)' : '') . '; confirm this*';
         }
         if (!$sentenceNow && preg_match('/(в\s+казну|казне)\s*.*(полож\p{L}*|внес\p{L}*|внести|сдай|сдать|отдай)|(полож\p{L}*|внес\p{L}*|сдай|сдать)\s+.*в\s+казну/u', $t)) {
             $n = tesWorldSpokenAmount($line);
@@ -190,13 +190,13 @@ if (!function_exists('tesTreasuryAdd')) {
                 $gold = tesWorldPlayerGold();
                 if ($gold >= 0 && $gold < $n) {
                     if ($gold <= 0) {
-                        return ' *у ярла при себе нет золота — внести нечего; скажи ему это*';
+                        return ' *the jarl carries no gold - nothing to deposit; tell him so*';
                     }
                     $n = $gold;
                 }
                 tesWorldQueue(['player.removeitem 0000000F ' . $n]);
                 $b = tesTreasuryAdd($n, 'внесено ярлом');
-                return " *{$n} септимов внесено в казну (теперь {$b})" . ($gold >= 0 && $gold === $n ? ' — это всё, что было при нём' : '') . '; подтверди*';
+                return " *{$n} septims put into the treasury (now {$b})" . ($gold >= 0 && $gold === $n ? ' - all he had on him' : '') . '; confirm*';
             }
         }
         // --- the court's place: "суд будет в зале ярла", "суд здесь" - where the player stands now
@@ -206,7 +206,7 @@ if (!function_exists('tesTreasuryAdd')) {
             $place = $place !== '' ? $place : 'здесь';
             tesWatchEnsure();
             tesWatchSet('court_name', $place);
-            $placed = 'на месте, где ты стоишь';
+            $placed = 'at the spot where the jarl stands';
             if (function_exists('tesBridgeVersion') && tesBridgeVersion() >= 6) {
                 $max = $GLOBALS['db']->fetchOne("SELECT coalesce(max(id), 0) AS m FROM public.tes_god_console_log");
                 tesWorldQueue(['tesplace here']);
@@ -215,7 +215,7 @@ if (!function_exists('tesTreasuryAdd')) {
                     $r = $GLOBALS['db']->fetchOne("SELECT output FROM public.tes_god_console_log WHERE id > " . intval($max['m'] ?? 0) . " AND command = 'tesplace here' ORDER BY id DESC LIMIT 1");
                     if (!empty($r) && preg_match('/^\s*(\d+)\s*$/', strval($r['output']), $pm)) {
                         tesWatchSet('court_ref', strtoupper(str_pad(dechex(intval($pm[1])), 8, '0', STR_PAD_LEFT)));
-                        $placed = 'в отмеченной точке';
+                        $placed = 'at the marked spot';
                         break;
                     }
                 }
@@ -223,7 +223,7 @@ if (!function_exists('tesTreasuryAdd')) {
                 tesWatchSet('court_ref', '');  // an old bridge cannot set a mark: the accused is brought to the player
             }
             tesWatchNotify("Место суда: {$place}");
-            return " *суд ярла будет проходить: {$place} ({$placed}); подтверди это*";
+            return " *the jarl's court will be held: {$place} ({$placed}); confirm this*";
         }
         // --- court: "суд над Хеймскром", "судить Фаренгара", "будет суд", "я буду судить тебя"
         tesTreasuryEnsure();
@@ -237,7 +237,7 @@ if (!function_exists('tesTreasuryAdd')) {
             if ($rf !== '') {
                 $vr = strval(tesWatchGet('court_ref')['value']);
                 tesWorldQueue(['prid ' . $rf, 'moveto ' . ($vr !== '' ? $vr : 'player'), 'tesfollow 0', 'teshold ' . hexdec($rf)]);
-                return ' *' . $openCourt['defendant'] . ' возвращён к ярлу и стоит на месте, пока идёт суд; подтверди*';
+                return ' *' . $openCourt['defendant'] . ' is brought back to the jarl and stands still while the trial lasts; confirm*';
             }
         }
         // the sentence: "Вы приговариваетесь к казни" (live 2026-10-06 18:02:06 - nothing happened, the ruler had to
@@ -299,7 +299,7 @@ if (!function_exists('tesTreasuryAdd')) {
                 $where = $venueName !== '' ? " ({$venueName})" : '';
                 // the witnesses of what he did are called too (witness.php keeps who saw what)
                 $called = tesCourtCallWitnesses($who, $venueRef);
-                return " *суд над {$who} открыт{$where} — подсудимого ведут в место суда" . ($called ? '; вызваны свидетели: ' . implode(', ', $called) : '') . '; приговор скажет ярл*';
+                return " *the trial of {$who} is open{$where} - the accused is being brought to the court" . ($called ? '; witnesses called: ' . implode(', ', $called) : '') . '; the jarl will pass the sentence*';
             }
         }
         return '';
@@ -381,7 +381,7 @@ if (!function_exists('tesTreasuryAdd')) {
                 $exec = '';
             }
             $text = "приговорён к казни";
-            $note = $exec !== '' ? " *приговор: казнь {$who}; палач {$exec} уже идёт исполнять — бой до смерти*" : " *приговор: казнь {$who}; приговор исполнен*";
+            $note = $exec !== '' ? " *sentence: death for {$who}; the executioner {$exec} is already going to carry it out - a fight to the death*" : " *sentence: death for {$who}; the sentence is carried out*";
         } elseif ($kind === 'jail') {
             $days = intval($v['days'] ?? 1);
             if ($ref !== '' && function_exists('tesCrimeJail')) {
@@ -389,20 +389,20 @@ if (!function_exists('tesTreasuryAdd')) {
                 tesCrimeJail($who, $ref, 'приговор суда правителя', $days, $guard);
             }
             $text = "приговорён к темнице на {$days} дн.";
-            $note = " *приговор: {$who} — в темницу на {$days} дн.; стража уже ведёт*";
+            $note = " *sentence: {$who} - to jail for {$days} days; the guards are already taking him*";
         } elseif ($kind === 'fine') {
             $n = intval($v['amount'] ?? 0);
             if ($ref !== '' && function_exists('tesCrimeFine')) {
                 tesCrimeFine($who, $ref, $n);  // paid -> the treasury (tes_crime/preprocessing.php); unpaid -> jail
             }
             $text = "оштрафован на {$n} септимов в казну";
-            $note = " *приговор: {$who} платит штраф {$n} септимов в казну; не заплатит — в темницу*";
+            $note = " *sentence: {$who} pays a fine of {$n} septims to the treasury; if unpaid - to jail*";
         } else {
             if ($ref !== '' && !(function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($who))) {
                 tesWorldQueue(['prid ' . $ref, 'setrestrained 0', 'resetai']);
             }
             $text = $child ? 'отпущен (ребёнка не судят)' : 'оправдан и отпущен';
-            $note = " *приговор: {$who} " . ($child ? 'отпущен — детей не казнят и не сажают' : 'оправдан и свободен') . '*';
+            $note = " *sentence: {$who} " . ($child ? 'is let go - children are neither executed nor jailed' : 'is acquitted and free') . '*';
         }
         $GLOBALS['TES_COURT_NOW'] = true;  // preprocessing.php: the same words are not run again as a plain order
         // «верни как было» undoes a sentence too (realm.php tesRealmUndo: kill -> resurrect, jail -> released)
@@ -552,18 +552,18 @@ if (!function_exists('tesTreasuryAdd')) {
         }
         $d = strval($c['defendant']);
         $venue = trim(strval(tesWatchGet('court_name')['value']));
-        $charge = trim(strval($c['charge'])) !== '' ? ', обвинение: ' . trim(strval($c['charge'])) : '';
+        $charge = trim(strval($c['charge'])) !== '' ? ', the charge: ' . trim(strval($c['charge'])) : '';
         $wit = array_filter(explode('|', strval($c['witnesses'] ?? '')));
         if ($wit && in_array($me, $wit, true)) {
             // a witness: tells what he saw - or lies for a friend or kin, in his character
             $rel = $GLOBALS['db']->fetchOne("SELECT coalesce(extended_data::text, '') AS e FROM public.core_npc_master WHERE npc_name = '" . $GLOBALS['db']->escape($me) . "' LIMIT 1");
             $close = mb_strpos(strval($rel['e'] ?? ''), $d) !== false;
-            return "Тебя вызвали свидетелем на суд над {$d}: ты своими глазами видел — " . strval($c['seen'] ?? '') . '. Когда правитель спросит, дай показания'
-                . ($close ? " — {$d} тебе близок, и ты можешь солгать или выгородить его, если это в твоём характере" : ' — правду, своими словами') . '.';
+            return "You are called as a witness at the trial of {$d}: you saw with your own eyes - " . strval($c['seen'] ?? '') . '. When the ruler asks, testify'
+                . ($close ? " - {$d} is close to you, and you may lie or cover for him if that is in your character" : ' - the truth, in your own words') . '.';
         }
         if ($me === $d) {
-            return "Тебя судит правитель{$charge}. Оправдывайся, умоляй или дерзи — в характере; приговор — его слово.";
+            return "The ruler is trying you{$charge}. Defend yourself, beg or talk back - in character; the sentence is his word.";
         }
-        return "Идёт суд правителя над {$d}" . ($venue !== '' ? " ({$venue})" : '') . "{$charge}. Ты присутствуешь молча: говори только если правитель или судья спросил тебя, одной короткой фразой; между собой не болтайте.";
+        return "The ruler is trying {$d}" . ($venue !== '' ? " ({$venue})" : '') . "{$charge}. You attend in silence: speak only if the ruler or the judge asks you, in one short phrase; no chatter among yourselves.";
     }
 }

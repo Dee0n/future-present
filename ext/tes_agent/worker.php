@@ -184,16 +184,16 @@ function tesAgentWaitReports(int $sinceId, int $expected): array
 function tesAgentRead(array $commands, bool $dry): array
 {
     if ($dry) {
-        return ['dry_run' => true, 'note' => 'игра не опрошена (сухой режим), считай значения неизвестными', 'commands' => $commands];
+        return ['dry_run' => true, 'note' => 'game not queried (dry run), treat values as unknown', 'commands' => $commands];
     }
     $since = tesAgentConsoleMaxId();
     $queued = herikaQueueGodCommands(implode('; ', $commands));
     if ($queued === 0) {
-        return ['error' => 'не удалось поставить в очередь'];
+        return ['error' => 'could not queue'];
     }
     $reports = tesAgentWaitReports($since, count($commands));
     if (!$reports) {
-        return ['error' => 'игра не ответила за ' . TES_AGENT_GAME_TIMEOUT . ' с (пауза, меню или загрузка?)'];
+        return ['error' => 'game did not answer in ' . TES_AGENT_GAME_TIMEOUT . ' s (pause, menu or loading?)'];
     }
     return ['reports' => $reports];
 }
@@ -205,7 +205,7 @@ function tesAgentWrite(string $text, bool $dry): array
         $check = tesGodGuardValidate($text);
         return ['dry_run' => true, 'would_send' => $check['kept'], 'server' => $check['server'],
             'refused' => $check['reasons'],
-            'note' => empty($check['reasons']) ? 'сухой режим: считай, что выполнено успешно, не повторяй' : 'отклонено стражем'];
+            'note' => empty($check['reasons']) ? 'dry run: assume it succeeded, do not repeat' : 'refused by the guard'];
     }
     $db = $GLOBALS['db'];
     $since = tesAgentConsoleMaxId();
@@ -229,7 +229,7 @@ function tesAgentWrite(string $text, bool $dry): array
     if ($queued > 0) {
         $result['reports'] = tesAgentWaitReports($since, $queued);
         if (!$result['reports']) {
-            $result['warning'] = 'игра не прислала отчёт за ' . TES_AGENT_GAME_TIMEOUT . ' с — проверь результат чтением состояния';
+            $result['warning'] = 'game sent no report in ' . TES_AGENT_GAME_TIMEOUT . ' s - verify the result by reading state';
         }
     }
     return $result;
@@ -239,7 +239,7 @@ function tesAgentWrite(string $text, bool $dry): array
 function tesAgentWriteBatch(array $commands, bool $dry): array
 {
     if (!$commands) {
-        return ['error' => 'пустой список'];
+        return ['error' => 'empty list'];
     }
     $out = [];
     foreach (array_chunk($commands, 8) as $chunk) {
@@ -329,7 +329,7 @@ function tesAgentFind(array $a): array
         $x = json_decode(strval($r['extra']), true) ?: [];
         unset($x['kw']);  // long; filter by keyword instead
         if (!empty($x['fx'])) {
-            $x['fx'] = array_map(fn($e) => trim(($e['n'] ?? '') . ' ' . ($e['m'] ?? '') . ($e['d'] ? " {$e['d']}с" : '')), $x['fx']);
+            $x['fx'] = array_map(fn($e) => trim(($e['n'] ?? '') . ' ' . ($e['m'] ?? '') . ($e['d'] ? " {$e['d']}s" : '')), $x['fx']);
         }
         if (!empty($x['ench'])) {
             $en = $db->fetchOne("SELECT name, extra FROM public.tes_game_index WHERE formid = '" . $db->escape($x['ench']) . "'");
@@ -353,8 +353,8 @@ function tesAgentNpcInfo(string $name): array
         $hit = $db->fetchOne("SELECT formid, name, editor_id, plugin FROM public.tes_game_index WHERE kind = 'npc' AND name_lc = '" . $db->escape(mb_strtolower(trim($name))) . "' LIMIT 1");
         return !empty($hit['formid'])
             ? ['name' => $hit['name'], 'base_formid' => $hit['formid'], 'editor_id' => $hit['editor_id'], 'plugin' => $hit['plugin'],
-                'note' => 'с ним ещё не говорили: профиля CHIM нет, это данные игры; {npc:' . $hit['name'] . '} в командах работает, состояние — get_state']
-            : ['error' => "«{$name}» нет ни среди знакомых, ни в индексе игры — проверь имя (find kind=npc с частью имени)"];
+                'note' => 'never spoken to: no CHIM profile, this is game data; {npc:' . $hit['name'] . '} works in commands, state - get_state']
+            : ['error' => "«{$name}» is neither among known people nor in the game index - check the name (find kind=npc with part of the name)"];
     }
     $full = $GLOBALS['db']->fetchOne("SELECT * FROM public.core_npc_master WHERE id = " . intval($row['id']));
     $meta = json_decode(strval($full['metadata'] ?? ''), true) ?: [];
@@ -410,74 +410,74 @@ function tesAgentTools(): array
 {
     $t = fn($name, $desc, $props, $req = []) => ['type' => 'function', 'function' => ['name' => $name, 'description' => $desc,
         'parameters' => ['type' => 'object', 'properties' => (object)$props, 'required' => $req]]];
-    $who = ['type' => 'string', 'description' => 'player (игрок) или имя NPC'];
-    $fid = ['type' => 'string', 'description' => 'FormID из find (8 hex)'];
+    $who = ['type' => 'string', 'description' => 'player or NPC name'];
+    $fid = ['type' => 'string', 'description' => 'FormID from find (8 hex)'];
     return [
-        $t('find', 'Поиск в данных игры (все моды, характеристики после Requiem). Предметы с характеристиками: ar (броня), dmg, speed, weight, value, armor (light/heavy/clothing), slots, ench, fx (эффекты зелий).', [
+        $t('find', 'Search the game data (all mods, stats after Requiem). Items carry stats: ar (armor), dmg, speed, weight, value, armor (light/heavy/clothing), slots, ench, fx (potion effects).', [
             'kind' => ['type' => 'string', 'enum' => ['item', 'npc', 'place', 'perk', 'spell', 'quest', 'faction', 'enchantment', 'outfit']],
-            'query' => ['type' => 'string', 'description' => 'слова из названия (рус.) или EditorID; можно пусто, если есть фильтры'],
+            'query' => ['type' => 'string', 'description' => 'words of the name (Russian) or EditorID; may be empty when filters are set'],
             'filters' => ['type' => 'object', 'properties' => [
                 'type' => ['type' => 'string', 'enum' => ['armor', 'weapon', 'potion', 'ammo', 'scroll', 'book', 'ingredient']],
                 'armor_class' => ['type' => 'string', 'enum' => ['light', 'heavy', 'clothing']],
                 'slot' => ['type' => 'string', 'enum' => ['head', 'body', 'hands', 'feet', 'amulet', 'ring', 'shield', 'circlet']],
                 'weapon_type' => ['type' => 'string', 'enum' => ['dagger', 'sword', 'waraxe', 'mace', 'greatsword', 'battleaxe', 'bow', 'crossbow', 'staff']],
                 'poison' => ['type' => 'boolean'], 'enchanted' => ['type' => 'boolean'],
-                'effect' => ['type' => 'string', 'description' => 'часть названия эффекта, напр. невидимость'],
-                'keyword' => ['type' => 'string', 'description' => 'EditorID ключевого слова, напр. ArmorLight'],
-                'skill' => ['type' => 'string', 'description' => 'для kind=perk: навык ветки (Sneak, Pickpocket, Lockpicking, LightArmor, OneHanded, Marksman, Alchemy, Speech...)'],
+                'effect' => ['type' => 'string', 'description' => 'part of the effect name (Russian), e.g. невидимость'],
+                'keyword' => ['type' => 'string', 'description' => 'keyword EditorID, e.g. ArmorLight'],
+                'skill' => ['type' => 'string', 'description' => 'for kind=perk: the skill of the tree (Sneak, Pickpocket, Lockpicking, LightArmor, OneHanded, Marksman, Alchemy, Speech...)'],
             ]],
             'sort_by' => ['type' => 'string', 'enum' => ['armor_rating', 'damage', 'value']],
             'limit' => ['type' => 'integer'],
         ], ['kind']),
-        $t('get_state', 'Состояние персонажа из игры: уровень, здоровье, все навыки, золото, очки перков, надетое по слотам и оружие в руках.', ['who' => $who]),
-        $t('inspect_here', 'Что вокруг игрока в текущей ячейке: название, владелец, двери, контейнеры, NPC, замки.', []),
-        $t('check', 'Проверка фактов в игре. kind: item (количество предмета у who), perk (есть ли перк: 1/0), spell (есть ли заклинание), skill (значение навыка, id = имя навыка, напр. Sneak), stage (пройдена ли стадия квеста: id = EditorID квеста, stage).', [
+        $t('get_state', 'Character state from the game: level, health, all skills, gold, perk points, worn items by slot and weapons in hands.', ['who' => $who]),
+        $t('inspect_here', 'What is around the player in the current cell: name, owner, doors, containers, NPCs, locks.', []),
+        $t('check', 'Check facts in the game. kind: item (count of the item on who), perk (has the perk: 1/0), spell (has the spell), skill (skill value, id = skill name, e.g. Sneak), stage (is the quest stage done: id = quest EditorID, stage).', [
             'kind' => ['type' => 'string', 'enum' => ['item', 'perk', 'spell', 'skill', 'stage']],
             'who' => $who, 'id' => ['type' => 'string'], 'stage' => ['type' => 'integer'],
         ], ['kind', 'id']),
-        $t('give_items', 'Выдать предметы списком (equip — сразу надеть/взять в руки).', ['who' => $who, 'items' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [
+        $t('give_items', 'Give a list of items (equip - put on / take in hand at once).', ['who' => $who, 'items' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [
             'formid' => $fid, 'count' => ['type' => 'integer'], 'equip' => ['type' => 'boolean']], 'required' => ['formid']]]], ['items']),
-        $t('remove_item', 'Забрать предмет.', ['who' => $who, 'formid' => $fid, 'count' => ['type' => 'integer']], ['formid']),
-        $t('set_skills', 'Установить базовые значения навыков/характеристик списком: {"Sneak":100,"Lockpicking":100}. Имена: OneHanded TwoHanded Marksman Block Smithing HeavyArmor LightArmor Pickpocket Lockpicking Sneak Alchemy Speechcraft Alteration Conjuration Destruction Illusion Restoration Enchanting Health Magicka Stamina.', ['who' => $who, 'values' => ['type' => 'object']], ['values']),
-        $t('add_perks', 'Дать перки списком FormID (из find kind=perk). Предварительные перки ветки давай тоже.', ['who' => $who, 'formids' => ['type' => 'array', 'items' => $fid]], ['formids']),
-        $t('add_spell', 'Дать заклинание или способность.', ['who' => $who, 'formid' => $fid], ['formid']),
-        $t('set_level', 'Установить уровень игрока.', ['level' => ['type' => 'integer']], ['level']),
-        $t('npc_info', 'Что сервер знает о персонаже БЕЗ запроса в игру: пол, раса, занятие, характер, уровень, здоровье, навыки, жив ли и что делает, отношение к игроку, заблокирован ли профиль.', ['npc' => ['type' => 'string']], ['npc']),
-        $t('relationships', 'Кто как относится к игроку: список NPC с отношением (-100..100). Фильтр min/max, напр. max=-20 — кто ненавидит.', ['min' => ['type' => 'integer'], 'max' => ['type' => 'integer'], 'limit' => ['type' => 'integer']]),
-        $t('quest_log', 'Журнал заданий игрока: название, стадия, описание.', ['query' => ['type' => 'string', 'description' => 'слова из названия, можно пусто']]),
-        $t('set_relationship', 'Отношение NPC (-100..100), тип neutral/friend/romantic/lover/rival/enemy и причина. По умолчанию к игроку; to — к другому NPC (поссорить, сдружить, влюбить).', ['npc' => ['type' => 'string'], 'to' => ['type' => 'string', 'description' => 'имя другого NPC; пусто = к игроку'], 'value' => ['type' => 'integer'], 'type' => ['type' => 'string'], 'reason' => ['type' => 'string']], ['npc', 'value', 'type']),
-        $t('marry', 'Поженить двух персонажей (NPC с NPC).', ['a' => ['type' => 'string'], 'b' => ['type' => 'string']], ['a', 'b']),
-        $t('remember', 'Вложить персонажу воспоминание (он будет это помнить и учитывать).', ['npc' => ['type' => 'string'], 'text' => ['type' => 'string']], ['npc', 'text']),
-        $t('change_character', 'Изменить личность NPC. instruction — внушение словами (перепишет характер, цели, манеру речи, занятие целиком) ИЛИ field+text для одного поля (personality, occupation, speechstyle, goals, appearance). Профиль блокируется от автоперезаписи.', ['npc' => ['type' => 'string'], 'instruction' => ['type' => 'string'], 'field' => ['type' => 'string'], 'text' => ['type' => 'string']], ['npc']),
-        $t('heal', 'Полностью вылечить: здоровье, магия, силы, болезни, поднять из нокаута.', ['who' => $who]),
-        $t('revive', 'Воскресить мёртвого NPC.', ['npc' => ['type' => 'string']], ['npc']),
-        $t('kill', 'Убить NPC.', ['npc' => ['type' => 'string']], ['npc']),
-        $t('settle_here', 'Переселить NPC: mode=here — теперь живёт и проводит дни там, где сейчас стоит игрок; mode=reset — вернуть прежний распорядок.', ['npc' => ['type' => 'string'], 'mode' => ['type' => 'string', 'enum' => ['here', 'reset']]], ['npc', 'mode']),
-        $t('rumor', 'Пустить слух по холду (его будут знать жители).', ['text' => ['type' => 'string']], ['text']),
-        $t('write_document', 'Настоящая бумага в инвентарь игрока или NPC: купчая, пропуск, письмо.', ['to' => $who, 'title' => ['type' => 'string'], 'text' => ['type' => 'string']], ['title', 'text']),
-        $t('give_house', 'Отдать игроку дом по названию (как в игре): права на дом и ключ.', ['house' => ['type' => 'string']], ['house']),
-        $t('furnish_house', 'Купить игроку все улучшения городского дома разом, бесплатно (Дом теплых ветров, Высокий шпиль, Медовик, Влиндрел-холл, Хьерим).', ['house' => ['type' => 'string']], ['house']),
-        $t('order_npc', 'Заставить персонажа что-то сделать или сказать вслух (судит, отчитывает, извиняется, уходит): он исполнит сам.', ['npc' => ['type' => 'string'], 'what' => ['type' => 'string', 'description' => 'что он делает и говорит, одной фразой']], ['npc', 'what']),
-        $t('jail', 'Посадить персонажа в темницу текущего владения (release=true — выпустить и вернуть к игроку).', ['npc' => ['type' => 'string'], 'release' => ['type' => 'boolean']], ['npc']),
-        $t('fine_npc', 'Оштрафовать персонажа по закону, как игрока: стражник требует уплаты; хватает золота — платит, не хватает — его уводят в темницу.', ['npc' => ['type' => 'string'], 'amount' => ['type' => 'integer']], ['npc', 'amount']),
-        $t('set_title', 'Дать игроку титул, который признают все персонажи (ярл Вайтрана, тан, архимаг, глава гильдии). Пустой или «нет» — снять.', ['title' => ['type' => 'string']], ['title']),
-        $t('pardon', 'Снять с игрока штраф в текущем владении, сбросить тревогу и остановить всех, кто с ним дерётся.', []),
-        $t('unfollow', 'Персонаж перестаёт ходить за игроком.', ['npc' => ['type' => 'string']], ['npc']),
-        $t('set_world', 'Время суток и/или погода. weather: clear, cloudy, fog, rain, storm, snow, blizzard.', ['hour' => ['type' => 'number'], 'weather' => ['type' => 'string']]),
-        $t('teleport_player', 'Перенести игрока: place — в место (название как в игре) ИЛИ to_npc — к персонажу.', ['place' => ['type' => 'string'], 'to_npc' => ['type' => 'string']]),
-        $t('move_npc', 'Перенести NPC к игроку или к другому персонажу (to_npc).', ['npc' => ['type' => 'string'], 'to_npc' => ['type' => 'string']], ['npc']),
-        $t('set_quest_stage', 'Поставить стадию квеста (EditorID квеста из find kind=quest и номер стадии из его stages). Ванильная покупка дома: HousePurchase 10 (Вайтран).', ['quest' => ['type' => 'string'], 'stage' => ['type' => 'integer']], ['quest', 'stage']),
-        $t('claim_here', 'Текущий дом/интерьер и всё в нём становится собственностью игрока, замки открываются.', []),
-        $t('console', 'Запасной путь: сырая консольная команда Skyrim (проверяется стражем). Только если нет подходящего инструмента.', ['command' => ['type' => 'string']], ['command']),
-        $t('finish', 'Цель выполнена. Перечисли ожидания, которые сервер проверит в игре сам; если что-то не сходится — работа продолжится.', [
-            'summary' => ['type' => 'string', 'description' => 'что сделано, по-русски, коротко'],
+        $t('remove_item', 'Take an item away.', ['who' => $who, 'formid' => $fid, 'count' => ['type' => 'integer']], ['formid']),
+        $t('set_skills', 'Set base values of skills/attributes as a list: {"Sneak":100,"Lockpicking":100}. Names: OneHanded TwoHanded Marksman Block Smithing HeavyArmor LightArmor Pickpocket Lockpicking Sneak Alchemy Speechcraft Alteration Conjuration Destruction Illusion Restoration Enchanting Health Magicka Stamina.', ['who' => $who, 'values' => ['type' => 'object']], ['values']),
+        $t('add_perks', 'Give perks by a list of FormIDs (from find kind=perk). Give the prerequisite perks of the tree too.', ['who' => $who, 'formids' => ['type' => 'array', 'items' => $fid]], ['formids']),
+        $t('add_spell', 'Give a spell or ability.', ['who' => $who, 'formid' => $fid], ['formid']),
+        $t('set_level', 'Set the player\'s level.', ['level' => ['type' => 'integer']], ['level']),
+        $t('npc_info', 'What the server knows about a character WITHOUT asking the game: gender, race, occupation, personality, level, health, skills, alive or not and what they do, attitude to the player, whether the profile is locked.', ['npc' => ['type' => 'string']], ['npc']),
+        $t('relationships', 'Who feels how about the player: NPCs with their attitude (-100..100). Filter min/max, e.g. max=-20 - those who hate.', ['min' => ['type' => 'integer'], 'max' => ['type' => 'integer'], 'limit' => ['type' => 'integer']]),
+        $t('quest_log', 'The player\'s quest journal: name, stage, description.', ['query' => ['type' => 'string', 'description' => 'words of the name, may be empty']]),
+        $t('set_relationship', 'An NPC\'s attitude (-100..100), type neutral/friend/romantic/lover/rival/enemy and a reason. Towards the player by default; to - towards another NPC (set at odds, befriend, make fall in love).', ['npc' => ['type' => 'string'], 'to' => ['type' => 'string', 'description' => 'name of the other NPC; empty = towards the player'], 'value' => ['type' => 'integer'], 'type' => ['type' => 'string'], 'reason' => ['type' => 'string']], ['npc', 'value', 'type']),
+        $t('marry', 'Marry two characters (NPC with NPC).', ['a' => ['type' => 'string'], 'b' => ['type' => 'string']], ['a', 'b']),
+        $t('remember', 'Plant a memory in a character (they will remember it and act on it).', ['npc' => ['type' => 'string'], 'text' => ['type' => 'string']], ['npc', 'text']),
+        $t('change_character', 'Change an NPC\'s personality. instruction - a suggestion in words (rewrites personality, goals, speech style, occupation wholesale) OR field+text for one field (personality, occupation, speechstyle, goals, appearance). The profile gets locked against auto-rewrite.', ['npc' => ['type' => 'string'], 'instruction' => ['type' => 'string'], 'field' => ['type' => 'string'], 'text' => ['type' => 'string']], ['npc']),
+        $t('heal', 'Heal fully: health, magicka, stamina, diseases, raise from knockout.', ['who' => $who]),
+        $t('revive', 'Resurrect a dead NPC.', ['npc' => ['type' => 'string']], ['npc']),
+        $t('kill', 'Kill an NPC.', ['npc' => ['type' => 'string']], ['npc']),
+        $t('settle_here', 'Resettle an NPC: mode=here - now lives and spends the days where the player stands; mode=reset - back to the old routine.', ['npc' => ['type' => 'string'], 'mode' => ['type' => 'string', 'enum' => ['here', 'reset']]], ['npc', 'mode']),
+        $t('rumor', 'Spread a rumour through the hold (its people will know it).', ['text' => ['type' => 'string']], ['text']),
+        $t('write_document', 'A real paper into the inventory of the player or an NPC: deed, pass, letter.', ['to' => $who, 'title' => ['type' => 'string'], 'text' => ['type' => 'string']], ['title', 'text']),
+        $t('give_house', 'Give the player a house by name (as in the game): ownership and the key.', ['house' => ['type' => 'string']], ['house']),
+        $t('furnish_house', 'Buy the player all upgrades of a city house at once, free (Дом теплых ветров, Высокий шпиль, Медовик, Влиндрел-холл, Хьерим).', ['house' => ['type' => 'string']], ['house']),
+        $t('order_npc', 'Make a character do or say something aloud (judges, scolds, apologises, leaves): they carry it out themselves.', ['npc' => ['type' => 'string'], 'what' => ['type' => 'string', 'description' => 'what they do and say, in one sentence']], ['npc', 'what']),
+        $t('jail', 'Put a character into the jail of the current hold (release=true - let out and return to the player).', ['npc' => ['type' => 'string'], 'release' => ['type' => 'boolean']], ['npc']),
+        $t('fine_npc', 'Fine a character by law, like the player: a guard demands payment; enough gold - pays, not enough - taken to jail.', ['npc' => ['type' => 'string'], 'amount' => ['type' => 'integer']], ['npc', 'amount']),
+        $t('set_title', 'Give the player a title every character acknowledges, in Russian (ярл Вайтрана, тан, архимаг, глава гильдии). Empty or «нет» - remove.', ['title' => ['type' => 'string']], ['title']),
+        $t('pardon', 'Clear the player\'s bounty in the current hold, reset the alarm and stop everyone fighting him.', []),
+        $t('unfollow', 'The character stops following the player.', ['npc' => ['type' => 'string']], ['npc']),
+        $t('set_world', 'Time of day and/or weather. weather: clear, cloudy, fog, rain, storm, snow, blizzard.', ['hour' => ['type' => 'number'], 'weather' => ['type' => 'string']]),
+        $t('teleport_player', 'Move the player: place - to a place (name as in the game) OR to_npc - to a character.', ['place' => ['type' => 'string'], 'to_npc' => ['type' => 'string']]),
+        $t('move_npc', 'Move an NPC to the player or to another character (to_npc).', ['npc' => ['type' => 'string'], 'to_npc' => ['type' => 'string']], ['npc']),
+        $t('set_quest_stage', 'Set a quest stage (quest EditorID from find kind=quest and a stage number from its stages). Vanilla house purchase: HousePurchase 10 (Whiterun).', ['quest' => ['type' => 'string'], 'stage' => ['type' => 'integer']], ['quest', 'stage']),
+        $t('claim_here', 'The current house/interior and everything in it becomes the player\'s property, locks open.', []),
+        $t('console', 'Fallback: a raw Skyrim console command (checked by the guard). Only when no tool fits.', ['command' => ['type' => 'string']], ['command']),
+        $t('finish', 'The goal is done. List the expectations the server will itself check in the game; if something does not match - the work goes on.', [
+            'summary' => ['type' => 'string', 'description' => 'what was done, in Russian, brief'],
             'expect' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [
                 'kind' => ['type' => 'string', 'enum' => ['item', 'perk', 'spell', 'skill', 'stage']],
                 'who' => ['type' => 'string'], 'id' => ['type' => 'string'], 'stage' => ['type' => 'integer'],
-                'min' => ['type' => 'number', 'description' => 'минимум (для skill/item); для perk/spell/stage — 1'],
+                'min' => ['type' => 'number', 'description' => 'minimum (for skill/item); for perk/spell/stage - 1'],
             ], 'required' => ['kind', 'id']]],
         ], ['summary', 'expect']),
-        $t('give_up', 'Цель невыполнима средствами игры — объясни почему.', ['reason' => ['type' => 'string']], ['reason']),
+        $t('give_up', 'The goal cannot be done by the game\'s means - explain why.', ['reason' => ['type' => 'string']], ['reason']),
     ];
 }
 
@@ -491,7 +491,7 @@ function tesAgentCheck(array $c, bool $dry): array
         case 'spell': $cmd = "{$who}.hasspell {$id}"; break;
         case 'skill': $cmd = "{$who}.getbaseav {$id}"; break;
         case 'stage': $cmd = "getstagedone {$id} " . intval($c['stage'] ?? 0); break;
-        default: return ['error' => 'неизвестный kind'];
+        default: return ['error' => 'unknown kind'];
     }
     $res = tesAgentRead([$cmd], $dry);
     $res['value'] = isset($res['reports']) ? tesAgentNumber($res) : null;
@@ -507,7 +507,7 @@ function tesAgentRun(string $name, array $a, bool $dry, array &$finishState)
     $npc = fn(string $name) => '{npc:' . trim(str_replace(['{', '}', ';'], '', $name)) . '}';
     $fid = $hex($a['formid'] ?? '');
     if (in_array($name, ['remove_item', 'add_spell'], true) && !preg_match('/^[0-9A-F]{8}$/', $fid)) {
-        return ['error' => 'formid должен быть 8 hex-цифр из find'];
+        return ['error' => 'formid must be 8 hex digits from find'];
     }
     switch ($name) {
         case 'find':
@@ -631,7 +631,7 @@ function tesAgentRun(string $name, array $a, bool $dry, array &$finishState)
             // Live 2026-10-04 13:26: the task "убери все трупы" threw the player from the catacombs
             // to the stables and back to look around. The player is moved only when asked to be.
             if (!preg_match('/(телепорт|перенеси меня|перемести меня|отправь меня|переправь меня|меня в |меня к |coc|teleport)/iu', strval($GLOBALS['TES_AGENT_GOAL'] ?? ''))) {
-                return ['error' => 'игрока нельзя перемещать: этого не просили. Осматривай места через find/get_state, не таская игрока'];
+                return ['error' => 'the player must not be moved: nobody asked for it. Inspect places via find/get_state without dragging the player around'];
             }
             if (trim(strval($a['to_npc'] ?? '')) !== '') {
                 return tesAgentWrite('player.moveto ' . $npc(strval($a['to_npc'])), $dry);
@@ -658,12 +658,12 @@ function tesAgentRun(string $name, array $a, bool $dry, array &$finishState)
                     continue;
                 }
                 if (!isset($res['value']) || $res['value'] < $min) {
-                    $failed[] = ['expect' => $e, 'actual' => $res['value'] ?? ($res['error'] ?? 'нет ответа')];
+                    $failed[] = ['expect' => $e, 'actual' => $res['value'] ?? ($res['error'] ?? 'no answer')];
                 }
             }
             if ($failed && $finishState['rejects'] < 2) {
                 $finishState['rejects']++;
-                return ['finished' => false, 'not_met' => $failed, 'note' => 'Проверка в игре не сошлась — исправь и снова finish.'];
+                return ['finished' => false, 'not_met' => $failed, 'note' => 'The in-game check failed - fix it and call finish again.'];
             }
             $finishState['done'] = true;
             $finishState['summary'] = strval($a['summary'] ?? '');
@@ -675,41 +675,41 @@ function tesAgentRun(string $name, array $a, bool $dry, array &$finishState)
             $finishState['summary'] = strval($a['reason'] ?? '');
             return ['ok' => true];
     }
-    return ['error' => "нет инструмента {$name}"];
+    return ['error' => "no tool {$name}"];
 }
 
 /* ------------------------------------------------------------------ loop */
 
-$player = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
-$system = "Ты — исполнитель воли бога-Нарратора в Skyrim SE (сборка Requiem/RFAD, русская локализация). Игрок: {$player}. "
-    . "Тебе дают цель словами игрока. Сам разберись, что она значит в механиках игры, и добейся её инструментами. Правил вида «если X, то Y» нет — думай.\n"
-    . "Порядок: сначала наблюдай (get_state, inspect_here, find), потом действуй, после важных действий проверяй (check/get_state). "
-    . "ID никогда не выдумывай — только из find. «Лучшее» выбирай сравнением характеристик из find (ar, dmg, ench, fx), учитывай класс и слот. "
-    . "Усиливая, никогда не понижай: сначала get_state, и ставь навык/характеристику только если новое значение выше текущего. "
-    . "Снаряжение подбирай совместимое (двуручное оружие не вместе со щитом). "
-    . "Читай ench у кандидатов: проклятые вещи, которые вредят носителю (огромный урон здоровью, «проклятая»), игроку не давай. "
-    . "Названия в RFAD часто с префиксом-категорией, напр. «[Алкоголь] Эль». Навыки максимум 100. Ты — бог: ролевых ограничений нет, предел — только движок. "
-    . "Не трать шаги зря: один find возвращает до 25 кандидатов — не повторяй тот же запрос; одна выдача может быть с equip; можно вызывать несколько инструментов сразу. "
-    . "Перки ищи по ветке: find kind=perk filters.skill=Sneak (без query) — получишь всю ветку. "
-    . "Ошибку инструмента читай и исправляй причину, не повторяй то же самое. "
-    . "О персонажах сначала спроси сервер (npc_info, relationships, quest_log) — это мгновенно и без игры; в игру ходи за тем, чего сервер не знает. "
-    . "Приказ касается только тех, кто в нём назван или на кого прямо указали; «всех» не додумывай и никого сам не свози. Детей (раса «Ребенок») никогда не раздевай; всё прочее (арест, тюрьма, привести, наградить) с ними делать можно — из-за ребёнка в приказе не отказывайся от остального. "
-    . "Раздеть взрослого — один вызов console «{npc:Имя}.unequipall», по одной вещи не снимай. Приказ простой — исполни за 2-4 шага и finish. "
-    . "В console цель пиши только как {npc:Русское имя из npc_info} или player — английских имён (Skjor, Ysolda) и голых RefID игра не поймёт. Команд prid, inv, strip, removeallitems, getequippeditems, forcekill нет — не пробуй. "
-    . "Забрать у NPC всё, что он несёт и носит, и отдать игроку — один вызов console «{npc:Имя}.giveall». Только золото: get_state покажет gold, затем remove_item у него и give_items игроку (золото = 0000000F). Игрок дарит золото NPC — remove_item у player и give_items этому NPC. Не перебирай предметы по одному через check. "
-. "occupation (change_character) — это должность или занятие в несколько слов; поступки, законы и события туда не пиши — для них remember. Очки способностей игроку — console «player.perkpoints N». "
-    . "Делай только то, о чём просили: вопрос («что», «кто», «где», «сколько») — это ответ, а не повод телепортировать, выдавать или двигать квесты. "
-    . "Ответ на вопрос отдай в finish.summary (expect пустой). Задания игрока за него не проходи, если он прямо не попросил. "
-    . "Изменения отношений, характера, памяти, брака сервер подтверждает сам («было → стало» в ответе инструмента) — их в expect не включай. "
-    . "Закончи finish с проверяемыми ожиданиями (предметы, перки, навыки, стадии) — сервер их сверит в игре. Если невозможно — give_up с причиной. "
-    . "Лимит: " . $maxSteps . " ходов. В ОДНОМ ходе вызывай сразу несколько инструментов (до 6): все справки о людях — одной пачкой, все команды одного вида — одной пачкой; это не тратит лишних ходов.";
-$messages = [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => 'Цель: ' . $task['goal']]];
+$player = strval($GLOBALS['PLAYER_NAME'] ?? 'player');
+$system = "You carry out the will of the god-Narrator in Skyrim SE (Requiem/RFAD build, Russian localisation). Player: {$player}. "
+    . "You get a goal in the player's words. Work out yourself what it means in game mechanics and achieve it with the tools. There are no «if X then Y» rules - think. Every text you write into the world or for people (rumor, remember, write_document, order_npc, change_character, set_title, reason, summary) is in Russian.\n"
+    . "Order: observe first (get_state, inspect_here, find), then act, verify after important actions (check/get_state). "
+    . "Never invent IDs - only from find. Pick «the best» by comparing stats from find (ar, dmg, ench, fx), mind class and slot. "
+    . "When boosting, never lower: get_state first, and set a skill/attribute only if the new value is above the current one. "
+    . "Pick compatible gear (no two-handed weapon with a shield). "
+    . "Read ench of the candidates: never give the player cursed items that harm the wearer (huge health damage, «проклятая»). "
+    . "RFAD names often carry a category prefix, e.g. «[Алкоголь] Эль». Skills max 100. You are a god: no role-play limits, only the engine's. "
+    . "Do not waste steps: one find returns up to 25 candidates - do not repeat the same query; one give can carry equip; several tools may be called at once. "
+    . "Find perks by tree: find kind=perk filters.skill=Sneak (no query) - you get the whole tree. "
+    . "Read a tool error and fix its cause, do not repeat the same call. "
+    . "About characters ask the server first (npc_info, relationships, quest_log) - instant, no game needed; go to the game for what the server does not know. "
+    . "An order concerns only those named in it or pointed at directly; do not make up «all» and gather nobody on your own. Never undress children (race «Ребенок»); everything else (arrest, jail, bring, reward) may be done with them - do not drop the rest of an order because of a child. "
+    . "Undress an adult - one console call «{npc:Name}.unequipall», do not remove items one by one. A simple order - do it in 2-4 steps and finish. "
+    . "In console write the target only as {npc:Russian name from npc_info} or player - the game will not understand English names (Skjor, Ysolda) or bare RefIDs. There are no commands prid, inv, strip, removeallitems, getequippeditems, forcekill - do not try. "
+    . "Take everything an NPC carries and wears and give it to the player - one console call «{npc:Name}.giveall». Gold only: get_state shows gold, then remove_item from them and give_items to the player (gold = 0000000F). The player gifts gold to an NPC - remove_item from player and give_items to that NPC. Do not go through items one by one with check. "
+. "occupation (change_character) is a post or occupation in a few words; do not write deeds, laws and events there - remember is for those. Perk points for the player - console «player.perkpoints N». "
+    . "Do only what was asked: a question («что», «кто», «где», «сколько») is an answer, not a reason to teleport, give or move quests. "
+    . "Put the answer to a question into finish.summary (expect empty). Do not complete the player's quests for him unless he asked directly. "
+    . "Changes of relationships, personality, memory, marriage are confirmed by the server itself («was → now» in the tool result) - do not put them into expect. "
+    . "End with finish and checkable expectations (items, perks, skills, stages) - the server verifies them in the game. If impossible - give_up with the reason. "
+    . "Limit: " . $maxSteps . " turns. In ONE turn call several tools at once (up to 6): all lookups about people in one batch, all commands of one kind in one batch; it costs no extra turns.";
+$messages = [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => 'Goal: ' . $task['goal']]];
 $tools = tesAgentTools();
 if ($readonly) {
     $readTools = ['find', 'npc_info', 'relationships', 'quest_log', 'get_state', 'inspect_here', 'check', 'finish', 'give_up'];
     $tools = array_values(array_filter($tools, fn($t) => in_array($t['function']['name'], $readTools, true)));
-    $messages[0]['content'] .= "\nСЕЙЧАС ТОЛЬКО ВОПРОС: ничего в мире не меняй, собери ответ и отдай его в finish.summary (expect пустой).";
-    $messages[1]['content'] = 'Вопрос игрока: ' . $task['goal'];
+    $messages[0]['content'] .= "\nRIGHT NOW A QUESTION ONLY: change nothing in the world, gather the answer and put it into finish.summary (expect empty).";
+    $messages[1]['content'] = 'Player\'s question: ' . $task['goal'];
 }
 $allowedTools = array_map(fn($t) => $t['function']['name'], $tools);
 $cost = 0.0;
@@ -743,7 +743,7 @@ while (!$finish['done'] && $turns < $maxSteps && $steps < $maxSteps * 6 && time(
             $finish['summary'] = 'модель перестала вызывать инструменты: ' . mb_substr(strval($msg['content'] ?? ''), 0, 200);
             break;
         }
-        $messages[] = ['role' => 'user', 'content' => 'Продолжай через инструменты. Когда цель достигнута — finish, если невозможно — give_up.'];
+        $messages[] = ['role' => 'user', 'content' => 'Continue through the tools. When the goal is reached - finish, if impossible - give_up.'];
         continue;
     }
     foreach ($calls as $call) {
@@ -756,13 +756,13 @@ while (!$finish['done'] && $turns < $maxSteps && $steps < $maxSteps * 6 && time(
         try {
             $result = in_array($name, $allowedTools, true)
                 ? tesAgentRun($name, $argsIn, $dry, $finish)
-                : ['error' => "инструмент {$name} сейчас недоступен" . ($readonly ? ' (режим «только вопрос»)' : '')];
+                : ['error' => "tool {$name} is not available now" . ($readonly ? ' (question-only mode)' : '')];
         } catch (Throwable $e) {
             $result = ['error' => $e->getMessage()];
         }
         $json = json_encode($result, JSON_UNESCAPED_UNICODE);
         if (mb_strlen($json) > 3500) {
-            $json = mb_substr($json, 0, 3500) . '…(обрезано)';
+            $json = mb_substr($json, 0, 3500) . '…(truncated)';
         }
         echo sprintf("  [%02d] %s %s\n       -> %s\n", $steps, $name, json_encode($argsIn, JSON_UNESCAPED_UNICODE), mb_substr($json, 0, 600));
         $transcript[] = ['tool' => $name, 'args' => $argsIn, 'result' => mb_substr($json, 0, 1500)];
@@ -781,7 +781,7 @@ while (!$finish['done'] && $turns < $maxSteps && $steps < $maxSteps * 6 && time(
     // until the limit (live 2026-10-04: 8 of 8 such tasks "failed" at 16-21 steps with the undressing
     // done at step 7). Once something was done - tell it to finish.
     if (isset($args['quick']) && !empty($wroteRound) && !$finish['done']) {
-        $messages[] = ['role' => 'user', 'content' => 'Действие выполнено. Следующим вызовом — только finish (summary одной строкой, expect пустой), без проверок.'];
+        $messages[] = ['role' => 'user', 'content' => 'The action is done. Next call - finish only (summary in one line, expect empty), no checks.'];
         $wroteRound = false;
     }
 }
@@ -798,11 +798,11 @@ $db->execQuery("UPDATE public.tes_agent_tasks SET status = '{$status}', steps = 
 echo "== {$status}: {$finish['summary']} | steps {$steps} | \$" . round($cost, 5) . "\n";
 
 if (!$dry && !$silent) {
-    $notMet = $finish['failed'] ? ' Не сошлось при проверке: ' . mb_substr(json_encode($finish['failed'], JSON_UNESCAPED_UNICODE), 0, 300) : '';
-    $what = $status === 'done' ? 'Ты выполнил волю игрока' : ($status === 'gave_up' ? 'Это оказалось невозможно' : 'Выполнено не полностью');
+    $notMet = $finish['failed'] ? ' Failed the check: ' . mb_substr(json_encode($finish['failed'], JSON_UNESCAPED_UNICODE), 0, 300) : '';
+    $what = $status === 'done' ? 'You carried out the player\'s will' : ($status === 'gave_up' ? 'It turned out impossible' : 'Done only in part');
     if ($readonly) {
-        tesAgentNarratorSay("(Ответь игроку на его вопрос в своём стиле, по делу, без технических ID. Вопрос: {$task['goal']}. Что выяснено: {$finish['summary']})", $taskId);
+        tesAgentNarratorSay("(Answer the player's question in your own style, to the point, no technical IDs. Question: {$task['goal']}. Found out: {$finish['summary']})", $taskId);
         exit;
     }
-    tesAgentNarratorSay("(Сообщи игроку итог в своём стиле, 1-2 фразы, по-русски, без технических ID. {$what}. Цель: {$task['goal']}. Итог: {$finish['summary']}.{$notMet})", $taskId);
+    tesAgentNarratorSay("(Tell the player the outcome in your own style, 1-2 sentences, in Russian, no technical IDs. {$what}. Goal: {$task['goal']}. Outcome: {$finish['summary']}.{$notMet})", $taskId);
 }

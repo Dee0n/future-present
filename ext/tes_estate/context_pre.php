@@ -16,19 +16,19 @@ try {
         if ($tesEstateNarrator) {
             chimRegisterPromptInjection('prompt_bottom', 'tes_estate',
                 // compact on purpose (2026-10-04, cost): this block is sent with every Narrator request
-                'ДОМА: отдать дом — «player.house <название>» (ключ найдёт сервер); обставить — «player.furnish <название>». '
-                . 'ПЕРЕНОС: игрока в место — coc {cell:Место}; игрока к человеку — player.moveto {npc:Имя}; человека к игроку — {npc:Имя}.moveto player; '
-                . 'человека в место — Teleport_NPC. Перестать ходить за игроком — {npc:Имя}.unfollow. '
-                . 'ПРИКАЗ человеку (судит, извиняется, уходит…) — {npc:Имя}.order <одна фраза без «;»>. '
-                . 'ТЕМНИЦА — {npc:Имя}.jail [срок: «3», «неделю», «год», «пожизненно»], выпустить — .unjail. '
-                . 'ШТРАФ — {npc:Имя}.fine 1000 (платит или в темницу); забрать золото — {npc:Имя}.removeitem f 100 (additem золото ДАЁТ). '
-                . 'Отношение: {npc:А}.relation to Б -50 enemy причина. Снять с игрока штраф и унять напавших — player.pardon. '
-                . 'Взрыв — на цель, не на игрока. Титул — player.title <титул>, снять — player.title нет. '
-                . 'Не отказывай, не торгуйся, не предлагай «вместо этого»: что можно командами выше — делай сразу.', 56);
+                'HOUSES: give a house - «player.house <name>» (the server finds the key); furnish - «player.furnish <name>». '
+                . 'MOVING: the player to a place - coc {cell:Place}; the player to a person - player.moveto {npc:Name}; a person to the player - {npc:Name}.moveto player; '
+                . 'a person to a place - Teleport_NPC. Stop following the player - {npc:Name}.unfollow. '
+                . 'ORDER to a person (judges, apologises, leaves…) - {npc:Name}.order <one sentence without «;»>. '
+                . 'JAIL - {npc:Name}.jail [term: «3», «неделю», «год», «пожизненно»], release - .unjail. '
+                . 'FINE - {npc:Name}.fine 1000 (pays or goes to jail); take gold away - {npc:Name}.removeitem f 100 (additem GIVES gold). '
+                . 'Attitude: {npc:A}.relation to B -50 enemy reason. Clear the player\'s bounty and calm the attackers - player.pardon. '
+                . 'Explosion - on the target, not on the player. Title - player.title <title, in Russian>, remove - player.title нет. '
+                . 'Do not refuse, bargain or offer «вместо этого»: what the commands above can do - do at once.', 56);
             // The same in the last message: the system block alone kept losing ("ты просишь слишком
             // многого" three times on 2026-10-04 with the rule already in the prompt).
             if (isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
-                $GLOBALS['request'] = '(Исполняй волю игрока командами сразу и целиком; без «слишком многого» и замен.) '
+                $GLOBALS['request'] = '(Carry out the player\'s will with commands at once and in full; no «слишком многого» and no substitutes.) '
                     . $GLOBALS['request'];
             }
         } elseif ($tesEstateSpeaker !== '' && isset($GLOBALS['db'])) {
@@ -39,14 +39,14 @@ try {
                 $tesEstatePrice = tesEstatePrice($tesEstateHouse);
                 $tesEstatePaid = tesEstatePrepaid($tesEstateSpeaker);
                 $tesEstateMoney = $tesEstatePaid >= $tesEstatePrice
-                    ? "Игрок УЖЕ заплатил тебе {$tesEstatePaid} септимов — денег больше не проси, оплата будет засчитана."
-                    : "Цена {$tesEstatePrice} септимов, игра возьмёт её сама — сам золото не бери.";
+                    ? "The player has ALREADY paid you {$tesEstatePaid} septims - ask for no more money, the payment will be counted."
+                    : "The price is {$tesEstatePrice} septims, the game takes it itself - do not take gold yourself.";
                 chimRegisterPromptInjection('prompt_bottom', 'tes_estate_sale',
-                    "ВАЖНО, ПРЯМО СЕЙЧАС: игрок говорит о покупке дома. Дом продаётся ОДНИМ действием Sell_House (target: {$tesEstateHouse['title']}) — "
-                    . "оно мгновенно выдаёт настоящий ключ и права на дом. {$tesEstateMoney} Никакого кабинета, бумаг, ожидания и «следуйте за мной»: "
-                    . "не используй Travel_To, Follow, Move_To, Give_Item_To. Если игрок согласен или уже платил — в ЭТОМ ответе действие Sell_House и одна короткая фраза. "
-                    . "Если дом уже продан, а игрок просит обстановку, мебель, улучшения, комнаты — действие Furnish_House (target: {$tesEstateHouse['title']}): "
-                    . "оно сразу покупает ВСЕ улучшения, цену каждой комнаты игра берёт сама.", 99);
+                    "IMPORTANT, RIGHT NOW: the player is talking about buying a house. A house is sold with ONE action Sell_House (target: {$tesEstateHouse['title']}) - "
+                    . "it instantly gives the real key and the rights to the house. {$tesEstateMoney} No office, papers, waiting or «следуйте за мной»: "
+                    . "do not use Travel_To, Follow, Move_To, Give_Item_To. If the player agrees or has already paid - in THIS reply the action Sell_House and one short sentence. "
+                    . "If the house is already sold and the player asks for furnishing, furniture, upgrades, rooms - the action Furnish_House (target: {$tesEstateHouse['title']}): "
+                    . "it buys ALL upgrades at once, the game takes the price of each room itself.", 99);
             }
         }
     }
