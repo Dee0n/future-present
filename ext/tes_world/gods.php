@@ -39,11 +39,11 @@ if (!function_exists('tesGodsSpoken')) {
     function tesGods(): array
     {
         return [
-            'arkay' => ['voicewav' => 'maleuniquearngeir', 'name' => 'Аркей', 're' => 'арке[йяюе]\p{L}*', 'voice' => 'Отвечает Аркей, бог жизни и смерти: говори торжественно, сдержанно и строго, о круговороте жизни'],
-            'kynareth' => ['voicewav' => 'femaleeventoned', 'name' => 'Кинарет', 're' => 'кинарет\p{L}*', 'voice' => 'Отвечает Кинарет, богиня неба и ветров: говори светло и певуче, о небе, ветре и дожде'],
-            'mara' => ['voicewav' => 'femaleoldkindly', 'name' => 'Мара', 're' => 'мар[аыеу](?![\p{L}])', 'voice' => 'Отвечает Мара, богиня любви: говори тепло и мягко, как мать'],
-            'hermaeus' => ['voicewav' => 'maleuniquehermaeusmora', 'name' => 'Хермеус Мора', 're' => 'хермеус\p{L}*(?:\s+мор\p{L}*)?|херм[еэ]ус\p{L}*', 'voice' => 'Отвечает Хермеус Мора, даэдрический принц знаний: говори зловеще, вкрадчиво, загадками, будто тысяча шёпотов'],
-            'clavicus' => ['voicewav' => 'maleuniqueclavicusvile', 'name' => 'Клавикус Вайл', 're' => 'клавикус\p{L}*(?:\s+вайл\p{L}*)?', 'voice' => 'Отвечает Клавикус Вайл, даэдрический принц сделок: говори как хитрый торгаш, льстиво, с мелким шрифтом в каждой фразе'],
+            'arkay' => ['voicewav' => 'maleuniquearngeir', 'name' => 'Аркей', 're' => 'арке[йяюе]\p{L}*', 'voice' => 'Аркей answers, god of life and death: speak solemnly, restrained and stern, of the cycle of life'],
+            'kynareth' => ['voicewav' => 'femaleeventoned', 'name' => 'Кинарет', 're' => 'кинарет\p{L}*', 'voice' => 'Кинарет answers, goddess of sky and winds: speak brightly and melodiously, of sky, wind and rain'],
+            'mara' => ['voicewav' => 'femaleoldkindly', 'name' => 'Мара', 're' => 'мар[аыеу](?![\p{L}])', 'voice' => 'Мара answers, goddess of love: speak warmly and gently, like a mother'],
+            'hermaeus' => ['voicewav' => 'maleuniquehermaeusmora', 'name' => 'Хермеус Мора', 're' => 'хермеус\p{L}*(?:\s+мор\p{L}*)?|херм[еэ]ус\p{L}*', 'voice' => 'Хермеус Мора answers, Daedric Prince of knowledge: speak ominously, insinuatingly, in riddles, like a thousand whispers'],
+            'clavicus' => ['voicewav' => 'maleuniqueclavicusvile', 'name' => 'Клавикус Вайл', 're' => 'клавикус\p{L}*(?:\s+вайл\p{L}*)?', 'voice' => 'Клавикус Вайл answers, Daedric Prince of bargains: speak like a sly huckster, flattering, with fine print in every phrase'],
             // Шеогорат removed from the pantheon (owner, 2026-10-07: "нахуй бури и шеогората")
         ];
     }
@@ -77,7 +77,7 @@ if (!function_exists('tesGodsSpoken')) {
         foreach (is_array($rows) ? $rows : [] as $r) {
             $parts[] = $r['god'] . ': ' . $r['deed'];
         }
-        return $parts ? implode('; ', $parts) : 'в книге легенд пока пусто — боги ещё не вмешивались';
+        return $parts ? implode('; ', $parts) : 'the book of legends is empty so far - the gods have not intervened yet';
     }
 
     /** A named person near the ruler in the line (not the god's name, not the ruler). */
@@ -102,7 +102,7 @@ if (!function_exists('tesGodsSpoken')) {
     {
         $t = mb_strtolower(str_replace('ё', 'е', $line));
         if (preg_match('/(что|какие)\s+(?:\p{L}+\s+){0,2}легенд\p{L}*|книг\p{L}*\s+легенд/u', $t)) {
-            return ' *книга легенд: ' . tesLegendsText() . '; перескажи ярлу как сказитель*';
+            return ' *book of legends: ' . tesLegendsText() . '; retell it to the jarl as a storyteller*';
         }
         $god = '';
         foreach (tesGods() as $key => $g) {
@@ -125,26 +125,26 @@ if (!function_exists('tesGodsSpoken')) {
         $fav = tesGodFavor($god);
         $did = '';
         if ($fav < 15) {
-            $did = 'ты не в духе и отказываешь ярлу — он слишком часто докучал тебе';
+            $did = 'you are out of humour and refuse the jarl - he pestered you too often';
         } elseif ($god === 'arkay') {
             if (preg_match('/(?<![\p{L}])(воскрес\p{L}*|верни\s+(?:к\s+жизни|из\s+мертв)|оживи\p{L}*)/u', $t)) {
                 $who = tesGodTarget($line);
                 $ref = $who !== '' ? tesWorldRefOf($who) : '';
                 $dead = $who !== '' ? $GLOBALS['db']->fetchOne("SELECT metadata->'activity_status'->>'is_dead' AS d FROM public.core_npc_master WHERE npc_name = '" . $GLOBALS['db']->escape($who) . "' LIMIT 1") : [];
                 if ($ref === '' || tesChildSafeIsChildRef($ref)) {
-                    $did = 'ярл не назвал, кого вернуть, — спроси имя';
+                    $did = 'the jarl did not name whom to bring back - ask the name';
                 } elseif (strval($dead['d'] ?? '') !== 'true') {
-                    $did = "{$who} и так жив — Аркей не трогает живых";  // resurrect on the living can reset them
+                    $did = "{$who} is alive already - Аркей does not touch the living";  // resurrect on the living can reset them
                 } else {
                     tesWorldQueue(['prid ' . $ref, 'resurrect']);
                     tesGodFavor($god, -15);  // death is not cheated for free
-                    $did = "{$who} возвращён к жизни — но Аркей напомнит, что за всё платят";
+                    $did = "{$who} is brought back to life - but Аркей reminds that everything has a price";
                     tesLegend($G['name'], "вернул к жизни {$who} по молитве " . strval($GLOBALS['PLAYER_NAME'] ?? 'ярла'));
                 }
             } else {
                 tesWorldQueue(['player.restoreav health 10000', 'player.restoreav stamina 10000', 'player.restoreav magicka 10000']);
                 tesGodFavor($god, -3);
-                $did = 'раны ярла затянулись, силы вернулись';
+                $did = 'the jarl\'s wounds closed, his strength returned';
                 tesLegend($G['name'], 'исцелил ' . strval($GLOBALS['PLAYER_NAME'] ?? 'ярла'));
             }
         } elseif ($god === 'kynareth') {
@@ -153,19 +153,19 @@ if (!function_exists('tesGodsSpoken')) {
                 if (preg_match('/(' . $words . ')/u', $t)) {
                     tesWorldQueue(['fw ' . $id]);
                     tesGodFavor($god, -2);
-                    $did = 'небо послушалось: погода переменилась';
+                    $did = 'the sky obeyed: the weather changed';
                     tesLegend($G['name'], 'переменила небо по слову ' . strval($GLOBALS['PLAYER_NAME'] ?? 'ярла'));
                     break;
                 }
             }
             if ($did === '') {
-                $did = 'ярл не сказал, какое небо ему нужно — спроси: солнце, дождь, грозу, снег, туман?';
+                $did = 'the jarl did not say what sky he wants - ask: sun, rain, thunderstorm, snow, fog?';
             }
         } elseif ($god === 'mara') {
             $who = tesGodTarget($line);
             $ref = $who !== '' ? tesWorldRefOf($who) : '';
             if ($ref === '' || tesChildSafeIsChildRef($ref)) {
-                $did = $ref !== '' ? 'это ребёнок — Мара благословляет детей, а не венчает' : 'ярл не назвал, чьё сердце склонить, — спроси';
+                $did = $ref !== '' ? 'that is a child - Мара blesses children, not weds them' : 'the jarl did not name whose heart to sway - ask';
             } else {
                 tesWorldQueue(['prid ' . $ref, 'setrelationshiprank player 4']);
                 if (function_exists('tesGodGuardRemember')) {
@@ -175,7 +175,7 @@ if (!function_exists('tesGodsSpoken')) {
                     }
                 }
                 tesGodFavor($god, -8);
-                $did = "сердце {$who} теперь принадлежит ярлу";
+                $did = "the heart of {$who} now belongs to the jarl";
                 tesLegend($G['name'], "склонила сердце {$who} к " . strval($GLOBALS['PLAYER_NAME'] ?? 'ярлу'));
             }
         } elseif ($god === 'hermaeus') {
@@ -184,47 +184,47 @@ if (!function_exists('tesGodsSpoken')) {
             $has = $db->fetchOne("SELECT to_regclass('public.tes_witness_seen') AS t");
             $r = !empty($has['t']) ? $db->fetchOne("SELECT deed FROM public.tes_witness_seen ORDER BY random() LIMIT 1") : [];
             if (!empty($r['deed'])) {
-                $secret = 'было на самом деле: ' . $r['deed'];
+                $secret = 'it really happened: ' . $r['deed'];
             } else {
                 $n = $db->fetchOne("SELECT npc_name, coalesce(goals::text, '') AS g FROM public.core_npc_master WHERE length(coalesce(goals::text, '')) > 20 AND race NOT ILIKE '%реб%' ORDER BY random() LIMIT 1");
                 if (!empty($n['npc_name'])) {
                     $g = trim(preg_split('/(?:^|\s)[*•\-]\s+|\n+/u', trim(preg_replace('/[\[\]{}"]+/u', ' ', strval($n['g'])) ?? ''))[1] ?? strval($n['g']));
-                    $secret = "тайное желание {$n['npc_name']}: " . mb_substr($g, 0, 140);
+                    $secret = "secret wish of {$n['npc_name']}: " . mb_substr($g, 0, 140);
                 }
             }
             $skills = ['Alchemy', 'Enchanting', 'Illusion', 'Conjuration', 'Destruction', 'Speechcraft', 'Lockpicking', 'Sneak'];
             $sk = $skills[random_int(0, count($skills) - 1)];
             tesWorldQueue(['player.modav ' . $sk . ' 3']);
             tesGodFavor($god, -4);
-            $did = ($secret !== '' ? "ты открыл ярлу тайну ({$secret}) — скажи её загадкой, но так, чтобы понял; " : '') . 'и вложил в его голову знание (навык вырос)';
+            $did = ($secret !== '' ? "you revealed a secret to the jarl ({$secret}) - say it as a riddle, yet so he understands; " : '') . 'you also put knowledge into his head (a skill grew)';
             tesLegend($G['name'], 'открыл тайну и одарил знанием ' . strval($GLOBALS['PLAYER_NAME'] ?? 'ярла'));
         } elseif ($god === 'clavicus') {
             $n = tesWorldSpokenAmount($line);
             $n = $n > 0 ? min($n, 20000) : 1000;
             $open = tesWatchGet('clavicus_debt')['value'];
             if ($open !== '' && intval($open) > 0) {
-                $did = 'у ярла уже есть долг перед тобой — ' . intval($open) . ' септимов; напомни, что сделка в силе';
+                $did = 'the jarl already owes you ' . intval($open) . ' septims; remind him the deal stands';
             } else {
                 tesWorldQueue(['player.additem 0000000F ' . $n]);
                 tesWatchSet('clavicus_debt', strval($n * 2));
                 tesWatchSet('clavicus_due', strval(time() + 1200));
                 tesGodFavor($god, 5);
-                $did = "сделка заключена: ярл получил {$n} септимов сейчас, через двадцать минут ты заберёшь " . ($n * 2) . ' (из кошеля, а чего не хватит — из казны)';
+                $did = "deal struck: the jarl got {$n} septims now, in twenty minutes you take back " . ($n * 2) . ' (from his purse, the shortfall from the treasury)';
                 tesLegend($G['name'], "дал {$n} септимов в долг под двойную плату");
             }
         } elseif ($god === 'sheogorath' && function_exists('tesSheoWonder')) {
             $w = tesSheoWonder('', true);
             tesGodFavor($god, 3);
-            $did = $w !== '' ? 'ты устроил: ' . $w : '';
+            $did = $w !== '' ? 'you caused: ' . $w : '';
             if ($w !== '') {
                 tesLegend($G['name'], $w);
             }
         }
         if (stripos($to, 'Narrator') === false && $to !== '') {
-            return ' *ярл воззвал к ' . $G['name'] . ($did !== '' ? '; что произошло: ' . $did : '') . '; отреагируй на это по-своему*';
+            return ' *the jarl called upon ' . $G['name'] . ($did !== '' ? '; what happened: ' . $did : '') . '; react in your own way*';
         }
         tesWorldGodVoice(strval($G['voicewav'] ?? ''));
-        return ' *' . $G['voice'] . '. Одна-две фразы.' . ($did !== '' ? ' Что уже произошло: ' . $did . '.' : '') . '*';
+        return ' *' . $G['voice'] . '. One or two sentences.' . ($did !== '' ? ' Already happened: ' . $did . '.' : '') . '*';
     }
 
     /** Clavicus collects his debt; the favours slowly return to the middle. */
@@ -275,8 +275,8 @@ if (!function_exists('tesGodsSpoken')) {
             if ($people) {
                 tesWatchSet('npc_prayer', '1');
                 $p = $people[0];
-                $god = ['Маре', 'Аркею', 'Кинарет', 'Дибелле', 'Талосу', 'Зенитару'][random_int(0, 5)];
-                tesFestSay(strval($p['name']), "Ты тихо молишься {$god} — о чём-то своём, что тебя сейчас тревожит. Скажи молитву вслух, одной-двумя фразами.", 1);
+                $god = ['Мара', 'Аркей', 'Кинарет', 'Дибелла', 'Талос', 'Зенитар'][random_int(0, 5)];
+                tesFestSay(strval($p['name']), "You quietly pray to {$god} - about something of your own that troubles you now. Say the prayer aloud, in one or two sentences.", 1);
             }
         }
         if (tesWatchGet('god_favor_drift')['age'] >= 3600) {

@@ -25,8 +25,8 @@ try {
             if ($tesPaPlayer !== '') {
                 $tesPaAction = trim($tesPaM[1]);
                 $GLOBALS['TES_PLAYER_ACTION'] = $tesPaAction;
-                $GLOBALS['gameRequest'][3] = $tesPaPlayer . ': *' . $tesPaAction . '* [это ДЕЙСТВИЕ ' . $tesPaPlayer
-                    . ' — он это делает на глазах у всех, а не произносит вслух]' . (isset($tesPaM[2]) && $tesPaM[2] !== '' ? ' ' . $tesPaM[2] : '');
+                $GLOBALS['gameRequest'][3] = $tesPaPlayer . ': *' . $tesPaAction . '* [an ACTION by ' . $tesPaPlayer
+                    . ' - he does it in front of everyone, he does not say it aloud]' . (isset($tesPaM[2]) && $tesPaM[2] !== '' ? ' ' . $tesPaM[2] : '');
                 if (isset($gameRequest) && is_array($gameRequest)) {
                     $gameRequest[3] = $GLOBALS['gameRequest'][3];
                 }

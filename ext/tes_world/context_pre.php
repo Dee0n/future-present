@@ -40,7 +40,7 @@ try {
         $tesWorldFacts = $tesWorldPlain ? $tesWorldPlain : [];
         if ($tesWorldFacts) {
             chimRegisterPromptInjection('prompt_bottom', 'tes_world',
-                "ФАКТЫ МИРА (это правда):\n- " . implode("\n- ", $tesWorldFacts), 99);
+                "WORLD FACTS (true):\n- " . implode("\n- ", $tesWorldFacts), 99);
             if ($tesWorldMe0 !== 'The Narrator' && $tesWorldSpoken0) {
                 $first = reset($tesWorldFacts);
                 // Live 2026-10-04 02:25-02:32: the new guard commander answered five orders with
@@ -49,14 +49,14 @@ try {
                 $tesWorldLineNow = strval($GLOBALS['gameRequest'][3] ?? '');
                 $tesWorldLineNow = trim(preg_replace('/^[^:]{1,40}:\s*/u', '', preg_replace('/\s*\(Talking to [^)]*\)\s*$/u', '', $tesWorldLineNow) ?? $tesWorldLineNow) ?? $tesWorldLineNow);
                 $deed = (!empty($tesWorldFacts['player_title']) && function_exists('tesWorldLooksLikeOrder') && tesWorldLooksLikeOrder($tesWorldLineNow))
-                    ? ' Это приказ: исполни его действием (Carry_Out_Order, если подходящего нет), реагируй в характере, своими словами, без громких слов про «волю» и «закон».'
+                    ? ' This is an order: carry it out with an action (Carry_Out_Order if none fits), react in character, in your own words, no grand words about «воля» and «закон».'
                     : '';
                 // Live 2026-10-04 13:10-13:12: Айрилет called the player "ярл Балгруф", the agent wrote
                 // "по приказу ярла Балгруфа" - the old jarl's NAME still starts with the word "Ярл".
                 $who = !empty($tesWorldFacts['player_title'])
-                    ? ' Правитель — именно ' . strval($GLOBALS['PLAYER_NAME'] ?? 'игрок') . '; слово «Ярл» в чьём-то имени — только имя прежнего правителя, не титул.'
+                    ? ' The ruler is precisely ' . strval($GLOBALS['PLAYER_NAME'] ?? 'the player') . '; the word «Ярл» inside a name is just the name of the former ruler, not a title.'
                     : '';
-                $tesWorldHint = 'Помни: ' . mb_substr($first, 0, mb_strpos($first . '.', '.')) . '.' . $who . $deed;
+                $tesWorldHint = 'Remember: ' . mb_substr($first, 0, mb_strpos($first . '.', '.')) . '.' . $who . $deed;
             }
         }
         // The Narrator answered DIFFERENT requests with the same three lines word for word (live 19:10:21 and
@@ -75,11 +75,11 @@ try {
             }
             // the system block alone was ignored (live 19:19: the same three lines again) - the same words ride in
             // the last message, right before the answer
-            $tesWorldHint .= ($tesWorldHint !== '' ? ' ' : '') . ($tesWorldSaid ? 'ЗАПРЕЩЕНО повторять твои прошлые фразы: ' . implode(' ', array_slice($tesWorldSaid, 0, 6)) . '. ' : '')
-                . 'Ответ — новыми словами, одной-двумя короткими фразами, не с «Что ж»; если просьба — действие, сделай его и опиши результат одной фразой.';
+            $tesWorldHint .= ($tesWorldHint !== '' ? ' ' : '') . ($tesWorldSaid ? 'FORBIDDEN to repeat your past lines: ' . implode(' ', array_slice($tesWorldSaid, 0, 6)) . '. ' : '')
+                . 'Answer in new words, one or two short sentences, not starting with «Что ж»; if the request is an action, do it and describe the result in one sentence.';
             chimRegisterPromptInjection('prompt_bottom', 'tes_narrator_fresh',
-                ($tesWorldSaid ? 'Ты уже говорил: ' . implode(' ', $tesWorldSaid) . ' — не повторяй эти фразы, их образы и зачины. ' : '')
-                . 'Скажи новое и по делу, коротко. Не начинай с «Что ж», «Ох», «Ах», «Ну что»; не зови игрока «ярл» в каждой реплике; не пересказывай его просьбу и не комментируй, как он «переменчив».', 102);
+                ($tesWorldSaid ? 'You already said: ' . implode(' ', $tesWorldSaid) . ' - do not repeat these lines, their imagery or openings. ' : '')
+                . 'Say something new and to the point, briefly. Do not start with «Что ж», «Ох», «Ах», «Ну что»; do not call the player «ярл» in every line; do not retell his request or comment on how «переменчив» he is.', 102);
         }
         $tesWorldType = strval($GLOBALS['gameRequest'][0] ?? '');
         if (in_array($tesWorldType, ['inputtext', 'inputtext_s', 'narrator_inputtext', 'ginputtext'], true)) {
@@ -88,8 +88,8 @@ try {
                 // short on purpose (cost): at most 8 names, without the [race/post] tags
                 $tesWorldNearShort = array_slice(array_values(array_unique(array_map(
                     fn($n) => trim(preg_replace('/\s*\[[^\]]*\]/u', '', $n) ?? $n), $tesWorldNear))), 0, 8);
-                $tesWorldHint .= ($tesWorldHint !== '' ? ' ' : '') . 'Речь с голоса, имена искажены. Рядом: '
-                    . implode(', ', $tesWorldNearShort) . '. Искажённое имя = ближайшее из списка; пиши имя как в списке, игрока не поправляй.';
+                $tesWorldHint .= ($tesWorldHint !== '' ? ' ' : '') . 'Speech is voice-recognised, names are garbled. Nearby: '
+                    . implode(', ', $tesWorldNearShort) . '. A garbled name = the closest one in the list; write the name as listed, do not correct the player.';
             }
         }
         // the scene that is going on right now is a fact for the one who is in it
@@ -97,10 +97,10 @@ try {
         if ($tesWorldMe !== '' && $tesWorldMe !== 'The Narrator' && !tesWorldIsChild($tesWorldMe)) {
             $tesWorldScene = tesWorldSceneWith($tesWorldMe);
             if ($tesWorldScene !== '') {
-                $tesWorldPlayer = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
-                $tesWorldSceneLine = "ПРЯМО СЕЙЧАС ты и {$tesWorldPlayer} занимаетесь сексом: {$tesWorldScene}. Это происходит на самом деле, вы оба раздеты, твоё тело в этом участвует. "
-                    . "Не отрицай этого, не говори, что стоишь на посту или что ничего не происходит, и не начинай это заново действием — оно уже идёт. "
-                    . "Отвечай коротко и изнутри происходящего, в своём характере: можно стонать, сбиваться, злиться или стыдиться — но это с тобой происходит.";
+                $tesWorldPlayer = strval($GLOBALS['PLAYER_NAME'] ?? 'the player');
+                $tesWorldSceneLine = "RIGHT NOW you and {$tesWorldPlayer} are having sex: {$tesWorldScene}. It is really happening, you are both undressed, your body takes part in it. "
+                    . "Do not deny it, do not say you are on duty or that nothing is happening, and do not start it again with an action - it is already going on. "
+                    . "Answer briefly and from inside what is happening, in character: you may moan, falter, be angry or ashamed - but it is happening to you.";
                 chimRegisterPromptInjection('prompt_bottom', 'tes_world_scene', $tesWorldSceneLine, 100);
                 $tesWorldHint = $tesWorldSceneLine . ($tesWorldHint !== '' ? ' ' . $tesWorldHint : '');
             }
@@ -118,13 +118,13 @@ try {
             $tesWorldMute = function_exists('tesRealmMuteLine') ? tesRealmMuteLine($tesWorldMe) : '';
             // owner, 23:30: "че они про честь заладили. ебут голову" - the models moralise about honour, shame and
             // the ruler's power in every other line (9 of the last hour's lines, the same people over and over)
-            $tesWorldNoHonor = ' Не рассуждай о чести, позоре, достоинстве, унижении, святости и о том, каков ярл как правитель; не вздыхай и не поучай — говори о деле, о том, что перед тобой сейчас, о своём.'
+            $tesWorldNoHonor = ' Do not talk about honour, shame, dignity, humiliation, sanctity or what kind of ruler the jarl is; no sighing or lecturing - speak of the matter at hand, of what is before you now, of your own affairs.'
                 // owner, 00:09: "заебали про приказы и про раздевание мозг ебать"
-                . ' Не заговаривай сам о приказах, воле и слове ярла, о послушании, о раздевании, одежде и наготе — ни своей, ни чужой; если ярл сам об этом не спросил, этих тем нет.';
+                . ' Do not bring up orders, the will and word of the jarl, obedience, undressing, clothes or nakedness - neither your own nor that of others; unless the jarl himself asked about it, these topics do not exist.';
             chimRegisterPromptInjection('prompt_bottom', 'tes_world_brief',
                 $tesWorldMute !== '' ? $tesWorldMute : (((function_exists('tesRealmPartyActive') && tesRealmPartyActive($tesWorldMe))
-                    ? 'Ты на гулянке: пьёшь, ешь, смеёшься, болтаешь с соседями, подшучиваешь, поёшь, поднимаешь кружку; говори сам, без повода, живо и коротко — одна-две фразы.'
-                    : 'Говори коротко: одна-две короткие фразы, без монологов; без повода сам не заговаривай и не комментируй чужие разговоры.') . $tesWorldNoHonor), 101);
+                    ? 'You are at a feast: drinking, eating, laughing, chatting with neighbours, joking, singing, raising your mug; speak up yourself, unprompted, lively and short - one or two sentences.'
+                    : 'Speak briefly: one or two short sentences, no monologues; do not speak up unprompted and do not comment on other people talking.') . $tesWorldNoHonor), 101);
         }
         // What the ruler ordered THIS person lately and how it went: the dialogue window is short
         // (cost) and the order would fall out of it - the NPC then asked "что значит раздеть?" again
@@ -140,7 +140,7 @@ try {
                 if ($txt === '') {
                     continue;
                 }
-                $st = ['done' => 'исполнено', 'fast' => 'исполнено', 'failed' => 'не вышло', 'running' => 'идёт', 'queued' => 'идёт', 'waiting' => 'ждёт'][strval($o['status'])] ?? strval($o['status']);
+                $st = ['done' => 'done', 'fast' => 'done', 'failed' => 'failed', 'running' => 'in progress', 'queued' => 'in progress', 'waiting' => 'waiting'][strval($o['status'])] ?? strval($o['status']);
                 $tesWorldOrderLines[] = '«' . mb_substr(trim($txt), 0, 70) . '» — ' . $st;
             }
             foreach (['tesRealmPostLine' => $tesWorldMe, 'tesRealmPlotLine' => $tesWorldMe, 'tesCompanionLine' => $tesWorldMe, 'tesFameLine' => $tesWorldMe, 'tesEconomyLine' => $tesWorldMe] as $tesWorldFn => $tesWorldArg) {
@@ -167,7 +167,7 @@ try {
                 }
             }
             if ($tesWorldOrderLines) {
-                chimRegisterPromptInjection('prompt_bottom', 'tes_world_orders', 'Приказы правителя тебе недавно (ты их помнишь): ' . implode('; ', $tesWorldOrderLines) . '.', 97);
+                chimRegisterPromptInjection('prompt_bottom', 'tes_world_orders', 'Recent orders of the ruler to you (you remember them): ' . implode('; ', $tesWorldOrderLines) . '.', 97);
             }
         }
         // the place remembers what happened here (world.php) - for the Narrator and everyone

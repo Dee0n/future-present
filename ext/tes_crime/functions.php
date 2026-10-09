@@ -121,11 +121,11 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
             $npc = function_exists('tesGodGuardResolveNpcLoose') && class_exists('RelationshipManager') ? tesGodGuardResolveNpcLoose($target) : null;
             unset($actions[$n]);  // from here on it never reaches the game as an arrest of the player
             if (!$npc || !preg_match('/^[0-9A-Fa-f]{8}$/', strval($npc['refid'] ?? ''))) {
-                tesCrimeTell($actor, "(Ты не нашёл, кого арестовать: «{$target}» — такого здесь нет. Скажи это одной фразой.)");
+                tesCrimeTell($actor, "(You did not find whom to arrest: «{$target}» - no such person here. Say it in one sentence.)");
                 continue;
             }
             if (!tesCrimeIsAuthority($actor)) {
-                tesCrimeTell($actor, '(У тебя нет власти арестовывать и штрафовать — это дело стражи и ярла. Скажи это одной фразой.)');
+                tesCrimeTell($actor, '(You have no authority to arrest or fine - that is for the guards and the jarl. Say it in one sentence.)');
                 continue;
             }
             $name = strval($npc['npc_name']);

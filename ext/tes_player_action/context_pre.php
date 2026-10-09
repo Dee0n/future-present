@@ -7,10 +7,10 @@
 try {
     $tesPaDone = strval($GLOBALS['TES_PLAYER_ACTION'] ?? '');
     if ($tesPaDone !== '' && function_exists('chimRegisterPromptInjection')) {
-        $tesPaWho = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
-        $tesPaLine = "{$tesPaWho} сейчас НЕ ГОВОРИЛ, а СДЕЛАЛ: «{$tesPaDone}». Это поступок, случившийся у тебя на глазах (или с тобой). "
-            . 'Реагируй на сам поступок и его последствия — телом, чувствами, действием и словами о том, что произошло; '
-            . 'не отвечай так, будто он это только сказал («что ты несёшь», «таким словам тут не место»).';
+        $tesPaWho = strval($GLOBALS['PLAYER_NAME'] ?? 'The player');
+        $tesPaLine = "{$tesPaWho} just did NOT SPEAK but DID: «{$tesPaDone}». It is a deed that happened before your eyes (or to you). "
+            . 'React to the deed itself and its consequences - with body, feelings, action and words about what happened; '
+            . 'do not answer as if he only said it («что ты несёшь», «таким словам тут не место»).';
         chimRegisterPromptInjection('prompt_bottom', 'tes_player_action', $tesPaLine, 97);
         if (isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
             $GLOBALS['request'] = '(' . $tesPaLine . ') ' . $GLOBALS['request'];

@@ -23,3 +23,6 @@ connector; profile `QUEST_COMMENT` = true (30%), `MAX_WORDS_LIMIT` = 50.
 
 `narrator_ru.sql` enables the narrator as a Russian game master (not auto-applied):
 `psql -U dwemer -d dwemer -f narrator_ru.sql`.
+
+English versions of the prompt texts stored in the database (NPC prompt head, Narrator, the 61
+prompts, diary instruction) are prepared in `en/` - see `en/README.md`. Not applied automatically.

@@ -310,7 +310,7 @@ check('a raw-argument refusal also tells how to find', str_contains(implode(' | 
 // find: server-side search, results in $searches, nothing queued to the game.
 $v = tesGodGuardValidate('find предмет Железный');
 check('find parses and runs fully server-side', empty($v['kept']) && empty($v['nearby']) && empty($v['reasons']), json_encode($v['reasons']));
-check('find returns searches with the query echoed', count($v['searches'] ?? []) === 1 && ($v['searches'][0]['kind'] ?? '') === 'предмет' && ($v['searches'][0]['query'] ?? '') === 'Железный', json_encode($v['searches'] ?? []));
+check('find returns searches with the query echoed', count($v['searches'] ?? []) === 1 && ($v['searches'][0]['kind'] ?? '') === 'item' && ($v['searches'][0]['query'] ?? '') === 'Железный', json_encode($v['searches'] ?? []));
 if ($ironItem) {
     // find returns the 5 shortest matches, so assert the shape (all start with the word),
     // not one exact DB row (the index holds dozens of Железный* items).
@@ -319,12 +319,12 @@ if ($ironItem) {
 $v = tesGodGuardValidate('find предмет Совершенно Несуществующая Палка Ыыы');
 check('find with no hits returns an empty result list (not an error)', ($v['searches'][0]['result'] ?? null) === [] && empty($v['kept']), json_encode($v['searches'] ?? []));
 $v = tesGodGuardValidate('find персонаж Лилит');
-check('find персонаж searches CHIM profiles too', ($v['searches'][0]['kind'] ?? '') === 'персонаж' && !empty($v['searches'][0]['result']), json_encode($v['searches'] ?? []));
+check('find персонаж searches CHIM profiles too', ($v['searches'][0]['kind'] ?? '') === 'npc' && !empty($v['searches'][0]['result']), json_encode($v['searches'] ?? []));
 check('find персонаж results are real npc names (not the Narrator)', !in_array('The Narrator', $v['searches'][0]['result'] ?? [], true), json_encode($v['searches'][0]['result'] ?? []));
 $v = tesGodGuardValidate('найди заклинание Пламя');
-check('Russian "найди заклинание" works like find spell', ($v['searches'][0]['kind'] ?? '') === 'заклинание' && !empty($v['searches'][0]['result']), json_encode($v['searches'] ?? []));
+check('Russian "найди заклинание" works like find spell', ($v['searches'][0]['kind'] ?? '') === 'spell' && !empty($v['searches'][0]['result']), json_encode($v['searches'] ?? []));
 $v = tesGodGuardValidate('find бредслово Железный');
-check('an unknown kind word falls back to items', ($v['searches'][0]['kind'] ?? '') === 'предмет', json_encode($v['searches'] ?? []));
+check('an unknown kind word falls back to items', ($v['searches'][0]['kind'] ?? '') === 'item', json_encode($v['searches'] ?? []));
 $v = tesGodGuardValidate('{npc:Скульвар Черная Рукоять}.resurrect; find предмет Железный');
 check('find mixes with real commands without swallowing them', !empty($v['kept']) && count($v['searches']) === 1, json_encode(['kept' => $v['kept'], 'searches' => $v['searches']]));
 
@@ -352,9 +352,9 @@ $rawAction = 'Тестгерой|GodCommand|GodCommand@' . json_encode(['target'
 $filtered = tesGodGuardFilterAction($rawAction);
 // The blocked row's kept_text is empty by design (nothing was sent) - the reason text is
 // the only reliable thing to match on here.
-$loggedVerdict = $db->fetchOne("SELECT verdict, reasons FROM public.tes_god_guard_log WHERE reasons LIKE '%уже отправлено%' ORDER BY id DESC LIMIT 1");
+$loggedVerdict = $db->fetchOne("SELECT verdict, reasons FROM public.tes_god_guard_log WHERE reasons LIKE '%already sent%' ORDER BY id DESC LIMIT 1");
 check('a 3rd identical ScriptProxy dispatch is refused, not sent again', ($loggedVerdict['verdict'] ?? '') === 'blocked', json_encode($loggedVerdict));
-$db->execQuery("DELETE FROM public.tes_god_guard_log WHERE kept_text LIKE '%" . $db->escape($ve['scriptproxy'][0]['refid']) . "%' OR raw_text LIKE 'ZZZ_test_sp_repeat%' OR reasons LIKE '%уже отправлено%'");
+$db->execQuery("DELETE FROM public.tes_god_guard_log WHERE kept_text LIKE '%" . $db->escape($ve['scriptproxy'][0]['refid']) . "%' OR raw_text LIKE 'ZZZ_test_sp_repeat%' OR reasons LIKE '%already sent%'");
 
 echo "\n== tesGodGuardFailureStreak: hard stop after repeated refusals ==\n";
 $db->execQuery("DELETE FROM public.tes_god_guard_log WHERE raw_text LIKE 'ZZZ_test_streak%'");
@@ -468,7 +468,7 @@ if (in_array('--write', $argv, true)) {
     $GLOBALS['PROMPT_INJECTIONS'] = [];
     require "$extDir/tes_god_journal/context_pre.php";
     $rendered = chimRenderPromptInjections('prompt_bottom', []);
-    check('journal correctly reports an applied autosave as done (Postgres-boolean regression check)', str_contains($rendered, 'Автосейв сделан'), $rendered);
+    check('journal correctly reports an applied autosave as done (Postgres-boolean regression check)', str_contains($rendered, 'Autosave made'), $rendered);
 
     $cleanup();
 

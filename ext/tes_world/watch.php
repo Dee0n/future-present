@@ -244,15 +244,15 @@ if (!function_exists('tesWatchNotify')) {
         $l = tesLoyaltyOf($npc);
         $out = [];
         if ($l['fear'] >= 6) {
-            $out[] = 'ты в ужасе от правителя: дрожишь, умоляешь, подчиняешься почти без слов';
+            $out[] = 'you are terrified of the ruler: you tremble, beg, obey almost without a word';
         } elseif ($l['fear'] >= 3) {
-            $out[] = 'ты побаиваешься правителя и подчиняешься с оглядкой';
+            $out[] = 'you are a bit afraid of the ruler and obey warily';
         }
         if ($l['anger'] >= 6) {
-            $out[] = 'ты ненавидишь правителя: огрызаешься, ворчишь сквозь зубы, тянешь время, но приказ всё же исполняешь';
+            $out[] = 'you hate the ruler: you snap, mutter through your teeth, stall, yet still carry out the order';
         } elseif ($l['anger'] >= 3) {
-            $out[] = 'ты затаил обиду на правителя и это слышно в голосе';
+            $out[] = 'you bear a grudge against the ruler and it shows in your voice';
         }
-        return $out ? 'Сейчас ' . implode('; ', $out) . '.' : '';
+        return $out ? 'Right now ' . implode('; ', $out) . '.' : '';
     }
 }

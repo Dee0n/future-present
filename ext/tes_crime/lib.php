@@ -472,7 +472,7 @@ if (!function_exists('tesCrimeFine')) {
         }
         $player = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
         if ($guard !== '') {
-            tesCrimeTell($guard, "(Именем ярла объяви {$npc} штраф {$amount} септимов за недостойное поведение с {$player}: пусть платит на месте или идёт в темницу. Одна-две короткие строгие фразы, обращайся к {$npc}.)");
+            tesCrimeTell($guard, "(In the jarl's name declare to {$npc} a fine of {$amount} septims for unworthy conduct towards {$player}: pay on the spot or go to jail. One or two short stern sentences, address {$npc}.)");
         }
         return [true, "{$npc}: объявлен штраф {$amount} септимов" . ($guard !== '' ? " (требует {$guard})" : '') . '; не хватит золота — отправится в темницу'];
     }

@@ -30,7 +30,7 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
             if ($code === 'FurnishHouse') {
                 // all furnishings at once; the bridge checks gold per room and skips owned ones
                 if (!$house || !tesEstateMaySell($house, $seller)) {
-                    tesEstateTell($seller, '(Обставить этот дом ты не можешь — это не дом твоего города. Скажи одной фразой.)');
+                    tesEstateTell($seller, '(You cannot furnish this house - it is not a house of your city. Say it in one sentence.)');
                     continue;
                 }
                 $command = tesEstateFurnishCommand($house, true);
@@ -44,16 +44,16 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
                 $queued = function_exists('herikaQueueGodCommands') ? herikaQueueGodCommands($command) : 0;
                 error_log("[tes_estate] {$seller} furnishes {$house['title']} (queued {$queued})");
                 if ($queued === 0) {
-                    tesEstateTell($seller, '(Заказать обстановку не вышло — канал игры недоступен. Скажи честно одной фразой, не выдумывай, что сделано.)');
+                    tesEstateTell($seller, '(Ordering the furnishings failed - the game channel is unavailable. Say so honestly in one sentence, do not make up that it is done.)');
                 }
                 continue;
             }
             if (!$house) {
-                tesEstateTell($seller, "(Продажа не оформлена: такого дома на продажу нет. Продаются: Дом теплых ветров, Высокий шпиль, Медовик, Влиндрел-холл, Хьерим. Скажи это одной фразой.)");
+                tesEstateTell($seller, "(The sale is not made: no such house for sale. For sale: Дом теплых ветров, Высокий шпиль, Медовик, Влиндрел-холл, Хьерим. Say it in one sentence.)");
                 continue;
             }
             if (!tesEstateMaySell($house, $seller)) {
-                tesEstateTell($seller, "(Ты не можешь продать «{$house['title']}» — это не твой город. Скажи, к кому обратиться, одной фразой.)");
+                tesEstateTell($seller, "(You cannot sell «{$house['title']}» - it is not your city. Say whom to turn to, in one sentence.)");
                 continue;
             }
             tesEstateEnsureTable();
@@ -71,7 +71,7 @@ $GLOBALS['action_post_process_fnct_ex'][] = function ($actions) {
             $queued = function_exists('herikaQueueGodCommands') ? herikaQueueGodCommands($command) : 0;
             error_log("[tes_estate] {$seller} sells {$house['title']}: {$command} (queued {$queued})");
             if ($queued === 0) {
-                tesEstateTell($seller, '(Оформить продажу не вышло — канал игры недоступен. Скажи честно одной фразой, что дом НЕ продан; не выдумывай, что отдал ключи.)');
+                tesEstateTell($seller, '(Making the sale failed - the game channel is unavailable. Say honestly in one sentence that the house is NOT sold; do not make up that you handed over the keys.)');
             }
         } catch (Throwable $e) {
             error_log('[tes_estate] ' . $e->getMessage());

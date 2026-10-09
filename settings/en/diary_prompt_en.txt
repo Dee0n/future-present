@@ -1,0 +1,1 @@
+Write a short entry in #HERIKA_NAME#'s diary about the latest talks and events with #PLAYER_NAME# described above. Write in the first person, as #HERIKA_NAME#, in your own character and manner of speech, in Russian. Start the entry with the current date and time.

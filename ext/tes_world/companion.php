@@ -159,7 +159,7 @@ if (!function_exists('tesCompanionTick')) {
                     tesGodGuardAddRumor("Говорят, {$npc} ушёл от " . strval($GLOBALS['PLAYER_NAME'] ?? 'ярла') . ($grudges ? ' — не простил: ' . end($grudges) : '') . '.');
                 }
                 if (function_exists('tesFestSay')) {
-                    tesFestSay($npc, 'Ты больше не можешь идти с правителем' . ($grudges ? ' после того, что было (' . implode('; ', array_slice($grudges, -2)) . ')' : '') . '. Скажи ему это в лицо и уходи.', 1);
+                    tesFestSay($npc, 'You can no longer travel with the ruler' . ($grudges ? ' after what happened (' . implode('; ', array_slice($grudges, -2)) . ')' : '') . '. Tell him so to his face and leave.', 1);
                 }
                 continue;
             }
@@ -167,7 +167,7 @@ if (!function_exists('tesCompanionTick')) {
             $asked = empty($row['asked_at']) ? 99999 : time() - strtotime(strval($row['asked_at']));
             if ($trust >= 40 && $asked > 2400 && random_int(1, 100) <= 25 && function_exists('tesFestSay') && !(function_exists('tesWorldQueueBusy') && tesWorldQueueBusy())) {
                 $db->execQuery("UPDATE public.tes_companion SET asked_at = now() WHERE npc = '" . $db->escape($npc) . "'");
-                tesFestSay($npc, 'У тебя есть своя цель: ' . strval($row['goal']) . '. Коротко попроси правителя помочь с ней — в своём характере, одной-двумя фразами.', 1);
+                tesFestSay($npc, 'You have a goal of your own: ' . strval($row['goal']) . '. Briefly ask the ruler to help with it - in character, in one or two sentences.', 1);
             }
         }
     }
@@ -188,12 +188,12 @@ if (!function_exists('tesCompanionTick')) {
             return '';
         }
         if (!empty($r['left_at'])) {
-            return 'Ты ушёл от правителя, потому что больше не доверяешь ему' . (strval($r['grudges']) !== '' ? ' (' . strval($r['grudges']) . ')' : '') . '. Вернёшься, только если он искренне загладит вину.';
+            return 'You left the ruler because you no longer trust him' . (strval($r['grudges']) !== '' ? ' (' . strval($r['grudges']) . ')' : '') . '. You return only if he sincerely makes amends.';
         }
         $t = intval($r['trust']);
-        $level = $t >= 75 ? 'высокое — ты предан ему' : ($t >= 45 ? 'обычное' : ($t >= 25 ? 'низкое — ты сомневаешься в нём и споришь' : 'почти исчерпано — ещё немного, и ты уйдёшь'));
-        return 'Ты спутник правителя. Твоё доверие к нему: ' . $level . '.'
-            . (strval($r['grudges']) !== '' ? ' Тебя задело: ' . strval($r['grudges']) . ' — можешь припомнить к слову.' : '')
-            . ' Твоя цель: ' . strval($r['goal']) . '. Если не согласен с правителем — скажи это в своём характере.';
+        $level = $t >= 75 ? 'high - you are devoted to him' : ($t >= 45 ? 'ordinary' : ($t >= 25 ? 'low - you doubt him and argue' : 'almost gone - a little more and you leave'));
+        return 'You are the ruler\'s companion. Your trust in him: ' . $level . '.'
+            . (strval($r['grudges']) !== '' ? ' What hurt you: ' . strval($r['grudges']) . ' - you may bring it up in passing.' : '')
+            . ' Your goal: ' . strval($r['goal']) . '. If you disagree with the ruler - say so in character.';
     }
 }

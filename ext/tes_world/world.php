@@ -140,7 +140,7 @@ if (!function_exists('tesWorldLetterTick')) {
         $price = tesWorldCraftPrice($item['name']);
         $gold = function_exists('tesWorldPlayerGold') ? tesWorldPlayerGold() : -1;
         if ($gold >= 0 && $gold < $price) {
-            return " *{$item['name']} стоит {$price} септимов, а у ярла при себе {$gold} — скажи, что без денег не возьмёшься*";
+            return " *{$item['name']} costs {$price} septims, but the jarl carries {$gold} - say you won't take the job without payment*";
         }
         tesWorldLivingEnsure();
         $db = $GLOBALS['db'];
@@ -149,7 +149,7 @@ if (!function_exists('tesWorldLetterTick')) {
         $letter = tesWorldLetter($to, 'Заказ готов', "Ваш заказ исполнен: {$item['name']}. Сделано на совесть, оплата {$price} септимов получена. Обращайтесь ещё.", $minutes, $item['formid'] . ':1');
         $db->execQuery("INSERT INTO public.tes_craft_orders (master, item, formid, price, letter_id) VALUES ('" . $db->escape($to) . "', '" . $db->escape($item['name']) . "', '{$item['formid']}', {$price}, {$letter})");
         $GLOBALS['TES_COURT_NOW'] = true;  // not run again as an order to the agent
-        return " *ты взялся за заказ: {$item['name']} за {$price} септимов (деньги уже у тебя); будет готово примерно через {$minutes} минут, пришлёшь с курьером; скажи это*";
+        return " *you took the order: {$item['name']} for {$price} septims (the money is already yours); ready in about {$minutes} minutes, you send it by courier; say so*";
     }
 
     function tesWorldCraftStatus(string $master): string
@@ -158,13 +158,13 @@ if (!function_exists('tesWorldLetterTick')) {
         $db = $GLOBALS['db'];
         $r = $db->fetchOne("SELECT o.item, l.due_at, l.sent FROM public.tes_craft_orders o LEFT JOIN public.tes_world_letters l ON l.id = o.letter_id WHERE o.master = '" . $db->escape($master) . "' ORDER BY o.id DESC LIMIT 1");
         if (empty($r)) {
-            return ' *у ярла нет заказа у тебя — скажи это*';
+            return ' *the jarl has no order with you - say so*';
         }
         if (strval($r['sent']) === 't') {
-            return " *заказ ({$r['item']}) уже отправлен с курьером — скажи это*";
+            return " *the order ({$r['item']}) is already sent by courier - say so*";
         }
         $left = max(1, intdiv(strtotime(strval($r['due_at'])) - time() + 59, 60));
-        return " *заказ ({$r['item']}) ещё в работе, осталось около {$left} мин — скажи это*";
+        return " *the order ({$r['item']}) is still in work, about {$left} min left - say so*";
     }
 
     // ------------------------------------------------------------------ places remember
@@ -201,9 +201,9 @@ if (!function_exists('tesWorldLetterTick')) {
         $parts = [];
         foreach (is_array($rows) ? $rows : [] as $r) {
             $h = intval($r['age']) / 3600;
-            $when = $h < 2 ? 'недавно' : ($h < 30 ? 'на днях' : 'давно');
+            $when = $h < 2 ? 'recently' : ($h < 30 ? 'the other day' : 'long ago');
             $parts[] = trim(strval($r['what']), ' .') . " ({$when})";
         }
-        return $parts ? "Это место помнит: " . implode('; ', $parts) . '. Здешние об этом знают и могут вспомнить к слову.' : '';
+        return $parts ? "This place remembers: " . implode('; ', $parts) . '. Locals know of it and may bring it up in passing.' : '';
     }
 }

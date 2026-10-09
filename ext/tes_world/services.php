@@ -28,7 +28,7 @@ if (!function_exists('tesServiceSpoken')) {
             return '';
         }
         if (!function_exists('tesBridgeVersion') || tesBridgeVersion() < 16) {
-            return ' *(окно торговли/обучения откроется после перезапуска игры — нужен новый мост) — ответь как обычно*';
+            return ' *(the trade/training window will open after a game restart - a new bridge is needed) - answer as usual*';
         }
         $ref = tesWorldRefOf($to);
         if ($ref === '') {
@@ -37,9 +37,9 @@ if (!function_exists('tesServiceSpoken')) {
         tesWorldQueue(['prid ' . $ref, $kind]);
         $GLOBALS['TES_COURT_NOW'] = true;  // not an order for the agent
         return [
-            'tesbarter' => ' *ты раскладываешь свой товар перед ярлом — окно торговли уже открыто; скажи что-нибудь торговое*',
-            'testrain' => ' *ты берёшься учить ярла — окно обучения уже открыто; скажи пару слов как наставник*',
-            'tesgiftmenu' => ' *ярл хочет тебе что-то подарить — окно подарка открыто; отзовись*',
+            'tesbarter' => ' *you lay out your wares before the jarl - the trade window is already open; say something merchant-like*',
+            'testrain' => ' *you take on teaching the jarl - the training window is already open; say a few words as a mentor*',
+            'tesgiftmenu' => ' *the jarl wants to give you a gift - the gift window is open; respond*',
         ][$kind];
     }
 
@@ -68,7 +68,7 @@ if (!function_exists('tesServiceSpoken')) {
         foreach (array_chunk($cmds, 8) as $chunk) {
             tesWorldQueue($chunk);
         }
-        return $names ? ' *прежние цены вернулись: ' . implode(', ', array_slice($names, 0, 5)) . '; подтверди*' : ' *особых цен не было — менять нечего*';
+        return $names ? ' *old prices are back: ' . implode(', ', array_slice($names, 0, 5)) . '; confirm*' : ' *there were no special prices - nothing to change*';
     }
 
     function tesPriceEnsure(): void
@@ -115,11 +115,11 @@ if (!function_exists('tesServiceSpoken')) {
             return '';
         }
         if (!function_exists('tesBridgeVersion') || tesBridgeVersion() < 16) {
-            return ' *цены ярл сможет менять после перезапуска игры (нужен новый мост) — скажи это*';
+            return ' *the jarl can change prices after a game restart (a new bridge is needed) - say so*';
         }
         tesPriceSet($item['formid'], $item['name'], $gold, 'указ ярла');
         tesPriceTick(true);
-        return " *по указу ярла {$item['name']} теперь стоит {$gold} септимов у всех торговцев; прими к сведению*";
+        return " *by the jarl's decree {$item['name']} now costs {$gold} septims at every trader; take note*";
     }
 
     /** Every 10 minutes (or at once): active prices sent again; ended ones put back; the feast makes drink dearer. */

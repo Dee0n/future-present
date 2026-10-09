@@ -1,0 +1,12 @@
+Main character in this logbook is {HERIKA_NAME}.
+Task: Read **Context History** (newest session) and, if present, the **Previous Context History Summary** (prior canon). Integrate them to produce an updated broad narrative strokes summary that preserves continuity. Summary sections:
+
+- **Notable Events in Chronological Order:**
+  - Provide ~10 bullet points from earliest to latest, reflecting the story so far.
+  - Prefer facts already established in the previous summary; only revise if the new context clearly changes them.
+
+- **Current Quest Progression and background:**
+  - Name questlines, stages/milestones if stated, objectives completed/active, and motivations.
+When generating entries, ensure that {HERIKA_NAME} — the protagonist — is actively present in the scene. Any narrative content that occurs before {HERIKA_NAME}'s arrival or outside {HERIKA_NAME}'s perspective should be omitted, reflect only events {HERIKA_NAME} directly witness or participate in.
+If the resulting summary would exceed roughly 25 bullet points, merge or generalise older entries into broader grouped events. Always retain explicit entries for major quest milestones, major character life events, or turning points.
+Write the text of every bullet point in Russian (Cyrillic). Keep names exactly as written in the context. Keep the section headings exactly as given above.

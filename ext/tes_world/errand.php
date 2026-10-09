@@ -154,7 +154,7 @@ if (!function_exists('tesErrandSpoken')) {
         $db = $GLOBALS['db'];
         $busy = $db->fetchOne("SELECT 1 AS x FROM public.tes_errands WHERE npc = '" . $db->escape($who) . "' AND stage <> 'done' AND created_at > now() - interval '10 minutes'");
         if (!empty($busy)) {
-            return " *{$who} уже идёт за покупкой*";
+            return " *{$who} is already on the way to buy it*";
         }
         [$items, $outfit, $what, $price] = tesErrandGoods($t);
         [$trader, $traderRef] = tesErrandTrader();
@@ -165,7 +165,7 @@ if (!function_exists('tesErrandSpoken')) {
             tesWorldQueue(['prid ' . $ref, 'teshold 0', 'tesescort ' . hexdec($traderRef)]);
         }
         error_log("[tes_world] errand: {$who} goes to buy {$what} from " . ($trader ?: 'nobody') . " ({$price})");
-        return " *{$who} " . ($trader !== '' ? "идёт к торговцу ({$trader})" : 'идёт') . " покупать " . ($benef !== '' ? "для {$benef}" : 'себе') . " {$what} на свои деньги — это уже происходит*";
+        return " *{$who} " . ($trader !== '' ? "goes to the trader ({$trader})" : 'goes') . " to buy " . ($benef !== '' ? "for {$benef}" : 'for own use') . ": {$what}, with own money - this is already happening*";
     }
 
     /** On every request: walking errands - near the trader (or 3 minutes gone) -> the purchase. */

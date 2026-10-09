@@ -21,12 +21,12 @@ if (strtolower(strval($GLOBALS['gameRequest'][0] ?? '')) === 'tes_god_console') 
                     tesEstateNotify("Обстановка «{$sale['house']}»: комнат {$bought}, потрачено {$spent}");
                 }
                 $text = $bought > 0
-                    ? "Обстановка для «{$sale['house']}» заказана и уже на месте: комнат {$bought}, игра взяла {$spent} септимов."
-                    : ($had > 0 && $poor === 0 ? "В «{$sale['house']}» всё, что ты продаёшь, уже куплено." : "Обстановку купить не вышло.");
+                    ? "The furnishings for «{$sale['house']}» are ordered and already in place: {$bought} rooms, the game took {$spent} septims."
+                    : ($had > 0 && $poor === 0 ? "In «{$sale['house']}» everything you sell is already bought." : "Buying the furnishings failed.");
                 if ($poor > 0) {
-                    $text .= " На {$poor} комнат(ы) у игрока не хватило золота.";
+                    $text .= " The player lacked gold for {$poor} room(s).";
                 }
-                tesEstateTell($sale['seller'], "({$text} Скажи это коротко, 1-2 фразы, без выдумок.)");
+                tesEstateTell($sale['seller'], "({$text} Say it briefly, 1-2 sentences, nothing made up.)");
             }
         }
         if (str_starts_with($message, 'tesbuyhouse ') && isset($GLOBALS['db'])) {
@@ -49,16 +49,16 @@ if (strtolower(strval($GLOBALS['gameRequest'][0] ?? '')) === 'tes_god_console') 
                             }
                         }
                         $change = $taken - intval($m[1]);
-                        $prepaidNote = " Плата засчитана из тех денег, что ты взял раньше ({$taken})."
-                            . ($change > 0 ? " Ты должен игроку сдачу {$change} септимов — верни её сейчас действием Give_Gold_To (target: игрок, item: {$change})." : '');
+                        $prepaidNote = " The payment is counted from the money you took earlier ({$taken})."
+                            . ($change > 0 ? " You owe the player {$change} septims change - return it now with the action Give_Gold_To (target: игрок, item: {$change})." : '');
                     }
-                    tesEstateTell($sale['seller'], "(Сделка состоялась: «{$sale['house']}» теперь принадлежит игроку, игра выдала ему ключ, книгу обустройства и права на дом за {$m[1]} септимов.{$prepaidNote} Скажи об этом коротко, 1-2 фразы, не повторяй сказанное раньше, никуда не веди.)");
+                    tesEstateTell($sale['seller'], "(The deal is done: «{$sale['house']}» now belongs to the player; the game gave him the key, the decorating guide and the rights to the house for {$m[1]} septims.{$prepaidNote} Say so briefly, 1-2 sentences, do not repeat what was said before, do not lead him anywhere.)");
                 } elseif (preg_match('/not enough gold: has (\d+), price (\d+)/', $result, $m)) {
-                    tesEstateTell($sale['seller'], "(Сделка не состоялась: у игрока {$m[1]} септимов, а «{$sale['house']}» стоит {$m[2]}. Скажи это одной фразой, без скидок по своей воле.)");
+                    tesEstateTell($sale['seller'], "(The deal fell through: the player has {$m[1]} septims and «{$sale['house']}» costs {$m[2]}. Say it in one sentence, no discounts of your own will.)");
                 } elseif (str_contains($result, 'already owns')) {
-                    tesEstateTell($sale['seller'], "(«{$sale['house']}» уже принадлежит игроку. Скажи это одной фразой.)");
+                    tesEstateTell($sale['seller'], "(«{$sale['house']}» already belongs to the player. Say it in one sentence.)");
                 } else {
-                    tesEstateTell($sale['seller'], "(Оформить продажу «{$sale['house']}» не вышло: {$result}. Признай это одной фразой.)");
+                    tesEstateTell($sale['seller'], "(Making the sale of «{$sale['house']}» failed: {$result}. Admit it in one sentence.)");
                 }
             }
         }

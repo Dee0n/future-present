@@ -224,14 +224,14 @@ $check(tesFameNick(['cruel' => 9, 'mercy' => 2, 'generous' => 1, 'reveler' => 6,
 $check(tesFameNick(['cruel' => 3, 'mercy' => 2, 'generous' => 1, 'reveler' => 4, 'pious' => 0, 'mad' => 0]) === '', 'nothing stands out yet: no nickname');
 $check(tesFameNick(['cruel' => 5, 'mercy' => 0, 'generous' => 0, 'reveler' => 5, 'pious' => 0, 'mad' => 0]) === '', 'a tie: no nickname');
 $ballad = tesFameSpoken('Спой про меня балладу', 'Микаэль');
-$check(mb_strpos($ballad, 'балладу') !== false, 'a bard sings of the ruler: ' . mb_substr($ballad, 0, 120));
+$check(mb_strpos($ballad, 'a short ballad') !== false, 'a bard sings of the ruler: ' . mb_substr($ballad, 0, 120));
 $check(tesFameSpoken('Спой про меня', 'Ярл Балгруф Старший') === '', 'the jarl is not a bard');
 echo '  info deeds now: ' . json_encode(tesFameDeeds()) . ' -> «' . tesFameNick(tesFameDeeds()) . "»\n";
 
 echo "== market of information, witnesses in court ==\n";
 require_once "$X/tes_world/info.php";
 $check(tesInfoSpoken('Что знаешь?', 'Назим') === '', 'a plain question without money is just talk');
-$check(mb_strpos(tesInfoSpoken('Продай мне тайну, вот 10 септимов', 'Назим'), 'фыркни') !== false, 'under 30 septims he scoffs');
+$check(mb_strpos(tesInfoSpoken('Продай мне тайну, вот 10 септимов', 'Назим'), 'scoff') !== false, 'under 30 septims he scoffs');
 echo '  info secret Назим could tell: ' . tesInfoSecret('Назим') . "\n";
 $check(function_exists('tesCourtCallWitnesses'), 'the court calls witnesses');
 

@@ -822,12 +822,12 @@ if (!function_exists('tesWorldEnsureTable')) {
         if (!empty($recent) || !empty($dup)) {
             return '';
         }
-        $player = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
+        $player = strval($GLOBALS['PLAYER_NAME'] ?? 'the player');
         $title = mb_substr($facts['player_title'], 0, mb_strpos($facts['player_title'] . '.', '.'));
         $around = implode(', ', tesWorldNearbyNames());
-        $context = ($around !== '' ? " Рядом сейчас: {$around} — искажённое имя это тот из них, чьё имя ближе по звучанию." : '');
+        $context = ($around !== '' ? " Nearby now: {$around} - a garbled name is whoever of them sounds closest." : '');
         [$ok] = tesAgentStart("Приказ правителя ({$title}), отданный через {$actor}: {$order}. Дословно ярл сказал (с голоса, имена могут быть исковерканы): «" . mb_substr($order, 0, 300) . "».{$context}"
-            . " Правитель — {$player}. Исполнитель {$actor}: исполни приказ ЕГО руками — {npc:{$actor}}.moveto/follow/escort к цели, раздеть — unequipall, одеть — equipitem, секс между двумя — console «{npc:Имя}.teslove <refid партнёра> теги», отдать вещи — tesgive, собрать людей — {npc:Имя}.moveto player (по одному) либо moveto на место. Приказы про тюрьму/штраф — своими инструментами. Делай РОВНО приказанное и ничего сверх. Не выходит с двух попыток — give_up с причиной.", false, false, true);
+            . " Ruler: {$player}. Executor {$actor}: carry out the order with HIS hands - {npc:{$actor}}.moveto/follow/escort to the target, undress - unequipall, dress - equipitem, sex between two - console «{npc:Name}.teslove <partner refid> tags», hand over things - tesgive, gather people - {npc:Name}.moveto player (one by one) or moveto to the place. Jail/fine orders - with your own tools. Do EXACTLY what was ordered and nothing more. If it fails twice - give_up with the reason.", false, false, true);
         return $ok ? 'агент запущен' : '';
     }
 
@@ -864,14 +864,14 @@ if (!function_exists('tesWorldEnsureTable')) {
             }
             if ($fast['kind'] === 'strip') {
                 if (tesWorldIsChild($who)) {
-                    $done[] = "{$who}: ребёнок — не раздевают";
+                    $done[] = "{$who}: a child - never undressed";
                     continue;
                 }
                 tesWorldQueue(['prid ' . $ref, 'unequipall']);
                 tesWorldVerifyAdd('strip', $who, $ref);
             } elseif ($fast['kind'] === 'bring') {
                 if (function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($who)) {
-                    $done[] = "{$who}: сидит в темнице — его не приводят, а выпускают";
+                    $done[] = "{$who}: is in jail - cannot be brought, only released";
                     continue;
                 }
                 tesWorldQueue(['prid ' . $ref, 'moveto player']);
@@ -915,7 +915,7 @@ if (!function_exists('tesWorldEnsureTable')) {
                 // $by and $who swap what they wear (bridge 10 "tesswapworn <other>")
                 $byRef = tesWorldRefOf($by);
                 if ($byRef === '' || tesWorldIsChild($who) || tesWorldIsChild($by) || !function_exists('tesBridgeVersion') || tesBridgeVersion() < 10) {
-                    $done[] = "{$who}: обмен одеждой — нужен мост v10 (перезапуск игры)";
+                    $done[] = "{$who}: clothes swap needs bridge v10 (game restart)";
                     continue;
                 }
                 tesWorldQueue(['prid ' . $byRef, 'tesswapworn ' . hexdec($ref)]);
@@ -926,11 +926,11 @@ if (!function_exists('tesWorldEnsureTable')) {
                     continue;
                 }
                 if (preg_match('/Стражник|Хускарл|Командир/u', $who) && !preg_match('/побира|подбира|милостын|попрошай/iu', $said)) {
-                    $done[] = "{$who}: страж — «уйди» не значит нищенствовать";
+                    $done[] = "{$who}: a guard - «уйди» does not mean go begging";
                     continue;
                 }
                 if (function_exists('tesBridgeVersion') && tesBridgeVersion() < 2) {
-                    $done[] = "{$who}: мост в игре старый — «жить у места» заработает после перезапуска игры";
+                    $done[] = "{$who}: the game bridge is old - living at a place will work after a game restart";
                     continue;
                 }
                 $cmds = ['prid ' . $ref];
@@ -951,7 +951,7 @@ if (!function_exists('tesWorldEnsureTable')) {
                     continue;
                 }
                 if (function_exists('tesCrimeIsJailed') && tesCrimeIsJailed($who)) {
-                    $done[] = "{$who}: в темнице — там он и так на месте";
+                    $done[] = "{$who}: in jail - already staying put there";
                     continue;
                 }
                 tesWorldQueue($fast['kind'] === 'stay'
@@ -966,7 +966,7 @@ if (!function_exists('tesWorldEnsureTable')) {
                 if (preg_match('/(здесь|тут|рядом|у\s+меня|у\s+трона|у\s+входа)/iu', $said)) {
                     tesWorldQueue(['prid ' . $ref, 'tesroutine here']);
                 } elseif (function_exists('tesBridgeVersion') && tesBridgeVersion() < 2) {
-                    $done[] = "{$who}: мост в игре старый — патруль заработает после перезапуска игры";
+                    $done[] = "{$who}: the game bridge is old - patrol will work after a game restart";
                     continue;
                 } else {
                     tesWorldQueue(['prid ' . $ref, 'tesroutine at ' . hexdec('0001A675')]);
@@ -978,7 +978,7 @@ if (!function_exists('tesWorldEnsureTable')) {
                 tesWorldQueue(['prid ' . $ref, 'tesgive all']);
             } elseif ($fast['kind'] === 'kill') {
                 if (tesWorldIsChild($who)) {
-                    $done[] = "{$who}: ребёнок — детей не казнят";
+                    $done[] = "{$who}: a child - children are not executed";
                     continue;
                 }
                 // the executioner of the court, when there is one, does it himself
@@ -1105,16 +1105,16 @@ if (!function_exists('tesWorldEnsureTable')) {
         if (!empty($ended)) {
             return '';
         }
-        $kinds = ['vulval' => 'он ласкает тебя языком между ног', 'cunnilingus' => 'он ласкает тебя языком между ног', 'deepthroat' => 'ты берёшь его глубоко в рот',
-            'blowjob' => 'ты ласкаешь его ртом', 'handjob' => 'ты ласкаешь его рукой', 'boobjob' => 'ты ласкаешь его грудью', 'analsex' => 'он берёт тебя сзади, в зад',
-            'doggystyle' => 'он берёт тебя сзади', 'cowgirl' => 'ты сверху на нём', 'missionary' => 'он на тебе, лицом к лицу', 'kissing' => 'вы целуетесь',
-            'cuddling' => 'вы обнимаетесь', 'vaginalsex' => 'он в тебе'];
+        $kinds = ['vulval' => 'he is licking you between the legs', 'cunnilingus' => 'he is licking you between the legs', 'deepthroat' => 'you take him deep in your mouth',
+            'blowjob' => 'you pleasure him with your mouth', 'handjob' => 'you pleasure him with your hand', 'boobjob' => 'you pleasure him with your breasts', 'analsex' => 'he takes you from behind, anally',
+            'doggystyle' => 'he takes you from behind', 'cowgirl' => 'you are on top of him', 'missionary' => 'he is on you, face to face', 'kissing' => 'you two are kissing',
+            'cuddling' => 'you two are embracing', 'vaginalsex' => 'he is inside you'];
         foreach ($kinds as $tag => $words) {
             if (strpos(strval($row['command']), $tag) !== false) {
                 return $words;
             }
         }
-        return 'вы занимаетесь любовью';
+        return 'you two are making love';
     }
 
     /**
@@ -1167,24 +1167,24 @@ if (!function_exists('tesWorldEnsureTable')) {
         $title = trim(str_replace(["\n", "\r", ';'], [' ', ' ', ','], $title));
         if ($title === '' || preg_match('/^(нет|никто|none|clear|снять)$/iu', $title)) {
             $db->execQuery("DELETE FROM public.tes_world_titles WHERE key = 'player_title'");
-            return [true, "{$player}: титул снят"];
+            return [true, "{$player}: title removed"];
         }
         $now = intval($GLOBALS['gameRequest'][2] ?? 0);
         if ($now <= 0) {
             $row = $db->fetchOne("SELECT max(gamets) AS g FROM eventlog WHERE localts > " . (time() - 900));
             $now = intval($row['g'] ?? 0);
         }
-        $fact = "{$player} — {$title}. Это признано и известно всем: стража, двор и жители подчиняются ему как носителю этого титула, "
-            . 'обращаются к нему соответственно, его слово в делах этого титула — приказ. Прежний носитель титула власти больше не имеет. '
-            . 'Его приказы исполняют, а не обсуждают: кто виновен и что справедливо, решает он; отказ, спор о законности или нравоучение в ответ на приказ — неповиновение.';
+        $fact = "{$player} — {$title}. This is recognised and known to all: guards, court and residents obey him as the holder of this title, "
+            . 'address him accordingly, his word in matters of this title is an order. The former holder of the title has no power any more. '
+            . 'His orders are carried out, not debated: he decides who is guilty and what is just; refusing, arguing about legality or moralising in reply to an order is disobedience.';
         $db->execQuery("INSERT INTO public.tes_world_titles (key, fact, gamets) VALUES ('player_title', '" . $db->escape($fact) . "', {$now})
             ON CONFLICT (key) DO UPDATE SET fact = EXCLUDED.fact, gamets = EXCLUDED.gamets, created_at = now()");
         $extra = '';
         if (function_exists('tesGodGuardAddRumor')) {
             $hold = tesGodGuardAddRumor("{$player} теперь {$title}. Это объявлено во всеуслышание.");
-            $extra = "; по холду {$hold} пошла весть";
+            $extra = "; news spread in hold {$hold}";
         }
-        return [true, "{$player} теперь {$title} — это знают все персонажи{$extra}"];
+        return [true, "{$player} is now {$title} - all characters know it{$extra}"];
     }
 }
 require_once __DIR__ . '/verify.php';

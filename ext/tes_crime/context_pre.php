@@ -11,7 +11,7 @@ try {
     if ($tesCrimeSpeaker !== '' && $tesCrimeSpeaker !== 'The Narrator' && function_exists('chimRegisterPromptInjection')) {
         require_once __DIR__ . '/functions.php';
         if (tesCrimeIsJailed($tesCrimeSpeaker)) {
-            $tesCrimeCell = 'Ты арестован и заперт в камере темницы: на тебе тюремная одежда, вещи отобраны, дверь заперта. Ты никуда не идёшь и ни за кем не следуешь — только говоришь. Выйти можно, лишь когда отпустит правитель или выйдет срок.';
+            $tesCrimeCell = 'You are under arrest and locked in a jail cell: you wear prison clothes, your things are taken, the door is locked. You go nowhere and follow no one - you only talk. You get out only when the ruler frees you or the term ends.';
             chimRegisterPromptInjection('prompt_bottom', 'tes_crime_cell', $tesCrimeCell, 97);
             if (isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
                 $GLOBALS['request'] = '(' . $tesCrimeCell . ') ' . $GLOBALS['request'];
@@ -20,9 +20,9 @@ try {
         $tesCrimeSaid = mb_strtolower(strval($GLOBALS['gameRequest'][3] ?? ''));
         if (tesCrimeIsAuthority($tesCrimeSpeaker) && preg_match('/сади|сажа|арест|темниц|тюрьм|тюрьгу|за реш[её]тк|штраф|оштраф|накаж/u', $tesCrimeSaid)) {
             $tesCrimePlayer = strval($GLOBALS['PLAYER_NAME'] ?? 'игрок');
-            $tesCrimeLine = "Тебе велят посадить или оштрафовать КОГО-ТО ДРУГОГО. Делается это одним действием, сразу, без хождения: "
-                . "Arrest_Person (target: имя того, кого сажаешь; item: число суток) или Fine_Person (target: имя; item: сумма золотом). "
-                . "Действие Arrest_{$tesCrimePlayer} арестовывает САМОГО {$tesCrimePlayer} — для других его НЕ используй. Move_To и Travel_To тут не нужны.";
+            $tesCrimeLine = "You are told to jail or fine SOMEONE ELSE. It is done with one action, at once, no walking: "
+                . "Arrest_Person (target: name of the one you jail; item: number of days) or Fine_Person (target: name; item: sum in gold). "
+                . "The action Arrest_{$tesCrimePlayer} arrests {$tesCrimePlayer} HIMSELF - do NOT use it for others. Move_To and Travel_To are not needed here.";
             chimRegisterPromptInjection('prompt_bottom', 'tes_crime', $tesCrimeLine, 96);
             if (isset($GLOBALS['request']) && is_string($GLOBALS['request'])) {
                 $GLOBALS['request'] = '(' . $tesCrimeLine . ') ' . $GLOBALS['request'];

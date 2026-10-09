@@ -80,9 +80,9 @@ if (!function_exists('tesFameTick')) {
         if ($nick === '') {
             return '';
         }
-        $why = ['Кровавый' => 'за казни и жестокость', 'Милосердный' => 'за помилования', 'Щедрый' => 'за щедрость из казны', 'Гуляка' => 'за пиры и пари',
-            'Благочестивый' => 'за милость богов', 'Безумный' => 'за безумные чудеса'][$nick] ?? '';
-        return 'В народе правителя зовут «' . strval($GLOBALS['PLAYER_NAME'] ?? '') . " {$nick}» {$why} — так о нём и думаешь, можешь так и назвать (за глаза или в лицо, по характеру).";
+        $why = ['Кровавый' => 'for executions and cruelty', 'Милосердный' => 'for pardons', 'Щедрый' => 'for generosity from the treasury', 'Гуляка' => 'for feasts and wagers',
+            'Благочестивый' => 'for the favour of the gods', 'Безумный' => 'for mad wonders'][$nick] ?? '';
+        return 'The people call the ruler «' . strval($GLOBALS['PLAYER_NAME'] ?? '') . " {$nick}» {$why} - you think of him so and may call him that (behind his back or to his face, per your character).";
     }
 
     /** "пусти слух, что …", and "спой про меня" to a bard. Returns a note or ''. */
@@ -99,7 +99,7 @@ if (!function_exists('tesFameTick')) {
             $orig = $pos !== false ? mb_substr($line, $pos, mb_strlen($text)) : $text;
             $hold = tesGodGuardAddRumor('Говорят, будто ' . trim($orig, " .!") . '.');
             $GLOBALS['TES_COURT_NOW'] = true;
-            return " *слух пущен по холду {$hold}: «" . mb_substr($orig, 0, 100) . "» — скоро о нём заговорят; подтверди коротко*";
+            return " *the rumour is spread through the hold {$hold}: «" . mb_substr($orig, 0, 100) . "» - people will soon talk of it; confirm briefly*";
         }
         if ($to !== '' && stripos($to, 'Narrator') === false && preg_match('/(?<![\p{L}])(спой|сыграй|сложи|сочини|исполни)\p{L}*\s+(?:\p{L}+\s+){0,3}?(?:про\s+меня|обо\s+мне|балладу|песню|песнь|оду)/u', $t)) {
             $db = $GLOBALS['db'];
@@ -110,14 +110,14 @@ if (!function_exists('tesFameTick')) {
             $facts = [];
             $nick = strval(tesWatchGet('player_nick')['value']);
             if ($nick !== '') {
-                $facts[] = 'народ зовёт его ' . $nick;
+                $facts[] = 'the people call him ' . $nick;
             }
             $has = fn(string $tb) => !empty($db->fetchOne("SELECT to_regclass('public.{$tb}') AS t")['t']);
             if ($has('tes_court')) {
                 tesTreasuryEnsure();  // the verdict column
                 foreach ((array)$db->fetchAll("SELECT defendant, verdict FROM public.tes_court WHERE closed AND verdict <> '' ORDER BY id DESC LIMIT 2") as $c) {
                     if (is_array($c)) {
-                        $facts[] = "на суде {$c['defendant']} {$c['verdict']}";
+                        $facts[] = "at trial {$c['defendant']}: {$c['verdict']}";
                     }
                 }
             }
@@ -130,13 +130,13 @@ if (!function_exists('tesFameTick')) {
             }
             $d = tesFameDeeds();
             if ($d['reveler'] > 0) {
-                $facts[] = 'закатывал пиры';
+                $facts[] = 'he threw feasts';
             }
             // the fact is a sentence ("Шаман — Ярл Вайтрана. Это признано…"): only the title itself
             $fact = strval(tesWorldFacts()['player_title'] ?? '');
-            $title = preg_match('/—\s*([^.]{3,40})\./u', $fact, $tm) ? trim($tm[1]) : 'правитель';
-            return ' *спой о ' . strval($GLOBALS['PLAYER_NAME'] ?? 'правителе') . " ({$title}) короткую балладу — четыре-шесть строк, в рифму, с припевом, по правде"
-                . ($facts ? ': ' . implode('; ', array_slice($facts, 0, 6)) : '') . '; можно с лестью или с издёвкой — в твоём характере*';
+            $title = preg_match('/—\s*([^.]{3,40})\./u', $fact, $tm) ? trim($tm[1]) : 'ruler';
+            return ' *sing of ' . strval($GLOBALS['PLAYER_NAME'] ?? 'the ruler') . " ({$title}) a short ballad - four to six lines, rhymed, with a refrain, true to fact"
+                . ($facts ? ': ' . implode('; ', array_slice($facts, 0, 6)) : '') . '; flattering or mocking - per your character*';
         }
         return '';
     }
