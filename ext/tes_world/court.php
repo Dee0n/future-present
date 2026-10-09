@@ -116,7 +116,8 @@ if (!function_exists('tesTreasuryAdd')) {
             return;
         }
         tesWatchSet('tax_at', '1');
-        $traders = 8 + random_int(0, 4);
+        // executions drive traders out of town (overhear.php)
+        $traders = max(2, 8 + random_int(0, 4) - (function_exists('tesEconomyTraderLoss') ? tesEconomyTraderLoss() : 0));
         $rate = tesWatchGet('tax_rate')['value'];
         $sum = intval($traders * (35 + random_int(0, 40)) * (($rate === '' ? 100 : intval($rate)) / 100));
         if ($sum <= 0) {

@@ -189,7 +189,7 @@ $found = function (string $line): string {
     return '';
 };
 foreach (['Аркей, исцели меня' => 'arkay', 'Кинарет, пошли дождь' => 'kynareth', 'Мара, пусть Ольфина полюбит меня' => 'mara',
-    'Хермеус Мора, открой тайну' => 'hermaeus', 'Клавикус Вайл, дай 1000 в долг' => 'clavicus', 'Шеогорат, повесели' => 'sheogorath',
+    'Хермеус Мора, открой тайну' => 'hermaeus', 'Клавикус Вайл, дай 1000 в долг' => 'clavicus', 'Шеогорат, повесели' => '',  // off since 2026-10-07 (owner)
     'Мне снился кошмар' => '', 'Марамаль придёт' => ''] as $line => $want) {
     $check($found($line) === $want, "«{$line}» => '" . $found($line) . "'");
 }
@@ -234,6 +234,15 @@ $check(tesInfoSpoken('Что знаешь?', 'Назим') === '', 'a plain ques
 $check(mb_strpos(tesInfoSpoken('Продай мне тайну, вот 10 септимов', 'Назим'), 'фыркни') !== false, 'under 30 septims he scoffs');
 echo '  info secret Назим could tell: ' . tesInfoSecret('Назим') . "\n";
 $check(function_exists('tesCourtCallWitnesses'), 'the court calls witnesses');
+
+echo "== overhearing, economy ==\n";
+require_once "$X/tes_world/overhear.php";
+$sample = '(Context location: Драконий Предел ,Hold: Вайтран) Ольфина Серая Грива: Ярл казнил Хронгара, а золото из казны раздаёт пьяницам. (talking to Йорлунд Серая Грива)';
+$ok = preg_match('/^(?:\([^)]*\)\s*)?([^:()]{2,60}):\s*(.{12,220}?)\s*\(talking to ([^)]{2,60})\)\s*$/us', $sample, $om);
+$check($ok === 1 && trim($om[1]) === 'Ольфина Серая Грива' && trim($om[3]) === 'Йорлунд Серая Грива', 'an NPC-to-NPC line is read: who, what, to whom');
+$loss = tesEconomyTraderLoss();
+$check($loss >= 0 && $loss <= 6, "traders gone after executions: {$loss}");
+echo '  info a trader now: ' . tesEconomyLine('Белетор') . "\n";
 
 echo $fail ? "\n{$fail} FAILED\n" : "\nALL OK\n";
 exit($fail ? 1 : 0);

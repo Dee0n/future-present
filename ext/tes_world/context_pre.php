@@ -143,7 +143,7 @@ try {
                 $st = ['done' => 'исполнено', 'fast' => 'исполнено', 'failed' => 'не вышло', 'running' => 'идёт', 'queued' => 'идёт', 'waiting' => 'ждёт'][strval($o['status'])] ?? strval($o['status']);
                 $tesWorldOrderLines[] = '«' . mb_substr(trim($txt), 0, 70) . '» — ' . $st;
             }
-            foreach (['tesRealmPostLine' => $tesWorldMe, 'tesRealmPlotLine' => $tesWorldMe, 'tesCompanionLine' => $tesWorldMe, 'tesFameLine' => $tesWorldMe] as $tesWorldFn => $tesWorldArg) {
+            foreach (['tesRealmPostLine' => $tesWorldMe, 'tesRealmPlotLine' => $tesWorldMe, 'tesCompanionLine' => $tesWorldMe, 'tesFameLine' => $tesWorldMe, 'tesEconomyLine' => $tesWorldMe] as $tesWorldFn => $tesWorldArg) {
                 if (function_exists($tesWorldFn)) {
                     $tesWorldRl = $tesWorldFn($tesWorldArg);
                     if ($tesWorldRl !== '') {
