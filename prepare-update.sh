@@ -2,7 +2,8 @@
 # Run BEFORE a CHIM update. The launcher refuses to update HerikaServer while
 # it has local changes ("Your local changes ... would be overwritten").
 # This stashes them (recoverable with `git stash list`); after the update,
-# re-run install.sh to apply the adapter patches again.
+# run tools/after_update.sh (NOT install.sh: it reloads settings/*.sql over the
+# live settings and drops watchdog cron lines).
 #
 #   wsl -d DwemerAI4Skyrim3 -u root -- bash /home/dwemer/TES-Speech-Adapter/prepare-update.sh
 set -u

@@ -104,9 +104,10 @@ wsl -d DwemerAI4Skyrim3 -- bash /mnt/<drive>/path/to/this/repo/install.sh "/mnt/
 ```
 
 The Skyrim `Data` path is optional; it builds the full lexicon from your
-actual load order. Re-run `install.sh` after every CHIM update — CHIM
-updates reset the patched core files, and the installer re-applies them and
-copies the `ext/` plugins back in.
+actual load order. After every CHIM update run `tools/after_update.sh`
+(not `install.sh`, which also reloads `settings/*.sql` over your live
+settings): updates reset the patched core files and the speech server, and
+that script puts them back and reports what is alive.
 
 After install, in the CHIM web UI: **Configuration → STT → Local Whisper**,
 URL `http://127.0.0.1:9876/api/v0/transcribe`.

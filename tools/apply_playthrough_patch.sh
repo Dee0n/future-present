@@ -4,6 +4,14 @@
 #   wsl -d DwemerAI4Skyrim3 -u root -- bash /home/dwemer/TES-Speech-Adapter/tools/apply_playthrough_patch.sh
 # Undo: cp /home/dwemer/backups/playthrough_policy.php.bak-2026-10-06 /var/www/html/HerikaServer/lib/playthrough_policy.php
 set -e
+# DO NOT RUN (checked 2026-10-09): with the plugin tables in pts_playthrough_tables(), switching to or exporting any
+# playthrough saved before the patch raises "Snapshot is missing table ...; no safe upgrade is available"
+# (lib/playthrough_upgrade.sql), and "New playthrough" empties all 33 plugin tables. Upstream policy: plugin state
+# goes through NpcMaster::setPluginData, not into the core capture list. See docs/ROADMAP.md item 13.
+if [ "${TES_FORCE_PLAYTHROUGH_PATCH:-0}" != 1 ]; then
+    echo "Not applied: this patch breaks switching to the existing playthrough saves. See docs/ROADMAP.md item 13."
+    exit 1
+fi
 REPO=/home/dwemer/TES-Speech-Adapter
 cd "$REPO"
 runuser -u www-data -- php tools/ensure_playthrough_tables.php 2>&1 | grep -v '^\[REL\]' | tail -1
