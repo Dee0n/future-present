@@ -28,7 +28,8 @@ for d in "$R"/ext/*/; do
         php -l "$f" > /dev/null 2>&1 || { say FAIL "ext/$n: $(basename "$f") does not lint, plugin not copied"; ok=0; BAD=1; break; }
     done
     [ $ok = 1 ] || continue
-    if diff -rq "$d" "$H/ext/$n" > /dev/null 2>&1; then
+    # extra files on the server (backups, logs) are not a difference
+    if [ -d "$H/ext/$n" ] && [ -z "$(diff -rq "$d" "$H/ext/$n" 2>&1 | grep -v "^Only in $H/")" ]; then
         say same "ext/$n"
     else
         mkdir -p "$H/ext/$n" && cp -r "$d". "$H/ext/$n/" && chown -R dwemer:www-data "$H/ext/$n" && say restored "ext/$n"
