@@ -786,6 +786,9 @@ if (!function_exists('tesGodGuardValidate')) {
             if ($cmd['verb'] === 'unjail') {
                 return tesCrimeUnjail($name, strval($npc['refid'] ?? ''));
             }
+            if (tesGodGuardIsChild('{npc:' . $name . '}')) {
+                return [false, "«{$name}»: это ребёнок — детей не сажают"];
+            }
             // the term as said: "на неделю", "на три года", "пожизненно" (in the command or in the
             // player's own words), digits alone are days
             $days = function_exists('tesCrimeTerm') ? (tesCrimeTerm(strval($cmd['args'])) ?: tesCrimeTerm(strval($GLOBALS['gameRequest'][3] ?? ''))) : 0;
@@ -1556,6 +1559,21 @@ if (!function_exists('tesGodGuardValidate')) {
             if (in_array($verb, ['unequipall', 'unequipitem'], true) && tesGodGuardIsChild($target)) {
                 $reasons[] = "«{$command}»: это ребёнок — детей не раздевают";
                 continue;
+            }
+            // Children are never killed, hurt, jailed, robbed or set upon - whoever asks (the agent's writes come
+            // through here and not through tesChildSafeCommands; found 2026-10-09: "kill" on a child reached the bridge).
+            // The victim may be the target or named in the body ("{npc:A}.startcombat {npc:B}").
+            $tesHarm = in_array($verb, ['kill', 'teskill', 'killactor', 'damageav', 'damageactorvalue', 'tesmortal', 'setessential', 'tesessential',
+                'removefromallfactions', 'startcombat', 'tesduel', 'jail', 'tesjail', 'tesjailbox', 'setrestrained', 'removeallitems', 'takeall', 'pushactoraway'], true)
+                || (in_array($verb, ['setav', 'forceav', 'modav'], true) && preg_match('/\bhealth\b/i', $body));
+            if ($tesHarm) {
+                preg_match_all('/\{npc:[^}]+\}|\b[0-9A-Fa-f]{8}\b/u', $body, $tesNamed);
+                foreach (array_merge([$target], $tesNamed[0]) as $tesWho) {
+                    if ($tesWho !== '' && strtolower($tesWho) !== 'player' && tesGodGuardIsChild($tesWho)) {
+                        $reasons[] = "«{$command}»: это ребёнок — детей не убивают, не калечат, не сажают и никого на них не натравливают";
+                        continue 2;
+                    }
+                }
             }
             if ($verb === 'heal') {
                 $body = 'tesheal';

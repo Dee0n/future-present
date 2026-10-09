@@ -28,7 +28,7 @@ if (!function_exists('tesInfoSpoken')) {
                 return 'what you heard from eyewitnesses: ' . $w['deed'];
             }
         }
-        $g = $db->fetchOne("SELECT npc_name, coalesce(goals::text, '') AS g FROM public.core_npc_master WHERE npc_name <> '" . $db->escape($npc) . "' AND length(coalesce(goals::text, '')) > 20 AND race NOT ILIKE '%реб%' ORDER BY random() LIMIT 1");
+        $g = $db->fetchOne("SELECT npc_name, coalesce(goals::text, '') AS g FROM public.core_npc_master WHERE npc_name <> '" . $db->escape($npc) . "' AND length(coalesce(goals::text, '')) > 20 AND position('ебенок' in coalesce(race, '')) = 0 AND position('ебёнок' in coalesce(race, '')) = 0 AND coalesce(race, '') NOT ILIKE '%child%' ORDER BY random() LIMIT 1");  // the DB is in the C locale: ILIKE does not fold Cyrillic, '%реб%' matched no child
         if (!empty($g['npc_name'])) {
             $parts = array_values(array_filter(array_map('trim', preg_split('/(?:^|\s)[*•\-]\s+|\n+/u', trim(preg_replace('/[\[\]{}"]+/u', ' ', strval($g['g'])) ?? '')) ?: [])));
             return "what {$g['npc_name']} secretly wants: " . mb_substr($parts[0] ?? strval($g['g']), 0, 160);

@@ -75,6 +75,22 @@ check('.character on the player is refused with a clear reason (not "no such cha
 // no {item:} wrapper) passed straight through unchanged, "f" is not a real item.
 $v = tesGodGuardValidate('{npc:Тестгерой}.additem f 1000');
 check('a raw garbage additem argument is refused, not passed through blind', empty($v['kept']) && !empty($v['reasons']), json_encode($v));
+// Found 2026-10-09: the guard stopped only the undressing of children; "kill" on a child reached the bridge
+// through the agent's write path (it does not pass tesChildSafeCommands).
+$tesKid = $db->fetchOne("SELECT npc_name, refid FROM public.core_npc_master WHERE position('ебенок' in coalesce(race, '')) > 0 AND coalesce(refid, '') <> '' LIMIT 1");
+$tesAdult = $db->fetchOne("SELECT npc_name FROM public.core_npc_master WHERE position('ебенок' in coalesce(race, '')) = 0 AND coalesce(race, '') NOT ILIKE '%child%' AND coalesce(refid, '') <> '' AND npc_name NOT LIKE '%[%' LIMIT 1");
+if (!empty($tesKid['npc_name']) && !empty($tesAdult['npc_name'])) {
+    foreach (['kill', 'damageav health 500', 'removeallitems', 'setav health 0', 'jail', 'tesmortal', 'removefromallfactions'] as $tesCmd) {
+        $v = tesGodGuardValidate('{npc:' . $tesKid['npc_name'] . '}.' . $tesCmd);
+        check("a child is never the target of «{$tesCmd}»", empty($v['kept']) && empty($v['server']) && str_contains(implode('', $v['reasons']), 'ребёнок'), json_encode($v, JSON_UNESCAPED_UNICODE));
+    }
+    $v = tesGodGuardValidate('{npc:' . $tesAdult['npc_name'] . '}.startcombat ' . strtoupper(strval($tesKid['refid'])));
+    check('nobody is set on a child (the child named in the body)', empty($v['kept']) && str_contains(implode('', $v['reasons']), 'ребёнок'), json_encode($v, JSON_UNESCAPED_UNICODE));
+    $v = tesGodGuardValidate('{npc:' . $tesAdult['npc_name'] . '}.kill');
+    check('an adult can still be the target of kill (no child refusal)', !str_contains(implode('', $v['reasons']), 'ребёнок'), json_encode($v, JSON_UNESCAPED_UNICODE));
+    $v = tesGodGuardValidate('{npc:' . $tesKid['npc_name'] . '}.tesheal');
+    check('healing a child is not refused as harm', !str_contains(implode('', $v['reasons']), 'не убивают'), json_encode($v, JSON_UNESCAPED_UNICODE));
+}
 // A 1-2 letter stem is too short to trust in the fuzzy matcher either way (this is what let
 // "f" resolve to an unrelated item on the first attempt at the fix above).
 check('a 1-letter word is rejected by the fuzzy matcher directly (too short to trust)', tesGodGuardResolveItem('f') === '');
