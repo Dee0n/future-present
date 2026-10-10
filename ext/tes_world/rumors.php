@@ -91,6 +91,24 @@ if (!function_exists('tesRumorSpreadTick')) {
         return mb_substr(preg_replace('/\s+/u', ' ', $out) ?? $out, 0, 400);
     }
 
+    /**
+     * Our own rumours are the rows of type 'TES news' (tesGodGuardAddRumor) and 'Слух издалека' (copies below). Anything
+     * else (made in CHIM's UI, by "background life", older 'Local news') is foreign and is never deleted.
+     * CHIM puts only 3 rumours per hold into the prompt, unsorted, so we keep the 3 freshest of ours per hold and
+     * no duplicates; deleted rows go to tes_backup_rumors. $hold limits the work to one hold (tests). Returns rows deleted.
+     */
+    function tesRumorTrim(string $hold = '', int $keep = 3): int
+    {
+        $db = $GLOBALS['db'];
+        $own = "r.type IN ('TES news', 'Слух издалека')" . ($hold !== '' ? " AND r.hold = '" . $db->escape($hold) . "'" : '');
+        $victims = "SELECT id FROM (SELECT r.id, row_number() OVER (PARTITION BY r.content ORDER BY r.id DESC) AS dup, row_number() OVER (PARTITION BY r.hold ORDER BY r.id DESC) AS pos FROM public.rumors r WHERE {$own}) t WHERE dup > 1 OR pos > " . intval($keep);
+        $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_backup_rumors AS SELECT *, now() AS saved_at FROM public.rumors WHERE false");
+        $db->execQuery("INSERT INTO public.tes_backup_rumors SELECT r.*, now() FROM public.rumors r WHERE r.id IN ({$victims}) AND r.id NOT IN (SELECT id FROM public.tes_backup_rumors)");
+        $n = $db->fetchOne("SELECT count(*) AS n FROM public.rumors WHERE id IN ({$victims})");
+        $db->execQuery("DELETE FROM public.rumors WHERE id IN ({$victims})");
+        return intval($n['n'] ?? 0);
+    }
+
     /** Every 5 minutes: rumours of the holds that are old enough go one hop further. */
     function tesRumorSpreadTick(): void
     {
@@ -103,7 +121,7 @@ if (!function_exists('tesRumorSpreadTick')) {
         $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_rumor_spread (src_id int NOT NULL, hold text NOT NULL, hop int NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (src_id, hold))");
         $map = tesRumorNeighbours();
         // our own rumours, born in a hold we know, 30 min - 6 h old (ts = real time of the insert)
-        $rows = $db->fetchAll("SELECT id, hold, content, gamets, ts FROM public.rumors WHERE type = 'Local news' AND ts < " . (time() - 1800) . " AND ts > " . (time() - 6 * 3600) . " ORDER BY id DESC LIMIT 6");
+        $rows = $db->fetchAll("SELECT id, hold, content, gamets, ts FROM public.rumors WHERE type = 'TES news' AND ts < " . (time() - 1800) . " AND ts > " . (time() - 6 * 3600) . " ORDER BY id DESC LIMIT 6");
         $made = 0;
         foreach (is_array($rows) ? $rows : [] as $r) {
             $from = trim(strval($r['hold']));

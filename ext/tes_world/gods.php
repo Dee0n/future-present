@@ -18,18 +18,27 @@ if (!function_exists('tesGodsSpoken')) {
      * CHIM's XTTS_TEXTMODIFIER hook - it runs right before the voice is picked for every sentence, so nothing
      * (the Narrator's own settings) can put the Narrator's voice back in between.
      */
-    function tesWorldGodVoice(string $voice): void
+    function tesWorldGodVoice(string $voice, string $filter = ''): void
     {
         if ($voice === '') {
             return;
         }
         $GLOBALS['TES_GOD_VOICE'] = $voice;
         $GLOBALS['PATCH_OVERRIDE_VOICE'] = $voice;
+        // The audio filter of the god (CHIM's server-side preset, tts_filter_presets.php): without it the Narrator's
+        // preset lies on every god. Set here and again in the hook, for the same reason as the voice.
+        $GLOBALS['TES_GOD_FILTER'] = $filter;
+        if ($filter !== '' && function_exists('setActiveTtsFilterPreset')) {
+            setActiveTtsFilterPreset($filter);
+        }
         if (empty($GLOBALS['TES_GOD_VOICE_HOOK'])) {
             $GLOBALS['TES_GOD_VOICE_HOOK'] = true;
             $GLOBALS['HOOKS']['XTTS_TEXTMODIFIER'][] = function ($s) {
                 if (!empty($GLOBALS['TES_GOD_VOICE'])) {
                     $GLOBALS['PATCH_OVERRIDE_VOICE'] = $GLOBALS['TES_GOD_VOICE'];
+                }
+                if (!empty($GLOBALS['TES_GOD_FILTER']) && function_exists('setActiveTtsFilterPreset')) {
+                    setActiveTtsFilterPreset($GLOBALS['TES_GOD_FILTER']);
                 }
                 return $s;
             };
@@ -39,11 +48,11 @@ if (!function_exists('tesGodsSpoken')) {
     function tesGods(): array
     {
         return [
-            'arkay' => ['voicewav' => 'maleuniquearngeir', 'name' => 'Аркей', 're' => 'арке[йяюе]\p{L}*', 'voice' => 'Аркей answers, god of life and death: speak solemnly, restrained and stern, of the cycle of life'],
-            'kynareth' => ['voicewav' => 'femaleeventoned', 'name' => 'Кинарет', 're' => 'кинарет\p{L}*', 'voice' => 'Кинарет answers, goddess of sky and winds: speak brightly and melodiously, of sky, wind and rain'],
-            'mara' => ['voicewav' => 'femaleoldkindly', 'name' => 'Мара', 're' => 'мар[аыеу](?![\p{L}])', 'voice' => 'Мара answers, goddess of love: speak warmly and gently, like a mother'],
-            'hermaeus' => ['voicewav' => 'maleuniquehermaeusmora', 'name' => 'Хермеус Мора', 're' => 'хермеус\p{L}*(?:\s+мор\p{L}*)?|херм[еэ]ус\p{L}*', 'voice' => 'Хермеус Мора answers, Daedric Prince of knowledge: speak ominously, insinuatingly, in riddles, like a thousand whispers'],
-            'clavicus' => ['voicewav' => 'maleuniqueclavicusvile', 'name' => 'Клавикус Вайл', 're' => 'клавикус\p{L}*(?:\s+вайл\p{L}*)?', 'voice' => 'Клавикус Вайл answers, Daedric Prince of bargains: speak like a sly huckster, flattering, with fine print in every phrase'],
+            'arkay' => ['voicewav' => 'maleuniquearngeir', 'filter' => 'measured', 'name' => 'Аркей', 're' => 'арке[йяюе]\p{L}*', 'voice' => 'Аркей answers, god of life and death: speak solemnly, restrained and stern, of the cycle of life'],
+            'kynareth' => ['voicewav' => 'femaleeventoned', 'filter' => 'ethereal', 'name' => 'Кинарет', 're' => 'кинарет\p{L}*', 'voice' => 'Кинарет answers, goddess of sky and winds: speak brightly and melodiously, of sky, wind and rain'],
+            'mara' => ['voicewav' => 'femaleoldkindly', 'filter' => 'warm', 'name' => 'Мара', 're' => 'мар[аыеу](?![\p{L}])', 'voice' => 'Мара answers, goddess of love: speak warmly and gently, like a mother'],
+            'hermaeus' => ['voicewav' => 'maleuniquehermaeusmora', 'filter' => 'haunted', 'name' => 'Хермеус Мора', 're' => 'хермеус\p{L}*(?:\s+мор\p{L}*)?|херм[еэ]ус\p{L}*', 'voice' => 'Хермеус Мора answers, Daedric Prince of knowledge: speak ominously, insinuatingly, in riddles, like a thousand whispers'],
+            'clavicus' => ['voicewav' => 'maleuniqueclavicusvile', 'filter' => 'drawling', 'name' => 'Клавикус Вайл', 're' => 'клавикус\p{L}*(?:\s+вайл\p{L}*)?', 'voice' => 'Клавикус Вайл answers, Daedric Prince of bargains: speak like a sly huckster, flattering, with fine print in every phrase'],
             // Шеогорат removed from the pantheon (owner, 2026-10-07: "нахуй бури и шеогората")
         ];
     }
@@ -223,7 +232,7 @@ if (!function_exists('tesGodsSpoken')) {
         if (stripos($to, 'Narrator') === false && $to !== '') {
             return ' *the jarl called upon ' . $G['name'] . ($did !== '' ? '; what happened: ' . $did : '') . '; react in your own way*';
         }
-        tesWorldGodVoice(strval($G['voicewav'] ?? ''));
+        tesWorldGodVoice(strval($G['voicewav'] ?? ''), strval($G['filter'] ?? ''));
         return ' *' . $G['voice'] . '. One or two sentences.' . ($did !== '' ? ' Already happened: ' . $did . '.' : '') . '*';
     }
 

@@ -3,7 +3,7 @@
  * Read-only checks of the ruler's court, treasury, posts and the child guard (ext/tes_world).
  * Usage (inside the DwemerAI4Skyrim3 WSL distro):
  *   runuser -u www-data -- php tools/test_court.php
- * Nothing is written to the database and nothing is sent to the game.
+ * Nothing is sent to the game. The only DB writes are the rumours of a throw-away hold ZZZ_TestHold_<pid>, deleted at the end.
  */
 
 chdir('/var/www/html/HerikaServer');
@@ -212,10 +212,36 @@ foreach (['Эльфийский лук стоит 200, не больше?', 'Э�
     $check(tesPriceSpoken($line) === '', "bargaining / one word is not a decree: «{$line}»");
 }
 
+echo "== rumours: trim keeps our 3 freshest, never touches foreign ==\n";
+$zh = 'ZZZ_TestHold_' . getmypid();
+$zdb = $GLOBALS['db'];
+try {
+    for ($i = 1; $i <= 5; $i++) {
+        $zdb->insert('rumors', ['gamets' => $i, 'ts' => time(), 'hold' => $zh, 'content' => "ZZZ own {$i}", 'type' => 'TES news', 'rumor_length_days' => 14]);
+        if ($i <= 2) {
+            $zdb->insert('rumors', ['gamets' => $i, 'ts' => time(), 'hold' => $zh, 'content' => "ZZZ foreign {$i}", 'type' => $i === 1 ? 'Local news' : 'Background life', 'rumor_length_days' => 7]);
+        }
+    }
+    $gone = tesRumorTrim($zh);
+    $left = array_column($zdb->fetchAll("SELECT content FROM public.rumors WHERE hold = '" . $zdb->escape($zh) . "' ORDER BY id") ?: [], 'content');
+    $check($gone === 2, "trim deleted 2 old own rumours (got {$gone})");
+    $check(array_values(array_filter($left, fn($c) => strpos($c, 'own') !== false)) === ['ZZZ own 3', 'ZZZ own 4', 'ZZZ own 5'], 'the 3 freshest own rumours remain: ' . implode(', ', $left));
+    $check(in_array('ZZZ foreign 1', $left, true) && in_array('ZZZ foreign 2', $left, true), 'both foreign rumours remain');
+} finally {
+    $zdb->execQuery("DELETE FROM public.rumors WHERE hold = '" . $zdb->escape($zh) . "'");
+    $zdb->execQuery("DELETE FROM public.tes_backup_rumors WHERE hold = '" . $zdb->escape($zh) . "'");
+}
+
 echo "== gods' voices ==\n";
 foreach (array_merge(['sanguine' => 'maledrunk'], array_map(fn($g) => strval($g['voicewav'] ?? ''), tesGods())) as $k => $v) {
     $check($v !== '' && is_file("/home/dwemer/f5-tts/voices/{$v}.wav"), "{$k}: voice {$v}.wav exists in F5-TTS");
 }
+require_once 'lib/core/tts_filter_presets.php';
+foreach (tesGods() as $k => $g) {
+    $check(!empty($g['filter']) && isset(ttsFilterPresetCatalog()[$g['filter']]), "{$k}: own voice filter {$g['filter']} exists in CHIM's catalog");
+}
+tesWorldGodVoice('maledrunk', 'haunted');
+$check(($GLOBALS['TES_GOD_FILTER'] ?? '') === 'haunted' && ($GLOBALS['CHIM_TTS_FILTER_PRESET_ID'] ?? '') === 'haunted', 'a god line puts its own filter on, not the Narrator');
 $check(tesPriceSpoken('Сколько стоит эль?') === '', 'a question about a price is not a decree');
 
 echo "== fame ==\n";

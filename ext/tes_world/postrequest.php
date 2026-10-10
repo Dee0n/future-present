@@ -70,19 +70,15 @@ try {
 }
 
 // Rumors go into EVERY prompt (25 of them = ~1.7K tokens, with duplicates: owner, 2026-10-04,
-// "расход огромный"). Once a minute: duplicates out, at most 8 newest stay PER HOLD (a character sees only the
-// rumours of his own hold; rumours.php sends copies to the other holds) - backup in tes_backup_rumors.
+// "расход огромный"). Once a minute (tesRumorTrim, rumors.php): of OUR rumours duplicates out and the 3 freshest stay
+// PER HOLD (CHIM shows 3 per hold, unsorted); foreign rumours are never touched - backup in tes_backup_rumors.
 try {
     $tesRumorMark = sys_get_temp_dir() . '/tes_rumors_trim.ts';
     if (isset($GLOBALS['db']) && (time() - intval(@file_get_contents($tesRumorMark))) > 60) {
         @file_put_contents($tesRumorMark, strval(time()));
-        $db = $GLOBALS['db'];
-        $db->execQuery("CREATE TABLE IF NOT EXISTS public.tes_backup_rumors AS SELECT *, now() AS saved_at FROM public.rumors WHERE false");
-        $db->execQuery("INSERT INTO public.tes_backup_rumors SELECT r.*, now() FROM public.rumors r WHERE r.id IN ("
-            . "SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY content ORDER BY id DESC) AS dup, row_number() OVER (PARTITION BY hold ORDER BY id DESC) AS pos FROM public.rumors) t WHERE dup > 1 OR pos > 8)"
-            . " AND r.id NOT IN (SELECT id FROM public.tes_backup_rumors)");
-        $db->execQuery("DELETE FROM public.rumors WHERE id IN ("
-            . "SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY content ORDER BY id DESC) AS dup, row_number() OVER (PARTITION BY hold ORDER BY id DESC) AS pos FROM public.rumors) t WHERE dup > 1 OR pos > 8)");
+        if (function_exists('tesRumorTrim')) {
+            tesRumorTrim();
+        }
     }
 } catch (Throwable $e) {
     error_log('[tes_world rumors] ' . $e->getMessage());

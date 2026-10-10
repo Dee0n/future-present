@@ -137,7 +137,7 @@ if (!function_exists('tesSanguineSpoken')) {
             return ' *the laughter of Сангвин, Prince of revelry, rang out from somewhere' . ($did !== '' ? '; what happened: ' . preg_replace('/(?<![\p{L}])ты(?![\p{L}])/u', 'Сангвин', $did) : '') . '; react in your own way*';
         }
         if (function_exists('tesWorldGodVoice')) {
-            tesWorldGodVoice('maledrunk');  // no voice of Sanguine in the game: the merry drunk's
+            tesWorldGodVoice('maledrunk', 'commanding');  // no voice of Sanguine in the game: the merry drunk's
         }
         return ' *' . tesSanguineVoice() . ($did !== '' ? ' Already happened: ' . $did . '.' : '') . '*';
     }

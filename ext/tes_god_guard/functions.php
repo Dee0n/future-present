@@ -431,7 +431,7 @@ if (!function_exists('tesGodGuardValidate')) {
             'ts' => time(),
             'hold' => $hold,
             'content' => mb_substr(trim($content), 0, 400),
-            'type' => 'Local news',
+            'type' => 'TES news',  // our marker: tesRumorTrim touches only our own types
             'rumor_length_days' => $days,
         ]);
         return $hold;
