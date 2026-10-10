@@ -64,6 +64,24 @@ if len(sys.argv) > 2:
     for k, n in sorted(old.items()):
         d = abs(kinds[k] - n) / n
         check(d < 0.01, f"kind {k}: old {n}, new {kinds[k]}")
+    # template-inherited traits (TPLT + ACBS template flags) against the previous build
+    old_rows, _k = load(sys.argv[2])
+    check(kinds["npc"] == old["npc"], f"npc rows equal to old: {kinds['npc']}")
+    n_child = sum(1 for r in rows.values() if r[0] == "npc" and r[3].get("child"))
+    check(n_child >= 53, f"child NPCs: {n_child} (>= 53)")
+    changed = [(f, old_rows[f][3], r[3]) for f, r in rows.items()
+               if r[0] == "npc" and f in old_rows
+               and any(old_rows[f][3].get(k) != r[3].get(k) for k in ("sex", "race", "fac"))]
+    print(f"NPC rows with changed sex/race/fac: {len(changed)}")
+    for f, a, b in changed[:: max(1, len(changed) // 5)][:5]:
+        print(f"  {f} {rows[f][1]}: " + ", ".join(
+            f"{k} {a.get(k)} -> {b.get(k)}" for k in ("sex", "race", "fac") if a.get(k) != b.get(k)))
+    check(len(changed) > 0, "some NPC traits changed by templates")
+    gh = by_edid.get(("npc", "REQ_Bandit_Loc_CrackedTuskKeep_Ghunzul"))
+    check(gh is not None and not old_rows[gh][3].get("fac") and rows[gh][3].get("fac") == ["0001BCC0"],
+          "REQ_Bandit_Loc_CrackedTuskKeep_Ghunzul: no own factions, template faction 0001BCC0 now set")
+    check(sum(1 for r in rows.values() if r[3].get("tpl") == "lvln") > 0, "some NPCs marked tpl=lvln")
+    check(not any("_tf" in r[3] or "_tplt" in r[3] or "_lvlo" in r[3] for r in rows.values()), "no temp keys leaked")
 else:
     print("skip row-count comparison (no old.tsv given)")
 

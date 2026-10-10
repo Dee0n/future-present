@@ -298,6 +298,16 @@ def index_plugin(name, path, prefix_of, files, out):
                 extra["sex"] = "F" if af & 0x1 else "M"
                 extra["essential"] = bool(af & 0x2)
                 extra["unique"] = bool(af & 0x20)
+                if len(v) >= 20:
+                    extra["_tf"] = struct.unpack_from("<H", v, 18)[0]  # template flags (dropped in main)
+            elif t == b"TPLT" and typ == b"NPC_" and len(v) >= 4:
+                tpl = runtime(struct.unpack_from("<I", v)[0])
+                if tpl is not None:
+                    extra["_tplt"] = tpl
+            elif t == b"LVLO" and typ == b"LVLN" and len(v) >= 8:
+                ent = runtime(struct.unpack_from("<I", v, 4)[0])  # (level, pad, ref, count, pad)
+                if ent is not None:
+                    extra.setdefault("_lvlo", []).append(ent)
             elif t == b"RNAM" and typ == b"NPC_" and len(v) >= 4:
                 race = runtime(struct.unpack_from("<I", v)[0])
                 if race is not None:
@@ -374,6 +384,85 @@ def name_key(name):
     return re.sub(r"^\[[^\]]*\]\s*", "", name).lower()
 
 
+TF_TRAITS, TF_FACTIONS, TF_BASE = 0x1, 0x4, 0x80
+TPL_KEYS = ("sex", "race", "fac", "essential", "unique")
+
+
+def resolve_templates(out):
+    """Template-inherited traits: ACBS template flags say which groups the NPC takes from its TPLT.
+    Traits -> sex, race; Factions -> fac; Base Data -> essential, unique (name only if empty).
+    Chains are followed. A leveled list (LVLN) template: entries that all agree give the value,
+    otherwise the record keeps its own and gets "tpl": "lvln"."""
+    done = {}
+
+    def npc_vals(rid, seen):
+        """final {sex, race, fac, essential, unique} of an NPC row, and whether it is uncertain"""
+        if rid in done:
+            return done[rid]
+        row = out.get(rid)
+        if not row or row[0] != "npc" or not isinstance(row[4], dict) or rid in seen:
+            return None
+        ex = row[4]
+        vals = {k: ex[k] for k in TPL_KEYS if k in ex}
+        unsure = False
+        tf, tp = ex.get("_tf", 0), ex.get("_tplt")
+        if tf & (TF_TRAITS | TF_FACTIONS | TF_BASE) and tp is not None:
+            groups = ((TF_TRAITS, ("sex", "race")), (TF_FACTIONS, ("fac",)), (TF_BASE, ("essential", "unique")))
+            cands, _lst = leaf_npcs(tp, seen | {rid})
+            if cands:
+                for flag, keys in groups:
+                    if not tf & flag:
+                        continue
+                    for k in keys:
+                        vs = [json.dumps(c[0].get(k)) for c in cands]
+                        if len(set(vs)) == 1:
+                            if vs[0] != "null":
+                                vals[k] = cands[0][0][k]
+                            else:
+                                vals.pop(k, None)
+                        else:
+                            unsure = True
+                unsure = unsure or any(c[1] for c in cands)
+                if tf & TF_BASE and not row[2]:
+                    row[2] = out[tp][2] if tp in out and out[tp][0] == "npc" else row[2]
+        res = (vals, unsure)
+        done[rid] = res
+        return res
+
+    def leaf_npcs(rid, seen, depth=0):
+        """resolved values of the NPC rid, or of every NPC under the leveled list rid"""
+        row = out.get(rid)
+        if not row or depth > 8:
+            return [], False
+        if row[0] == "npc":
+            r = npc_vals(rid, seen)
+            return ([r], r[1]) if r else ([], False)
+        if row[0] == "leveled_npc":
+            res = []
+            for ent in row[4].get("_lvlo", []):
+                res += leaf_npcs(ent, seen, depth + 1)[0]
+            return res, True
+        return [], False
+
+    for rid, row in out.items():
+        if row[0] != "npc" or not isinstance(row[4], dict):
+            continue
+        ex = row[4]
+        r = npc_vals(rid, frozenset())
+        if r:
+            for k in TPL_KEYS:
+                if k in r[0]:
+                    ex[k] = r[0][k]
+                else:
+                    ex.pop(k, None)
+            if r[1]:
+                ex["tpl"] = "lvln"
+    for rid, row in out.items():
+        if isinstance(row[4], dict):
+            for k in ("_tf", "_tplt", "_lvlo"):
+                row[4].pop(k, None)
+
+
 def main(game_dir, profile, out_path):
     files = mo2_files(game_dir, profile)
     order = load_order(game_dir, profile, files)
@@ -405,8 +494,11 @@ def main(game_dir, profile, out_path):
             if base:
                 row[2] = base[2]
                 row[1] = row[1] or base[1]
+    resolve_templates(out)
     # NPC child flag comes from the RACE record (final override of the race)
     for rid, row in out.items():
+        if row[0] == "npc" and isinstance(row[4], dict):
+            row[4].pop("child", None)
         if row[0] == "npc" and isinstance(row[4], dict) and row[4].get("race"):
             race = out.get(int(row[4]["race"], 16))
             if race and race[0] == "race" and race[4].get("child"):
