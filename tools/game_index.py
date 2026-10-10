@@ -36,6 +36,7 @@ KINDS = {
     b"SPEL": "spell", b"FACT": "faction", b"WTHR": "weather", b"EXPL": "explosion",
     b"LVLN": "leveled_npc", b"OTFT": "outfit", b"PERK": "perk", b"ENCH": "enchantment",
     b"KYWD": "keyword", b"MGEF": "effect", b"AVIF": "skill",
+    b"RACE": "race", b"SHOU": "shout", b"WOOP": "word",
 }
 # Stats for the goal agent's find_item ("the best light thief armour" must be ranked on the
 # numbers the game really uses - Requiem rewrites most of them, the last override wins).
@@ -292,6 +293,29 @@ def index_plugin(name, path, prefix_of, files, out):
                 nxt = runtime(struct.unpack_from("<I", v)[0])  # next rank of a multi-rank perk
                 if nxt is not None:
                     extra["next"] = f"{nxt:08X}"
+            elif t == b"ACBS" and typ == b"NPC_" and len(v) >= 4:
+                af = struct.unpack_from("<I", v)[0]
+                extra["sex"] = "F" if af & 0x1 else "M"
+                extra["essential"] = bool(af & 0x2)
+                extra["unique"] = bool(af & 0x20)
+            elif t == b"RNAM" and typ == b"NPC_" and len(v) >= 4:
+                race = runtime(struct.unpack_from("<I", v)[0])
+                if race is not None:
+                    extra["race"] = f"{race:08X}"
+            elif t == b"SNAM" and typ == b"NPC_" and len(v) >= 4:
+                fac = runtime(struct.unpack_from("<I", v)[0])  # (faction, rank, 3 pad)
+                if fac is not None:
+                    extra.setdefault("fac", []).append(f"{fac:08X}")
+            elif t == b"DATA" and typ == b"RACE" and len(v) >= 36:
+                extra["child"] = bool(struct.unpack_from("<I", v, 32)[0] & 0x4)  # flag "Child"
+            elif t == b"XLCN" and typ == b"CELL" and len(v) >= 4:
+                loc = runtime(struct.unpack_from("<I", v)[0])
+                if loc is not None:
+                    extra["loc"] = f"{loc:08X}"
+            elif t == b"PNAM" and typ == b"LCTN" and len(v) >= 4:
+                par = runtime(struct.unpack_from("<I", v)[0])
+                if par is not None:
+                    extra["parent"] = f"{par:08X}"
             elif t == b"EFID" and len(v) >= 4:
                 eff = runtime(struct.unpack_from("<I", v)[0])
                 effects.append({"e": f"{eff:08X}" if eff is not None else ""})
@@ -381,6 +405,12 @@ def main(game_dir, profile, out_path):
             if base:
                 row[2] = base[2]
                 row[1] = row[1] or base[1]
+    # NPC child flag comes from the RACE record (final override of the race)
+    for rid, row in out.items():
+        if row[0] == "npc" and isinstance(row[4], dict) and row[4].get("race"):
+            race = out.get(int(row[4]["race"], 16))
+            if race and race[0] == "race" and race[4].get("child"):
+                row[4]["child"] = True
     # perk -> skill from the AVIF perk trees, then down each perk's rank chain (NNAM)
     for rid, row in list(out.items()):
         if row[0] != "skill" or not isinstance(row[4], dict):
