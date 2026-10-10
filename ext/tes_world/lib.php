@@ -827,7 +827,7 @@ if (!function_exists('tesWorldEnsureTable')) {
         $around = implode(', ', tesWorldNearbyNames());
         $context = ($around !== '' ? " Nearby now: {$around} - a garbled name is whoever of them sounds closest." : '');
         [$ok] = tesAgentStart("Приказ правителя ({$title}), отданный через {$actor}: {$order}. Дословно ярл сказал (с голоса, имена могут быть исковерканы): «" . mb_substr($order, 0, 300) . "».{$context}"
-            . " Ruler: {$player}. Executor {$actor}: carry out the order with HIS hands - {npc:{$actor}}.moveto/follow/escort to the target, undress - unequipall, dress - equipitem, sex between two - console «{npc:Name}.teslove <partner refid> tags», hand over things - tesgive, gather people - {npc:Name}.moveto player (one by one) or moveto to the place. Jail/fine orders - with your own tools. Do EXACTLY what was ordered and nothing more. If it fails twice - give_up with the reason.", false, false, true);
+            . " Ruler: {$player}. Executor {$actor}: carry out the order with HIS hands - {npc:{$actor}}.moveto/follow/escort to the target, undress - unequipall, dress - equipitem, hand over things - tesgive, gather people - {npc:Name}.moveto player (one by one) or moveto to the place. Jail/fine orders - with your own tools. Do EXACTLY what was ordered and nothing more. If it fails twice - give_up with the reason.", false, false, true);
         return $ok ? 'агент запущен' : '';
     }
 

@@ -119,6 +119,11 @@ if (empty($GLOBALS['TES_WORLD_HOOK'])) {
                     // Papyrus log 2026-10-04), so its commands reach the game and nobody runs them.
                     // The two that matter are done by this mod's own bridge instead:
                     // undress -> unequipall, any "start …" -> an OStim scene (teslove).
+                    // Since 2026-10-10 these actions are SHARMAT's (its game script runs them itself);
+                    // only the child check above stays ours. TES_WORLD_INSTANT_SCENES brings the takeover back.
+                    if (!defined('TES_WORLD_INSTANT_SCENES') || !TES_WORLD_INSTANT_SCENES) {
+                        continue;
+                    }
                     $extCode = strval($code ?: $call[0]);
                     $extRef = tesWorldRefOf($extActor);
                     if ($extRef !== '' && $extCode === 'ExtCmdRemoveClothes') {

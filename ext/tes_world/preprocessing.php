@@ -213,7 +213,10 @@ try {
         // "пора бы мне начинать" - Сигрид answered "я готова" three times and never chose the
         // action that starts it. What kind: from this line; "начинаем" alone - from what the
         // player said to the same person in the last 10 minutes.
-        if ($tesWorldWith !== '' && empty($tesWorldStopped) && !tesWorldIsChild($tesWorldWith)) {
+        // Off since 2026-10-10 (owner: "I do not want to say it and have it start"): scenes are
+        // SHARMAT's, with consent and relationships. TES_WORLD_INSTANT_SCENES brings this back.
+        if (defined('TES_WORLD_INSTANT_SCENES') && TES_WORLD_INSTANT_SCENES
+            && $tesWorldWith !== '' && empty($tesWorldStopped) && !tesWorldIsChild($tesWorldWith)) {
             $tesWorldLove = tesWorldLoveTags($tesWorldLine);
             // "Займись самоудовлетворением", "Драчи себе" (live 15:16): one person, no partner - a solo scene
             $tesWorldSolo = (bool)preg_match('/(мастурб\p{L}*|самоудовлетвор\p{L}*|(?:дроч\p{L}*|драч\p{L}*|потр\p{L}+|поласкай|ласкай|трогай)\s+(?:себе|себя)|себе\s+(?:клитор|писю|пизду|член|сиськи))/iu', $tesWorldLine);

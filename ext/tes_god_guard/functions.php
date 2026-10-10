@@ -1529,6 +1529,10 @@ if (!function_exists('tesGodGuardValidate')) {
             }
             // sex / love: an OStim scene (bridge teslove). "{npc:X}.sex" - with the player,
             // "{npc:X}.sex {npc:Y}" - the two of them. Adults only.
+            if ($verb === 'teslove' && !preg_match('/^\s*stop\b/i', $body) && (!defined('TES_WORLD_INSTANT_SCENES') || !TES_WORLD_INSTANT_SCENES)) {
+                $reasons[] = "«{$command}»: сцены по приказу не запускаются — это решают сами люди (SHARMAT)";
+                continue;
+            }
             if (in_array($verb, ['sex', 'love', 'ostim', 'fuck'], true)) {
                 $a = (preg_match('/^\{npc:([^}]+)\}$/u', $target, $am) && class_exists('RelationshipManager')) ? tesGodGuardResolveNpcLoose(trim($am[1])) : null;
                 $b = (preg_match('/\{npc:([^}]+)\}/u', $body, $bm) && class_exists('RelationshipManager')) ? tesGodGuardResolveNpcLoose(trim($bm[1])) : null;
@@ -1544,6 +1548,11 @@ if (!function_exists('tesGodGuardValidate')) {
                 $loveTags = function_exists('tesWorldLoveTags') ? tesWorldLoveTags(preg_replace('/\{npc:[^}]+\}/u', ' ', $body) ?? '') : '';
                 if (preg_match('/(?<![\p{L}])(stop|end|хватит|стоп|законч)/iu', $body)) {
                     $kept[] = strtoupper(strval($a['refid'])) . '.teslove stop';
+                    continue;
+                }
+                // Off since 2026-10-10 (owner): no scene on command; scenes are SHARMAT's, with consent.
+                if (!defined('TES_WORLD_INSTANT_SCENES') || !TES_WORLD_INSTANT_SCENES) {
+                    $reasons[] = "«{$command}»: сцены по приказу не запускаются — это решают сами люди (SHARMAT); остановить: {npc:Имя}.sex stop";
                     continue;
                 }
                 $kept[] = trim(strtoupper(strval($a['refid'])) . '.teslove ' . $partner . ' ' . (function_exists('tesWorldLoveArg') ? tesWorldLoveArg($loveTags) : $loveTags));
