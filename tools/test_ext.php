@@ -291,7 +291,7 @@ $unmetActor = $GLOBALS['db']->fetchOne("
     SELECT gi.name FROM public.tes_game_index gi
     LEFT JOIN public.core_npc_master npc ON npc.npc_name = gi.name
     WHERE gi.kind = 'actor' AND gi.name <> '' AND npc.id IS NULL
-      AND (SELECT count(*) FROM public.tes_game_index g2 WHERE g2.name_lc = gi.name_lc) = 1
+      AND (SELECT count(*) FROM public.tes_game_index g2 WHERE g2.kind = 'actor' AND g2.name_lc = gi.name_lc) = 1
     ORDER BY gi.formid
     LIMIT 1
 ");
